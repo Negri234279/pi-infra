@@ -11,5 +11,4 @@
 # so each app is one explicit line.)
 include:
   - core/docker-compose.yml
-  # Apps (uncomment / add one line per app):
-  # - apps/powerlog/compose.yml
+  # Apps (one line per app):

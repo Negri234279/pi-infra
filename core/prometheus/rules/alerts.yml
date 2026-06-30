@@ -110,3 +110,35 @@ groups:
         annotations:
           summary: "cAdvisor is down"
           description: "No per-container metrics for >5m (job=cadvisor)."
+
+  # ── Shared database (postgres-exporter) ─────────────────────────────────
+  - name: database
+    rules:
+      - alert: PostgresExporterDown
+        expr: up{job="postgres"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "postgres-exporter is down"
+          description: "No database metrics for >2m (job=postgres) — the shared Postgres may be unreachable."
+
+      - alert: PostgresDown
+        expr: pg_up == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Shared Postgres is down"
+          description: "pg_up == 0 — the shared database is unreachable; all apps are affected."
+
+      - alert: PostgresTooManyConnections
+        expr: |
+          sum by (server) (pg_stat_activity_count)
+            / on (server) (pg_settings_max_connections) > 0.8
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Shared Postgres connection usage high"
+          description: "Postgres is using >80% of max_connections for >5m — consider raising PgBouncer pooling / max_connections."

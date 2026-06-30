@@ -25,13 +25,6 @@ datasources:
       implementation: prometheus
       handleGrafanaManagedAlerts: false
 
-  # --- Per-app template: copy this block per app, change name/uid/url ---
-  # The app's compose must join the external `monitoring` network and name its
-  # Prometheus service so it resolves here (e.g. `powerlog-prometheus`).
-  - name: powerlog
-    uid: prometheus-powerlog
-    type: prometheus
-    access: proxy
-    url: http://powerlog-prometheus:9090
-    jsonData:
-      timeInterval: 15s
+# Per-app datasources live in their OWN file (Grafana loads every *.yml here),
+# synced from each app's repo — e.g. powerlog.yml. Keep this file to the core
+# (Infra + Alertmanager) so app syncs never touch it.

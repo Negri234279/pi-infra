@@ -110,7 +110,12 @@ Copy the template and wire it in:
 3. Add a datasource block in
    `core/grafana/provisioning/datasources/datasources.yml` (copy the per-app
    template, change `name`/`uid`/`url`).
-4. `docker compose up -d`.
+4. **Database**: `cp apps/myapp/postgres/provision.env.example apps/myapp/postgres/provision.env`
+   and set `APP_DB` / `APP_DB_USER` / `APP_DB_PASSWORD`. The core provisioner
+   creates that role+db on the **shared Postgres** on `up`; the app connects via
+   `pgbouncer:6432` (runtime) and `postgres:5432` (migrations). Join the `db`
+   network. No per-app Postgres.
+5. `docker compose up -d`.
 
 The infra Prometheus does **not** scrape app business metrics — keep app scrape jobs
 in the app's own Prometheus. cadvisor already covers each app container's resource
@@ -127,6 +132,32 @@ dashboards provider (`foldersFromFilesStructure: true`) shows each app's JSONs i
 Grafana folder named after the subdirectory. Logs/traces panels (Loki/Tempo) won't
 resolve here — the central Grafana is metrics-only; use the app's own Grafana for
 full correlation.
+
+## Shared database (Postgres + PgBouncer)
+
+One Postgres for every app (`core/postgres`), on the private `db` network, never
+published to the host. Apps don't run their own Postgres — they get an isolated
+**role + database** on this instance:
+
+- **Provisioning** (`core/postgres/provision/provision.sh`): an idempotent
+  one-shot that runs on every `up`. It reads each `apps/<app>/postgres/provision.env`
+  (`APP_DB` / `APP_DB_USER` / `APP_DB_PASSWORD`, operator-set) and ensures the
+  role, database and grants (`REVOKE CONNECT … FROM PUBLIC`, so apps can't reach
+  each other's data). New apps need no manual SQL.
+- **PgBouncer** (transaction pooling) fronts Postgres. A wildcard `[databases]`
+  plus `auth_query` means a freshly-provisioned app works through the pooler with
+  **zero PgBouncer config** — it asks Postgres for the password via a SECURITY
+  DEFINER function. Apps point their runtime at `pgbouncer:6432`.
+- **Migrations bypass the pooler**: a session-level advisory lock is incompatible
+  with transaction pooling, so migration runners connect to `postgres:5432`
+  directly (a separate `*_MIGRATIONS_*` URL).
+- **Metrics**: one `postgres-exporter` auto-discovers every database; the infra
+  Prometheus scrapes it and the **PostgreSQL · shared** dashboard (Databases
+  folder) filters by `datname`. DB alerts (down, connection pressure) live in the
+  core and route to the core's Discord.
+
+Set `POSTGRES_SUPERUSER_PASSWORD`, `PG_EXPORTER_PASSWORD` and
+`PGBOUNCER_AUTH_PASSWORD` in the root `.env`.
 
 ## Reverse proxy (NGINX Proxy Manager)
 

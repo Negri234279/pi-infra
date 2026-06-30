@@ -46,3 +46,9 @@ scrape_configs:
   - job_name: nginx-proxy-manager
     static_configs:
       - targets: ["npm-exporter:4040"]
+
+  # Shared Postgres: one exporter, auto-discovering every app's database. Metrics
+  # are labelled by `datname`, so per-app dashboards filter on it.
+  - job_name: postgres
+    static_configs:
+      - targets: ["postgres-exporter:9187"]

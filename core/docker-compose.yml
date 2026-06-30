@@ -172,11 +172,126 @@ services:
     networks:
       - monitoring
 
+  # ── Shared database (one Postgres for every app) ─────────────────────────
+  # Apps no longer run their own Postgres: they get a per-app role + database on
+  # this instance (provisioned below) and connect through PgBouncer. Lives on the
+  # private `db` network; never published to the host.
+  postgres:
+    image: postgres:16-alpine
+    container_name: postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_SUPERUSER_PASSWORD:-postgres}
+      POSTGRES_DB: postgres
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    deploy:
+      resources:
+        limits: { cpus: "1.0", memory: 1g }
+    networks:
+      - db
+
+  # Idempotent provisioner (one-shot on every `up`): ensures the PgBouncer auth
+  # backend, the exporter role, and each app's role+db+grants from
+  # apps/*/postgres/provision.env. See core/postgres/provision/provision.sh.
+  postgres-provisioner:
+    image: postgres:16-alpine
+    container_name: postgres-provisioner
+    restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_SUPERUSER: postgres
+      POSTGRES_SUPERUSER_PASSWORD: ${POSTGRES_SUPERUSER_PASSWORD:-postgres}
+      PG_EXPORTER_USER: ${PG_EXPORTER_USER:-postgres_exporter}
+      PG_EXPORTER_PASSWORD: ${PG_EXPORTER_PASSWORD:-postgres_exporter}
+      PGBOUNCER_AUTH_PASSWORD: ${PGBOUNCER_AUTH_PASSWORD:-pgbouncer_auth}
+    entrypoint: ["sh", "/provision.sh"]
+    volumes:
+      - ./postgres/provision/provision.sh:/provision.sh:ro
+      # Read every app's provisioning spec (apps/<app>/postgres/provision.env).
+      - ../apps:/apps:ro
+    networks:
+      - db
+
+  # Writes the single PgBouncer auth credential into a secret file (Alertmanager
+  # pattern) so it never lives in git. PgBouncer authenticates every other user
+  # via auth_query against Postgres, so this is the only entry in userlist.txt.
+  pgbouncer-init:
+    image: busybox:1.37
+    container_name: pgbouncer-init
+    command:
+      - sh
+      - -c
+      - 'printf "\"pgbouncer_auth\" \"%s\"\n" "$$PGBOUNCER_AUTH_PASSWORD" > /secrets/userlist.txt && echo "wrote pgbouncer userlist"'
+    environment:
+      PGBOUNCER_AUTH_PASSWORD: ${PGBOUNCER_AUTH_PASSWORD:-pgbouncer_auth}
+    volumes:
+      - pgbouncer-secrets:/secrets
+    restart: "no"
+
+  # Connection pooler (transaction mode) in front of the shared Postgres. Apps
+  # point their RUNTIME at pgbouncer:6432; migrations bypass it (direct to
+  # postgres:5432). New apps need no config here — see core/pgbouncer/pgbouncer.ini.
+  pgbouncer:
+    image: edoburu/pgbouncer:latest
+    container_name: pgbouncer
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      postgres-provisioner:
+        condition: service_completed_successfully
+      pgbouncer-init:
+        condition: service_completed_successfully
+    volumes:
+      - ./pgbouncer/pgbouncer.ini:/etc/pgbouncer/pgbouncer.ini:ro
+      - pgbouncer-secrets:/etc/pgbouncer-secrets:ro
+    deploy:
+      resources:
+        limits: { cpus: "0.5", memory: 128m }
+    networks:
+      - db
+
+  # One exporter for the WHOLE cluster: auto-discovers every database and labels
+  # series by `datname`, so a single Infra scrape covers all apps. Uses the
+  # least-privilege pg_monitor role created by the provisioner.
+  postgres-exporter:
+    image: quay.io/prometheuscommunity/postgres-exporter:v0.16.0
+    container_name: postgres-exporter
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      postgres-provisioner:
+        condition: service_completed_successfully
+    environment:
+      DATA_SOURCE_NAME: "postgresql://${PG_EXPORTER_USER:-postgres_exporter}:${PG_EXPORTER_PASSWORD:-postgres_exporter}@postgres:5432/postgres?sslmode=disable"
+      PG_EXPORTER_AUTO_DISCOVER_DATABASES: "true"
+      PG_EXPORTER_EXCLUDE_DATABASES: "template0,template1"
+    deploy:
+      resources:
+        limits: { cpus: "0.25", memory: 128m }
+    networks:
+      - db        # reach Postgres
+      - monitoring # be scraped by the infra Prometheus
+
 volumes:
   grafana-data:
   prometheus-data:
   alertmanager-data:
   alertmanager-secrets:
+  postgres-data:
+  pgbouncer-secrets:
 
 # Shared, cross-app network. Declared external so each app's compose (under ../apps/,
 # or in its own repo) can join the SAME network (`networks: [monitoring]` +
@@ -186,3 +301,8 @@ networks:
   monitoring:
     external: true
     name: monitoring
+  # Shared DB network: the Postgres/PgBouncer above ↔ each app. External so apps
+  # in their own composes can join it. Create it with scripts/create-network.sh.
+  db:
+    external: true
+    name: db

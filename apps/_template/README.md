@@ -25,7 +25,19 @@ Copy this folder to `apps/<app>/` and wire it into the central stack.
    `name` / `uid` / `url` to match your Prometheus service name
    (`http://myapp-prometheus:9090`).
 
-4. **Bring it up** (from the repo root):
+4. **Database** (shared Postgres — don't run your own):
+
+   ```bash
+   cp apps/myapp/postgres/provision.env.example apps/myapp/postgres/provision.env
+   # set APP_DB / APP_DB_USER / APP_DB_PASSWORD
+   ```
+
+   The core provisioner creates that role+db on `up`. Join the external `db`
+   network and connect at `pgbouncer:6432/<APP_DB>` (runtime) — migrations go
+   directly to `postgres:5432/<APP_DB>` (the pooler is transaction-mode; a
+   migrator's session advisory lock needs a direct connection).
+
+5. **Bring it up** (from the repo root):
 
    ```bash
    docker compose up -d
