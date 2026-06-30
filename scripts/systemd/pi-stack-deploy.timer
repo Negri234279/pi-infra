@@ -1,0 +1,13 @@
+# Checks the repo for updates every 5 minutes (and 2 min after boot).
+# Persistent=true catches up on a missed run if the Pi was off.
+[Unit]
+Description=Periodically deploy pi-stack from git
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=5min
+Persistent=true
+Unit=pi-stack-deploy.service
+
+[Install]
+WantedBy=timers.target

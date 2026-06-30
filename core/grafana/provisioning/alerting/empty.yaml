@@ -1,0 +1,3 @@
+# Grafana-managed alerting is not used (alerting runs in Prometheus/Alertmanager).
+# This empty-but-valid file keeps the directory present without provisioning logs.
+apiVersion: 1

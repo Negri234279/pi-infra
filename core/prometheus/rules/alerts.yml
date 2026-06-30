@@ -1,0 +1,112 @@
+# Alert rules for the Raspberry Pi 5 observability core.
+# Thresholds are tuned for a single home Pi; adjust `for:` / values to taste.
+groups:
+  # ── Host (node-exporter) ────────────────────────────────────────────────
+  - name: host
+    rules:
+      - alert: HostNodeExporterDown
+        expr: up{job="node"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "node-exporter is down"
+          description: "No host metrics from the Pi for >2m (job=node)."
+
+      - alert: HostHighCpu
+        expr: 100 - (avg(irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 85
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High CPU on the Pi"
+          description: "CPU busy {{ printf \"%.0f\" $value }}% for >10m."
+
+      - alert: HostHighMemory
+        expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 90
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High memory usage on the Pi"
+          description: "Memory used {{ printf \"%.0f\" $value }}% for >10m."
+
+      - alert: HostHighSwap
+        expr: (node_memory_SwapTotal_bytes - node_memory_SwapFree_bytes) / clamp_min(node_memory_SwapTotal_bytes, 1) * 100 > 50
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Swap heavily used on the Pi"
+          description: "Swap used {{ printf \"%.0f\" $value }}% for >10m — memory pressure."
+
+      - alert: HostHighTemperature
+        expr: max(node_hwmon_temp_celsius) > 75
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Pi running hot"
+          description: "SoC temperature {{ printf \"%.1f\" $value }}°C for >5m. Check cooling."
+
+      - alert: HostCriticalTemperature
+        expr: max(node_hwmon_temp_celsius) > 82
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Pi temperature critical"
+          description: "SoC temperature {{ printf \"%.1f\" $value }}°C — thermal throttling imminent."
+
+      - alert: HostDiskSpaceLow
+        expr: |
+          (1 - (node_filesystem_avail_bytes{mountpoint="/",fstype!~"tmpfs|overlay"}
+              / node_filesystem_size_bytes{mountpoint="/",fstype!~"tmpfs|overlay"})) * 100 > 85
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Disk filling up"
+          description: "Root filesystem {{ printf \"%.0f\" $value }}% full."
+
+      - alert: HostDiskSpaceCritical
+        expr: |
+          (1 - (node_filesystem_avail_bytes{mountpoint="/",fstype!~"tmpfs|overlay"}
+              / node_filesystem_size_bytes{mountpoint="/",fstype!~"tmpfs|overlay"})) * 100 > 95
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Disk almost full"
+          description: "Root filesystem {{ printf \"%.0f\" $value }}% full — act now."
+
+      - alert: HostDiskWillFillIn24h
+        expr: |
+          predict_linear(node_filesystem_avail_bytes{mountpoint="/",fstype!~"tmpfs|overlay"}[6h], 24*3600) < 0
+        for: 1h
+        labels:
+          severity: warning
+        annotations:
+          summary: "Disk predicted to fill within 24h"
+          description: "At the current rate the root filesystem runs out of space in <24h."
+
+  # ── Monitoring self-health ──────────────────────────────────────────────
+  - name: monitoring
+    rules:
+      - alert: TargetDown
+        expr: up == 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Scrape target down"
+          description: "Target {{ $labels.job }} / {{ $labels.instance }} unreachable for >5m."
+
+      - alert: CadvisorDown
+        expr: up{job="cadvisor"} == 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "cAdvisor is down"
+          description: "No per-container metrics for >5m (job=cadvisor)."

@@ -1,0 +1,3 @@
+# No plugins are provisioned. Empty-but-valid file to keep the directory present
+# without provisioning warnings.
+apiVersion: 1

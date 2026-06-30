@@ -1,0 +1,34 @@
+# prometheus-nginxlog-exporter config for Nginx Proxy Manager.
+#
+# Reads ONLY the combined log NPM writes via server_proxy.conf (NOT the per-host
+# proxy-host-*_access.log files — those use NPM's built-in `proxy` format and
+# would produce parse errors here). The `format` below must stay identical to the
+# `log_format nginxlog` defined in http_top.conf.
+#
+# Namespace is `nginx` so metrics are named nginx_http_* — matches the Grafana
+# dashboard (grafana.com/25257). Verified end to end: parse_errors_total == 0.
+
+listen:
+  port: 4040
+  metrics_endpoint: /metrics
+
+namespaces:
+  - name: nginx
+    format: '$remote_addr - $remote_user [$time_local] "$request" $status $body_bytes_sent "$http_referer" "$http_user_agent" $request_length $request_time'
+    source:
+      files:
+        - /npm-logs/all_proxy_access.log
+    labels:
+      service: nginx-proxy-manager
+    relabel_configs:
+      # method = first token of "$request" (GET/POST/...).
+      - target_label: method
+        from: request
+        split: 1
+      # uri = second token, query string stripped to keep label cardinality low.
+      - target_label: uri
+        from: request
+        split: 2
+        matches:
+          - regexp: '^([^?]*).*$'
+            replacement: '$1'

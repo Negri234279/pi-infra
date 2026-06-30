@@ -1,0 +1,50 @@
+# Template for an app that plugs into the central observability stack.
+#
+# Copy this folder to apps/<app>/ and replace every "myapp" with your app name.
+# Then register it in the ROOT docker-compose.yml `include:` list, e.g.
+#   - apps/myapp/compose.yml
+#
+# Pattern: the app and its DB talk on a PRIVATE network (myapp-net). The app's OWN
+# Prometheus scrapes the app's /metrics on that private network AND joins the shared
+# `monitoring` network with a STABLE service name (myapp-prometheus) so the central
+# Grafana can query it as a datasource. The infra Prometheus does NOT scrape app
+# business metrics — cadvisor already covers the app's container resource usage.
+
+services:
+  # --- Your app (replace with the real image/build) ---
+  myapp:
+    image: ghcr.io/example/myapp:latest
+    container_name: myapp
+    restart: unless-stopped
+    # ports: ["8080:8080"]   # usually NOT needed: expose via nginx-proxy-manager
+    networks:
+      - myapp-net
+
+  # --- The app's own Prometheus ---
+  myapp-prometheus:
+    image: prom/prometheus:v3.1.0
+    container_name: myapp-prometheus
+    restart: unless-stopped
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=15d"
+      - "--storage.tsdb.retention.size=1GB"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - myapp-prometheus-data:/prometheus
+    networks:
+      - myapp-net     # to reach the app's /metrics privately
+      - monitoring    # so central Grafana can query it by DNS name
+
+volumes:
+  myapp-prometheus-data:
+
+networks:
+  # Private network for app ↔ db ↔ its own Prometheus.
+  myapp-net:
+    name: myapp-net
+  # Shared, created once by scripts/create-network.sh — joined, not created here.
+  monitoring:
+    external: true
+    name: monitoring

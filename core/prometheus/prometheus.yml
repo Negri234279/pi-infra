@@ -1,0 +1,48 @@
+# INFRA Prometheus — host + container metrics for the Raspberry Pi 5.
+#
+# Scope is deliberately narrow: the Pi itself (node-exporter) and every
+# container (cadvisor). Per-app business metrics live in each app's OWN
+# Prometheus, which this stack's Grafana queries as a separate datasource over
+# the shared `monitoring` network. Keep app scrape jobs OUT of this file.
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    host: rpi5
+    role: infra
+
+rule_files:
+  - /etc/prometheus/rules/*.yml
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ["alertmanager:9093"]
+
+scrape_configs:
+  # Self-health.
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  - job_name: alertmanager
+    static_configs:
+      - targets: ["alertmanager:9093"]
+
+  # Host: CPU, RAM, swap, disk, network, RPi5 temperature (hwmon).
+  - job_name: node
+    static_configs:
+      - targets: ["node-exporter:9100"]
+
+  # All containers on the Pi (reached by service DNS on the monitoring network).
+  - job_name: cadvisor
+    static_configs:
+      - targets: ["cadvisor:8080"]
+
+  # nginx-proxy-manager metrics via the nginxlog-exporter. Both NPM and the
+  # exporter now run in the CORE stack (see core/docker-compose.yml and
+  # core/nginx-proxy-manager/); the exporter tails NPM's combined access log.
+  - job_name: nginx-proxy-manager
+    static_configs:
+      - targets: ["npm-exporter:4040"]

@@ -1,0 +1,37 @@
+# Alertmanager — routes Pi alerts to Discord.
+#
+# The webhook URL is NOT here: the `alertmanager-init` container writes
+# $DISCORD_WEBHOOK_URL (from .env) into the file referenced below, so no secret
+# lives in git. Native Discord receiver (Alertmanager v0.27+).
+
+route:
+  receiver: discord
+  group_by: ["alertname", "instance"]
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+  routes:
+    # Critical alerts re-notify more often.
+    - matchers:
+        - severity = "critical"
+      repeat_interval: 1h
+
+receivers:
+  - name: discord
+    discord_configs:
+      - webhook_url_file: /etc/alertmanager/secrets/discord_webhook_url
+        send_resolved: true
+        title: '{{ if eq .Status "firing" }}🔥{{ else }}✅{{ end }} [{{ .Status | toUpper }}{{ if eq .Status "firing" }}:{{ .Alerts.Firing | len }}{{ end }}] {{ .CommonLabels.alertname }}'
+        message: |-
+          {{ range .Alerts }}**{{ .Labels.severity | toUpper }}** · `{{ .Labels.instance }}`
+          {{ .Annotations.summary }}
+          {{ .Annotations.description }}
+          {{ end }}
+
+# A critical alert silences the matching warning for the same alert/instance.
+inhibit_rules:
+  - source_matchers:
+      - severity = "critical"
+    target_matchers:
+      - severity = "warning"
+    equal: ["alertname", "instance"]

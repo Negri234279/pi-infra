@@ -1,0 +1,15 @@
+# ROOT orchestrator for the whole Pi stack.
+#
+# `include:` merges the CORE infra (core/docker-compose.yml) and every registered app
+# (apps/<app>/) into a single Compose project, so one command brings up everything:
+#
+#   ./scripts/create-network.sh   # once: create the shared `monitoring` network
+#   docker compose up -d          # core + all apps below
+#
+# To register an app: copy apps/_template/ to apps/<app>/, wire it up (see its README),
+# then add one line under `include:` here. (Compose `include:` does not support globs,
+# so each app is one explicit line.)
+include:
+  - core/docker-compose.yml
+  # Apps (uncomment / add one line per app):
+  # - apps/powerlog/compose.yml

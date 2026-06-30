@@ -1,0 +1,188 @@
+# CORE infra stack for the Raspberry Pi 5 (Linux ARM64).
+#
+# Owns the shared infrastructure of the Pi: the reverse proxy (nginx-proxy-manager)
+# plus full observability — the shared Grafana and the INFRA Prometheus that scrapes
+# host- and container-level metrics (node-exporter + cadvisor) and NPM's logs.
+#
+# This file is normally launched via the ROOT compose (../docker-compose.yml), which
+# `include:`s it alongside each app under ../apps/. To run only the core:
+#
+#   Run once:  ../scripts/create-network.sh   (creates the shared `monitoring` network)
+#   Up:        docker compose -f core/docker-compose.yml up -d    (from the repo root)
+#
+# Each app keeps its own Prometheus (under ../apps/<app>/) and joins the external
+# `monitoring` network so this Grafana can query it directly as a datasource.
+#
+# All images are multi-arch and run natively on arm64; the compose is meant to run
+# ON the Pi, so the correct arch is pulled automatically.
+
+services:
+  grafana:
+    image: grafana/grafana:11.4.0
+    container_name: grafana
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GF_ADMIN_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GF_ADMIN_PASSWORD:-admin}
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_ANALYTICS_REPORTING_ENABLED=false
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/api/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    networks:
+      - monitoring
+
+  prometheus:
+    image: prom/prometheus:v3.1.0
+    container_name: prometheus-infra
+    restart: unless-stopped
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=${PROM_RETENTION_TIME:-15d}"
+      - "--storage.tsdb.retention.size=${PROM_RETENTION_SIZE:-2GB}"
+      - "--web.enable-lifecycle"
+    ports:
+      - "9090:9090"
+    volumes:
+      # Whole dir so rule files under prometheus/rules/ are mounted too.
+      - ./prometheus:/etc/prometheus:ro
+      - prometheus-data:/prometheus
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:9090/-/healthy || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    networks:
+      - monitoring
+
+  # Host metrics: CPU, RAM, swap, disk, network, and RPi5 temperature (hwmon).
+  node-exporter:
+    image: quay.io/prometheus/node-exporter:v1.8.2
+    container_name: node-exporter
+    restart: unless-stopped
+    command:
+      - "--path.rootfs=/host"
+      - "--path.procfs=/host/proc"
+      - "--path.sysfs=/host/sys"
+      - "--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)"
+    pid: host
+    volumes:
+      - /:/host:ro,rslave
+    networks:
+      - monitoring
+
+  # Per-container metrics for EVERY container on the Pi. Tuned for ARM/low-power:
+  # docker-only, slower housekeeping, and noisy/expensive collectors disabled.
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.49.1
+    container_name: cadvisor
+    restart: unless-stopped
+    command:
+      - "--housekeeping_interval=30s"
+      - "--docker_only=true"
+      - "--disable_metrics=disk,tcp,udp,sched,process,hugetlb,referenced_memory,cpu_topology,resctrl"
+    privileged: true
+    devices:
+      - /dev/kmsg
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    networks:
+      - monitoring
+
+  # Reverse proxy for the whole Pi. This stack OWNS NPM (it is no longer an external
+  # integration). Admin UI on :81, HTTP/HTTPS on :80/:443. Uses NPM's embedded SQLite
+  # by default — no separate DB needed. The two npm-custom/*.conf files add a combined
+  # access log at /data/logs/all_proxy_access.log that the exporter below tails.
+  nginx-proxy-manager:
+    image: jc21/nginx-proxy-manager:2.12.3
+    container_name: nginx-proxy-manager
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "81:81"
+    volumes:
+      - ./nginx-proxy-manager/data:/data
+      - ./nginx-proxy-manager/letsencrypt:/etc/letsencrypt
+      - ./nginx-proxy-manager/npm-custom/http_top.conf:/data/nginx/custom/http_top.conf:ro
+      - ./nginx-proxy-manager/npm-custom/server_proxy.conf:/data/nginx/custom/server_proxy.conf:ro
+    networks:
+      - monitoring
+
+  # Turns NPM's combined access log into nginx_http_* Prometheus metrics (job
+  # `nginx-proxy-manager`, dashboard 25257). Reads the log volume NPM writes.
+  npm-exporter:
+    image: quay.io/martinhelmich/prometheus-nginxlog-exporter:v1
+    container_name: npm-exporter
+    restart: unless-stopped
+    command: ["-config-file", "/etc/exporter/config.yml"]
+    volumes:
+      - ./nginx-proxy-manager/exporter-config.yml:/etc/exporter/config.yml:ro
+      - ./nginx-proxy-manager/data/logs:/npm-logs:ro
+    depends_on:
+      - nginx-proxy-manager
+    networks:
+      - monitoring
+
+  # Writes the Discord webhook (from .env / DISCORD_WEBHOOK_URL) into a file so
+  # Alertmanager can read it via `webhook_url_file` — Alertmanager does NOT
+  # expand env vars in its config, so the secret stays out of the YAML and git.
+  alertmanager-init:
+    image: busybox:1.37
+    container_name: alertmanager-init
+    command:
+      - "sh"
+      - "-c"
+      - 'printf "%s" "$$DISCORD_WEBHOOK_URL" > /secrets/discord_webhook_url && echo "wrote discord webhook secret"'
+    environment:
+      - DISCORD_WEBHOOK_URL=${DISCORD_WEBHOOK_URL:-}
+    volumes:
+      - alertmanager-secrets:/secrets
+    restart: "no"
+
+  alertmanager:
+    image: prom/alertmanager:v0.28.0
+    container_name: alertmanager
+    restart: unless-stopped
+    command:
+      - "--config.file=/etc/alertmanager/alertmanager.yml"
+      - "--storage.path=/alertmanager"
+    ports:
+      - "9093:9093"
+    volumes:
+      - ./alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - alertmanager-secrets:/etc/alertmanager/secrets:ro
+      - alertmanager-data:/alertmanager
+    depends_on:
+      alertmanager-init:
+        condition: service_completed_successfully
+    networks:
+      - monitoring
+
+volumes:
+  grafana-data:
+  prometheus-data:
+  alertmanager-data:
+  alertmanager-secrets:
+
+# Shared, cross-app network. Declared external so each app's compose (under ../apps/,
+# or in its own repo) can join the SAME network (`networks: [monitoring]` +
+# `external: true`) and expose its own Prometheus to this Grafana. Create it once with
+# scripts/create-network.sh.
+networks:
+  monitoring:
+    external: true
+    name: monitoring
