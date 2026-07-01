@@ -18,7 +18,7 @@
 
 services:
   grafana:
-    image: grafana/grafana:11.4.0
+    image: grafana/grafana:11.6.16
     container_name: grafana
     restart: unless-stopped
     ports:
@@ -41,7 +41,7 @@ services:
       - monitoring
 
   prometheus:
-    image: prom/prometheus:v3.1.0
+    image: prom/prometheus:v3.13.0
     container_name: prometheus-infra
     restart: unless-stopped
     command:
@@ -66,7 +66,7 @@ services:
 
   # Host metrics: CPU, RAM, swap, disk, network, and RPi5 temperature (hwmon).
   node-exporter:
-    image: quay.io/prometheus/node-exporter:v1.8.2
+    image: quay.io/prometheus/node-exporter:v1.11.1
     container_name: node-exporter
     restart: unless-stopped
     command:
@@ -83,7 +83,7 @@ services:
   # Per-container metrics for EVERY container on the Pi. Tuned for ARM/low-power:
   # docker-only, slower housekeeping, and noisy/expensive collectors disabled.
   cadvisor:
-    image: gcr.io/cadvisor/cadvisor:v0.49.1
+    image: gcr.io/cadvisor/cadvisor:v0.55.1
     container_name: cadvisor
     restart: unless-stopped
     command:
@@ -112,7 +112,7 @@ services:
       - WATCHTOWER_CLEANUP=true               # prune the replaced images
       - WATCHTOWER_INCLUDE_RESTARTING=true
       - WATCHTOWER_ROLLING_RESTART=true       # one container at a time
-      - WATCHTOWER_COOLDOWN_DELAY=5m
+      - WATCHTOWER_POLL_INTERVAL=300          # check every 5 minutes
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     networks:
@@ -123,7 +123,7 @@ services:
   # by default — no separate DB needed. The two npm-custom/*.conf files add a combined
   # access log at /data/logs/all_proxy_access.log that the exporter below tails.
   nginx-proxy-manager:
-    image: jc21/nginx-proxy-manager:2.12.3
+    image: jc21/nginx-proxy-manager:2.15.1
     container_name: nginx-proxy-manager
     restart: unless-stopped
     ports:
@@ -141,7 +141,7 @@ services:
   # Turns NPM's combined access log into nginx_http_* Prometheus metrics (job
   # `nginx-proxy-manager`, dashboard 25257). Reads the log volume NPM writes.
   npm-exporter:
-    image: quay.io/martinhelmich/prometheus-nginxlog-exporter:v1
+    image: quay.io/martinhelmich/prometheus-nginxlog-exporter:v1.11.0
     container_name: npm-exporter
     restart: unless-stopped
     command: ["-config-file", "/etc/exporter/config.yml"]
@@ -157,7 +157,7 @@ services:
   # Alertmanager can read it via `webhook_url_file` — Alertmanager does NOT
   # expand env vars in its config, so the secret stays out of the YAML and git.
   alertmanager-init:
-    image: busybox:1.37
+    image: busybox:1.38.0
     container_name: alertmanager-init
     command:
       - "sh"
@@ -170,7 +170,7 @@ services:
     restart: "no"
 
   alertmanager:
-    image: prom/alertmanager:v0.28.0
+    image: prom/alertmanager:v0.33.0
     container_name: alertmanager
     restart: unless-stopped
     command:
@@ -243,7 +243,7 @@ services:
   # pattern) so it never lives in git. PgBouncer authenticates every other user
   # via auth_query against Postgres, so this is the only entry in userlist.txt.
   pgbouncer-init:
-    image: busybox:1.37
+    image: busybox:1.38.0
     container_name: pgbouncer-init
     command:
       - sh
@@ -259,7 +259,7 @@ services:
   # point their RUNTIME at pgbouncer:6432; migrations bypass it (direct to
   # postgres:5432). New apps need no config here — see core/pgbouncer/pgbouncer.ini.
   pgbouncer:
-    image: edoburu/pgbouncer:latest
+    image: edoburu/pgbouncer:v1.25.2-p0
     container_name: pgbouncer
     restart: unless-stopped
     depends_on:
@@ -282,7 +282,7 @@ services:
   # series by `datname`, so a single Infra scrape covers all apps. Uses the
   # least-privilege pg_monitor role created by the provisioner.
   postgres-exporter:
-    image: quay.io/prometheuscommunity/postgres-exporter:v0.16.0
+    image: quay.io/prometheuscommunity/postgres-exporter:v0.20.0
     container_name: postgres-exporter
     restart: unless-stopped
     depends_on:
