@@ -1,14 +1,14 @@
-# Runs scripts/deploy.sh once. Triggered by pi-stack-deploy.timer.
+# Runs scripts/deploy.sh once. Triggered by pi-infra-deploy.timer.
 # Adjust User and WorkingDirectory to where you cloned the repo on the Pi.
 [Unit]
-Description=Deploy pi-stack from git
+Description=Deploy pi-infra from git
 Wants=network-online.target docker.service
 After=network-online.target docker.service
 
 [Service]
 Type=oneshot
 User=pi
-WorkingDirectory=/home/pi/pi-stack
-ExecStart=/home/pi/pi-stack/scripts/deploy.sh
+WorkingDirectory=/home/negri/pi-infra
+ExecStart=/home/negri/pi-infra/scripts/deploy.sh
 # Don't hammer the Docker socket / registry if a run overruns the interval.
 TimeoutStartSec=600

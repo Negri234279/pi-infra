@@ -13,27 +13,27 @@ no inbound ports, no deploy secrets. Pull-based, "eventually consistent".
 
 ## Install
 
-The unit files assume user `pi` and clone path `/home/pi/pi-stack`. **Edit
-`User=`, `WorkingDirectory=`, and the `ExecStart=` path in `pi-stack-deploy.service`
+The unit files assume user `pi` and clone path `/home/negri/pi-infra`. **Edit
+`User=`, `WorkingDirectory=`, and the `ExecStart=` path in `pi-infra-deploy.service`
 to match your setup** before installing.
 
 ```bash
-sudo cp scripts/systemd/pi-stack-deploy.service /etc/systemd/system/
-sudo cp scripts/systemd/pi-stack-deploy.timer   /etc/systemd/system/
+sudo cp scripts/systemd/pi-infra-deploy.service /etc/systemd/system/
+sudo cp scripts/systemd/pi-infra-deploy.timer   /etc/systemd/system/
 sudo systemctl daemon-reload
-sudo systemctl enable --now pi-stack-deploy.timer
+sudo systemctl enable --now pi-infra-deploy.timer
 ```
 
 ## Operate
 
 ```bash
-systemctl list-timers pi-stack-deploy.timer   # next/last run
-systemctl start pi-stack-deploy.service       # deploy now (don't wait for the timer)
-journalctl -u pi-stack-deploy.service -f      # live logs
+systemctl list-timers pi-infra-deploy.timer   # next/last run
+systemctl start pi-infra-deploy.service       # deploy now (don't wait for the timer)
+journalctl -u pi-infra-deploy.service -f      # live logs
 ```
 
 Change the cadence by editing `OnUnitActiveSec=` in the timer, then
-`sudo systemctl daemon-reload && sudo systemctl restart pi-stack-deploy.timer`.
+`sudo systemctl daemon-reload && sudo systemctl restart pi-infra-deploy.timer`.
 
 ## Notes
 
