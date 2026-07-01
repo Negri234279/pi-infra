@@ -102,6 +102,22 @@ services:
     networks:
       - monitoring
 
+  watchtower:
+    image: nickfedor/watchtower:1.19.0
+    container_name: watchtower
+    restart: unless-stopped
+    environment:
+      - TZ=Europe/Madrid
+      - WATCHTOWER_LABEL_ENABLE=true          # only update opted-in containers
+      - WATCHTOWER_CLEANUP=true               # prune the replaced images
+      - WATCHTOWER_INCLUDE_RESTARTING=true
+      - WATCHTOWER_ROLLING_RESTART=true       # one container at a time
+      - WATCHTOWER_COOLDOWN_DELAY=5m
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - monitoring
+
   # Reverse proxy for the whole Pi. This stack OWNS NPM (it is no longer an external
   # integration). Admin UI on :81, HTTP/HTTPS on :80/:443. Uses NPM's embedded SQLite
   # by default — no separate DB needed. The two npm-custom/*.conf files add a combined
@@ -117,8 +133,8 @@ services:
     volumes:
       - ./nginx-proxy-manager/data:/data
       - ./nginx-proxy-manager/letsencrypt:/etc/letsencrypt
-      - ./nginx-proxy-manager/npm-custom/http_top.conf:/data/nginx/custom/http_top.conf:ro
-      - ./nginx-proxy-manager/npm-custom/server_proxy.conf:/data/nginx/custom/server_proxy.conf:ro
+      - ./nginx-proxy-manager/npm-custom/http_top.conf:/data/nginx/custom/http_top.conf
+      - ./nginx-proxy-manager/npm-custom/server_proxy.conf:/data/nginx/custom/server_proxy.conf
     networks:
       - monitoring
 
