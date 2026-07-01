@@ -17,6 +17,12 @@ services:
     container_name: myapp
     restart: unless-stopped
     # ports: ["8080:8080"]   # usually NOT needed: expose via nginx-proxy-manager
+    # Uncomment to let the core Watchtower auto-update THIS container (opt-in). It
+    # will pull newer tags, recreate the container, and prune the old image on the
+    # core WATCHTOWER_SCHEDULE. Only works with a moving tag (e.g. :latest, :1),
+    # not a pinned digest.
+    # labels:
+    #   - com.centurylinklabs.watchtower.enable=true
     networks:
       - myapp-net
 
