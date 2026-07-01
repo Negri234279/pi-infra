@@ -28,7 +28,7 @@ services:
 
   # --- The app's own Prometheus ---
   myapp-prometheus:
-    image: prom/prometheus:v3.1.0
+    image: prom/prometheus:v3.13.0
     container_name: myapp-prometheus
     restart: unless-stopped
     command:
