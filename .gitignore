@@ -11,3 +11,7 @@ core/nginx-proxy-manager/letsencrypt/
 # Dashboards fetched by scripts/fetch-dashboards.sh are provisioned at runtime;
 # uncomment to keep them out of git and rely on the fetch script instead.
 # core/grafana/dashboards/*.json
+
+secrets/
+!secrets/.gitkeep
+# Local-only compose override (e.g. skip node-exporter on Docker Desktop).
