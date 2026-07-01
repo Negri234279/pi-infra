@@ -11,4 +11,3 @@
 # so each app is one explicit line.)
 include:
   - core/docker-compose.yml
-  # Apps (one line per app):
