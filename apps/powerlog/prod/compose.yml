@@ -58,6 +58,8 @@ services:
     # prometheus + push OTLP to tempo. monitoring: reachable by nginx-proxy-manager.
     networks: [powerlog-net, monitoring, db]
     restart: unless-stopped
+    labels:
+      - com.centurylinklabs.watchtower.enable=true
 
   powerlog-web:
     image: negrii/powerlog-web:latest
@@ -87,6 +89,8 @@ services:
       options: { max-size: "10m", max-file: "3" }
     networks: [powerlog-net, monitoring]
     restart: unless-stopped
+    labels:
+      - com.centurylinklabs.watchtower.enable=true
 
   # ── Observability (metrics / logs / traces) ──────────────────
   powerlog-prometheus:
