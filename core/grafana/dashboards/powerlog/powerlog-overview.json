@@ -1,0 +1,1386 @@
+{
+    "uid": "powerlog-overview",
+    "title": "powerlog · API overview",
+    "tags": ["powerlog"],
+    "timezone": "browser",
+    "schemaVersion": 39,
+    "version": 8,
+    "refresh": "10s",
+    "time": { "from": "now-30m", "to": "now" },
+    "templating": {
+        "list": [
+            {
+                "name": "service",
+                "label": "Log service",
+                "type": "query",
+                "datasource": { "type": "loki", "uid": "loki-powerlog" },
+                "query": "label_values({job=\"docker\"}, service)",
+                "includeAll": true,
+                "multi": true,
+                "current": { "text": "All", "value": "$__all" },
+                "refresh": 2,
+                "sort": 1
+            }
+        ]
+    },
+    "panels": [
+        {
+            "id": 100,
+            "type": "row",
+            "title": "Overview",
+            "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 }
+        },
+        {
+            "id": 1,
+            "type": "stat",
+            "title": "Build",
+            "datasource": { "type": "prometheus", "uid": "prometheus-powerlog" },
+            "gridPos": { "h": 4, "w": 4, "x": 0, "y": 1 },
+            "fieldConfig": { "defaults": { "unit": "none" }, "overrides": [] },
+            "options": {
+                "reduceOptions": { "calcs": ["lastNotNull"] },
+                "textMode": "name",
+                "colorMode": "none",
+                "graphMode": "none"
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "powerlog_build_info",
+                    "instant": true,
+                    "legendFormat": "{{service}} {{version}} · {{environment}}"
+                }
+            ]
+        },
+        {
+            "id": 5,
+            "type": "stat",
+            "title": "API up",
+            "datasource": { "type": "prometheus", "uid": "prometheus-powerlog" },
+            "gridPos": { "h": 4, "w": 3, "x": 4, "y": 1 },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "none",
+                    "mappings": [
+                        {
+                            "type": "value",
+                            "options": {
+                                "0": { "text": "DOWN", "color": "red" },
+                                "1": { "text": "UP", "color": "green" }
+                            }
+                        }
+                    ],
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            { "color": "red", "value": null },
+                            { "color": "green", "value": 1 }
+                        ]
+                    }
+                },
+                "overrides": []
+            },
+            "options": {
+                "reduceOptions": { "calcs": ["lastNotNull"] },
+                "textMode": "value",
+                "colorMode": "background",
+                "graphMode": "none"
+            },
+            "targets": [{ "refId": "A", "expr": "up{job=\"powerlog-api\"}", "instant": true }]
+        },
+        {
+            "id": 6,
+            "type": "stat",
+            "title": "Postgres up",
+            "datasource": { "type": "prometheus", "uid": "prometheus-powerlog" },
+            "gridPos": { "h": 4, "w": 3, "x": 7, "y": 1 },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "none",
+                    "mappings": [
+                        {
+                            "type": "value",
+                            "options": {
+                                "0": { "text": "DOWN", "color": "red" },
+                                "1": { "text": "UP", "color": "green" }
+                            }
+                        }
+                    ],
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            { "color": "red", "value": null },
+                            { "color": "green", "value": 1 }
+                        ]
+                    }
+                },
+                "overrides": []
+            },
+            "options": {
+                "reduceOptions": { "calcs": ["lastNotNull"] },
+                "textMode": "value",
+                "colorMode": "background",
+                "graphMode": "none"
+            },
+            "targets": [{ "refId": "A", "expr": "pg_up", "instant": true }]
+        },
+        {
+            "id": 124,
+            "type": "stat",
+            "title": "R2 up",
+            "description": "Live HeadBucket probe from the API (powerlog_r2_up). N/A when not on R2 — dev uses filesystem.",
+            "datasource": { "type": "prometheus", "uid": "prometheus-powerlog" },
+            "gridPos": { "h": 4, "w": 3, "x": 10, "y": 1 },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "none",
+                    "noValue": "N/A",
+                    "mappings": [
+                        {
+                            "type": "value",
+                            "options": {
+                                "0": { "text": "DOWN", "color": "red" },
+                                "1": { "text": "UP", "color": "green" }
+                            }
+                        }
+                    ],
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            { "color": "red", "value": null },
+                            { "color": "green", "value": 1 }
+                        ]
+                    }
+                },
+                "overrides": []
+            },
+            "options": {
+                "reduceOptions": { "calcs": ["lastNotNull"] },
+                "textMode": "value",
+                "colorMode": "background",
+                "graphMode": "none"
+            },
+            "targets": [{ "refId": "A", "expr": "max(powerlog_r2_up)", "instant": true }]
+        },
+        {
+            "id": 2,
+            "type": "stat",
+            "title": "Request rate",
+            "datasource": { "type": "prometheus", "uid": "prometheus-powerlog" },
+            "gridPos": { "h": 4, "w": 3, "x": 13, "y": 1 },
+            "fieldConfig": { "defaults": { "unit": "reqps" }, "overrides": [] },
+            "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "value", "graphMode": "area" },
+            "targets": [
+                { "refId": "A", "expr": "sum(rate(http_request_duration_seconds_count[5m]))", "legendFormat": "req/s" }
+            ]
+        },
+        {
+            "id": 3,
+            "type": "stat",
+            "title": "Error rate",
+            "datasource": { "type": "prometheus", "uid": "prometheus-powerlog" },
+            "gridPos": { "h": 4, "w": 4, "x": 16, "y": 1 },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "short",
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            { "color": "green", "value": null },
+                            { "color": "orange", "value": 0.05 },
+                            { "color": "red", "value": 0.5 }
+                        ]
+                    }
+                },
+                "overrides": []
+            },
+            "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "value", "graphMode": "area" },
+            "targets": [{ "refId": "A", "expr": "sum(rate(domain_errors_total[5m]))", "legendFormat": "err/s" }]
+        },
+        {
+            "id": 4,
+            "type": "stat",
+            "title": "Latency p95",
+            "datasource": { "type": "prometheus", "uid": "prometheus-powerlog" },
+            "gridPos": { "h": 4, "w": 4, "x": 20, "y": 1 },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "s",
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            { "color": "green", "value": null },
+                            { "color": "orange", "value": 0.5 },
+                            { "color": "red", "value": 1 }
+                        ]
+                    }
+                },
+                "overrides": []
+            },
+            "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "value", "graphMode": "area" },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "histogram_quantile(0.95, sum by (le) (rate(http_request_duration_seconds_bucket[5m])))",
+                    "legendFormat": "p95"
+                }
+            ]
+        },
+
+        {
+            "id": 101,
+            "type": "row",
+            "title": "HTTP & GraphQL",
+            "gridPos": { "h": 1, "w": 24, "x": 0, "y": 5 }
+        },
+        {
+            "id": 10,
+            "type": "timeseries",
+            "title": "Request rate by operation (req/s)",
+            "datasource": { "type": "prometheus", "uid": "prometheus-powerlog" },
+            "gridPos": { "h": 8, "w": 12, "x": 0, "y": 6 },
+            "fieldConfig": { "defaults": { "unit": "reqps" }, "overrides": [] },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "sum by (kind, operation) (rate(http_request_duration_seconds_count[1m]))",
+                    "legendFormat": "{{kind}} {{operation}}"
+                }
+            ]
+        },
+        {
+            "id": 11,
+            "type": "timeseries",
+            "title": "Request latency (s)",
+            "datasource": { "type": "prometheus", "uid": "prometheus-powerlog" },
+            "gridPos": { "h": 8, "w": 12, "x": 12, "y": 6 },
+            "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "histogram_quantile(0.50, sum by (le) (rate(http_request_duration_seconds_bucket[5m])))",
+                    "legendFormat": "p50"
+                },
+                {
+                    "refId": "B",
+                    "expr": "histogram_quantile(0.95, sum by (le) (rate(http_request_duration_seconds_bucket[5m])))",
+                    "legendFormat": "p95"
+                },
+                {
+                    "refId": "C",
+                    "expr": "histogram_quantile(0.99, sum by (le) (rate(http_request_duration_seconds_bucket[5m])))",
+                    "legendFormat": "p99"
+                }
+            ]
+        },
+        {
+            "id": 12,
+            "type": "timeseries",
+            "title": "Requests by status (req/s)",
+            "datasource": { "type": "prometheus", "uid": "prometheus-powerlog" },
+            "gridPos": { "h": 8, "w": 12, "x": 0, "y": 14 },
+            "fieldConfig": { "defaults": { "unit": "reqps" }, "overrides": [] },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "sum by (status) (rate(http_request_duration_seconds_count[1m]))",
+                    "legendFormat": "{{status}}"
+                }
+            ]
+        },
+        {
+            "id": 13,
+            "type": "timeseries",
+            "title": "Throughput by kind (req/s)",
+            "datasource": { "type": "prometheus", "uid": "prometheus-powerlog" },
+            "gridPos": { "h": 8, "w": 12, "x": 12, "y": 14 },
+            "fieldConfig": { "defaults": { "unit": "reqps" }, "overrides": [] },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "sum by (kind) (rate(http_request_duration_seconds_count[1m]))",
+                    "legendFormat": "{{kind}}"
+                }
+            ]
+        },
+
+        {
+            "id": 102,
+            "type": "row",
+            "title": "CQRS",
+            "gridPos": { "h": 1, "w": 24, "x": 0, "y": 22 }
+        },
+        {
+            "id": 20,
+            "type": "timeseries",
+            "title": "Command rate (req/s)",
+            "datasource": { "type": "prometheus", "uid": "prometheus-powerlog" },
+            "gridPos": { "h": 8, "w": 8, "x": 0, "y": 23 },
+            "fieldConfig": { "defaults": { "unit": "reqps" }, "overrides": [] },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "sum by (command) (rate(cqrs_command_duration_seconds_count[1m]))",
+                    "legendFormat": "{{command}}"
+                }
+            ]
+        },
+        {
+            "id": 21,
+            "type": "timeseries",
+            "title": "Command latency p95 (s)",
+            "datasource": { "type": "prometheus", "uid": "prometheus-powerlog" },
+            "gridPos": { "h": 8, "w": 8, "x": 8, "y": 23 },
+            "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "histogram_quantile(0.95, sum by (le, command) (rate(cqrs_command_duration_seconds_bucket[5m])))",
+                    "legendFormat": "{{command}}"
+                }
+            ]
+        },
+        {
+            "id": 22,
+            "type": "timeseries",
+            "title": "Command errors (err/s)",
+            "datasource": { "type": "prometheus", "uid": "prometheus-powerlog" },
+            "gridPos": { "h": 8, "w": 8, "x": 16, "y": 23 },
+            "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "sum by (command) (rate(cqrs_command_duration_seconds_count{status=\"error\"}[5m]))",
+                    "legendFormat": "{{command}}"
+                }
+            ]
+        },
+        {
+            "id": 23,
+            "type": "timeseries",
+            "title": "Query rate (req/s)",
+            "datasource": { "type": "prometheus", "uid": "prometheus-powerlog" },
+            "gridPos": { "h": 8, "w": 8, "x": 0, "y": 31 },
+            "fieldConfig": { "defaults": { "unit": "reqps" }, "overrides": [] },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "sum by (query) (rate(cqrs_query_duration_seconds_count[1m]))",
+                    "legendFormat": "{{query}}"
+                }
+            ]
+        },
+        {
+            "id": 24,
+            "type": "timeseries",
+            "title": "Query latency p95 (s)",
+            "datasource": { "type": "prometheus", "uid": "prometheus-powerlog" },
+            "gridPos": { "h": 8, "w": 8, "x": 8, "y": 31 },
+            "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "histogram_quantile(0.95, sum by (le, query) (rate(cqrs_query_duration_seconds_bucket[5m])))",
+                    "legendFormat": "{{query}}"
+                }
+            ]
+        },
+        {
+            "id": 25,
+            "type": "timeseries",
+            "title": "Domain events (ev/s)",
+            "datasource": { "type": "prometheus", "uid": "prometheus-powerlog" },
+            "gridPos": { "h": 8, "w": 8, "x": 16, "y": 31 },
+            "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "sum by (event) (rate(cqrs_events_total[5m]))",
+                    "legendFormat": "{{event}}"
+                }
+            ]
+        },
+
+        {
+            "id": 103,
+            "type": "row",
+            "title": "Errors",
+            "gridPos": { "h": 1, "w": 24, "x": 0, "y": 39 }
+        },
+        {
+            "id": 30,
+            "type": "timeseries",
+            "title": "Errors by code (err/s)",
+            "datasource": { "type": "prometheus", "uid": "prometheus-powerlog" },
+            "gridPos": { "h": 8, "w": 12, "x": 0, "y": 40 },
+            "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "sum by (code, kind) (rate(domain_errors_total[5m]))",
+                    "legendFormat": "{{kind}} {{code}}"
+                }
+            ]
+        },
+        {
+            "id": 31,
+            "type": "table",
+            "title": "Errors total (selected range)",
+            "datasource": { "type": "prometheus", "uid": "prometheus-powerlog" },
+            "gridPos": { "h": 8, "w": 12, "x": 12, "y": 40 },
+            "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+            "options": { "showHeader": true },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "sum by (code, kind) (increase(domain_errors_total[$__range]))",
+                    "instant": true,
+                    "format": "table"
+                }
+            ],
+            "transformations": [{ "id": "organize", "options": { "excludeByName": { "Time": true } } }]
+        },
+
+        {
+            "id": 104,
+            "type": "row",
+            "title": "Business",
+            "gridPos": { "h": 1, "w": 24, "x": 0, "y": 48 }
+        },
+        {
+            "id": 40,
+            "type": "timeseries",
+            "title": "Emails sent (ev/s)",
+            "datasource": { "type": "prometheus", "uid": "prometheus-powerlog" },
+            "gridPos": { "h": 8, "w": 8, "x": 0, "y": 49 },
+            "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "sum by (type, status) (rate(powerlog_emails_sent_total[5m]))",
+                    "legendFormat": "{{type}} · {{status}}"
+                }
+            ]
+        },
+        {
+            "id": 41,
+            "type": "timeseries",
+            "title": "Avatars processed (ev/s)",
+            "datasource": { "type": "prometheus", "uid": "prometheus-powerlog" },
+            "gridPos": { "h": 8, "w": 8, "x": 8, "y": 49 },
+            "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "sum by (source, status) (rate(powerlog_avatars_processed_total[5m]))",
+                    "legendFormat": "{{source}} · {{status}}"
+                }
+            ]
+        },
+        {
+            "id": 42,
+            "type": "timeseries",
+            "title": "Notifications created (ev/s)",
+            "datasource": { "type": "prometheus", "uid": "prometheus-powerlog" },
+            "gridPos": { "h": 8, "w": 8, "x": 16, "y": 49 },
+            "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "sum by (type) (rate(powerlog_notifications_created_total[5m]))",
+                    "legendFormat": "{{type}}"
+                }
+            ]
+        },
+
+        {
+            "id": 107,
+            "type": "row",
+            "title": "Traces · span metrics (Tempo)",
+            "gridPos": { "h": 1, "w": 24, "x": 0, "y": 57 }
+        },
+        {
+            "id": 70,
+            "type": "timeseries",
+            "title": "Span call rate (calls/s)",
+            "description": "From Tempo metrics_generator span-metrics. Populates once traffic flows after enabling the generator.",
+            "datasource": { "type": "prometheus", "uid": "prometheus-powerlog" },
+            "gridPos": { "h": 8, "w": 8, "x": 0, "y": 58 },
+            "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "sum by (span_name) (rate(traces_spanmetrics_calls_total[1m]))",
+                    "legendFormat": "{{span_name}}"
+                }
+            ]
+        },
+        {
+            "id": 71,
+            "type": "timeseries",
+            "title": "Span latency p95 (s)",
+            "datasource": { "type": "prometheus", "uid": "prometheus-powerlog" },
+            "gridPos": { "h": 8, "w": 8, "x": 8, "y": 58 },
+            "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "histogram_quantile(0.95, sum by (le, span_name) (rate(traces_spanmetrics_latency_bucket[5m])))",
+                    "legendFormat": "{{span_name}}"
+                }
+            ]
+        },
+        {
+            "id": 72,
+            "type": "timeseries",
+            "title": "Service graph req rate (req/s)",
+            "description": "Edges of the service graph (client → server) derived from traces.",
+            "datasource": { "type": "prometheus", "uid": "prometheus-powerlog" },
+            "gridPos": { "h": 8, "w": 8, "x": 16, "y": 58 },
+            "fieldConfig": { "defaults": { "unit": "reqps" }, "overrides": [] },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "sum by (client, server) (rate(traces_service_graph_request_total[1m]))",
+                    "legendFormat": "{{client}} → {{server}}"
+                }
+            ]
+        },
+
+        {
+            "id": 108,
+            "type": "row",
+            "title": "Database (PostgreSQL)",
+            "gridPos": { "h": 1, "w": 24, "x": 0, "y": 66 }
+        },
+        {
+            "id": 80,
+            "type": "timeseries",
+            "title": "Connections by state",
+            "datasource": { "type": "prometheus", "uid": "prometheus-powerlog" },
+            "gridPos": { "h": 8, "w": 8, "x": 0, "y": 67 },
+            "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "sum by (state) (pg_stat_activity_count{datname=\"powerlog\"})",
+                    "legendFormat": "{{state}}"
+                }
+            ]
+        },
+        {
+            "id": 81,
+            "type": "timeseries",
+            "title": "Commits & rollbacks (tx/s)",
+            "datasource": { "type": "prometheus", "uid": "prometheus-powerlog" },
+            "gridPos": { "h": 8, "w": 8, "x": 8, "y": 67 },
+            "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "rate(pg_stat_database_xact_commit{datname=\"powerlog\"}[5m])",
+                    "legendFormat": "commits"
+                },
+                {
+                    "refId": "B",
+                    "expr": "rate(pg_stat_database_xact_rollback{datname=\"powerlog\"}[5m])",
+                    "legendFormat": "rollbacks"
+                }
+            ]
+        },
+        {
+            "id": 82,
+            "type": "timeseries",
+            "title": "Cache hit ratio",
+            "datasource": { "type": "prometheus", "uid": "prometheus-powerlog" },
+            "gridPos": { "h": 8, "w": 8, "x": 16, "y": 67 },
+            "fieldConfig": { "defaults": { "unit": "percentunit", "min": 0, "max": 1 }, "overrides": [] },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "sum(rate(pg_stat_database_blks_hit{datname=\"powerlog\"}[5m])) / (sum(rate(pg_stat_database_blks_hit{datname=\"powerlog\"}[5m])) + sum(rate(pg_stat_database_blks_read{datname=\"powerlog\"}[5m])))",
+                    "legendFormat": "hit ratio"
+                }
+            ]
+        },
+        {
+            "id": 83,
+            "type": "timeseries",
+            "title": "Database size",
+            "datasource": { "type": "prometheus", "uid": "prometheus-powerlog" },
+            "gridPos": { "h": 8, "w": 6, "x": 0, "y": 75 },
+            "fieldConfig": { "defaults": { "unit": "bytes" }, "overrides": [] },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "pg_database_size_bytes{datname=\"powerlog\"}",
+                    "legendFormat": "powerlog"
+                }
+            ]
+        },
+        {
+            "id": 84,
+            "type": "timeseries",
+            "title": "Tuples I/O (rows/s)",
+            "datasource": { "type": "prometheus", "uid": "prometheus-powerlog" },
+            "gridPos": { "h": 8, "w": 6, "x": 6, "y": 75 },
+            "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "rate(pg_stat_database_tup_fetched{datname=\"powerlog\"}[5m])",
+                    "legendFormat": "fetched"
+                },
+                {
+                    "refId": "B",
+                    "expr": "rate(pg_stat_database_tup_inserted{datname=\"powerlog\"}[5m])",
+                    "legendFormat": "inserted"
+                },
+                {
+                    "refId": "C",
+                    "expr": "rate(pg_stat_database_tup_updated{datname=\"powerlog\"}[5m])",
+                    "legendFormat": "updated"
+                },
+                {
+                    "refId": "D",
+                    "expr": "rate(pg_stat_database_tup_deleted{datname=\"powerlog\"}[5m])",
+                    "legendFormat": "deleted"
+                }
+            ]
+        },
+        {
+            "id": 85,
+            "type": "timeseries",
+            "title": "Deadlocks & temp bytes",
+            "datasource": { "type": "prometheus", "uid": "prometheus-powerlog" },
+            "gridPos": { "h": 8, "w": 6, "x": 12, "y": 75 },
+            "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "rate(pg_stat_database_deadlocks{datname=\"powerlog\"}[5m])",
+                    "legendFormat": "deadlocks/s"
+                },
+                {
+                    "refId": "B",
+                    "expr": "rate(pg_stat_database_temp_bytes{datname=\"powerlog\"}[5m])",
+                    "legendFormat": "temp bytes/s"
+                }
+            ]
+        },
+        {
+            "id": 86,
+            "type": "timeseries",
+            "title": "Backends vs max connections",
+            "datasource": { "type": "prometheus", "uid": "prometheus-powerlog" },
+            "gridPos": { "h": 8, "w": 6, "x": 18, "y": 75 },
+            "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "pg_stat_database_numbackends{datname=\"powerlog\"}",
+                    "legendFormat": "backends"
+                },
+                { "refId": "B", "expr": "pg_settings_max_connections", "legendFormat": "max_connections" }
+            ]
+        },
+
+        {
+            "id": 105,
+            "type": "row",
+            "title": "Runtime (Node.js process)",
+            "gridPos": { "h": 1, "w": 24, "x": 0, "y": 83 }
+        },
+        {
+            "id": 50,
+            "type": "timeseries",
+            "title": "CPU (cores)",
+            "datasource": { "type": "prometheus", "uid": "prometheus-powerlog" },
+            "gridPos": { "h": 8, "w": 6, "x": 0, "y": 84 },
+            "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+            "targets": [{ "refId": "A", "expr": "rate(process_cpu_seconds_total[1m])", "legendFormat": "cpu cores" }]
+        },
+        {
+            "id": 51,
+            "type": "timeseries",
+            "title": "Memory",
+            "datasource": { "type": "prometheus", "uid": "prometheus-powerlog" },
+            "gridPos": { "h": 8, "w": 6, "x": 6, "y": 84 },
+            "fieldConfig": { "defaults": { "unit": "bytes" }, "overrides": [] },
+            "targets": [
+                { "refId": "A", "expr": "process_resident_memory_bytes", "legendFormat": "RSS" },
+                { "refId": "B", "expr": "nodejs_heap_size_used_bytes", "legendFormat": "heap used" },
+                { "refId": "C", "expr": "nodejs_heap_size_total_bytes", "legendFormat": "heap total" }
+            ]
+        },
+        {
+            "id": 52,
+            "type": "timeseries",
+            "title": "Event loop lag (s)",
+            "datasource": { "type": "prometheus", "uid": "prometheus-powerlog" },
+            "gridPos": { "h": 8, "w": 6, "x": 12, "y": 84 },
+            "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
+            "targets": [
+                { "refId": "A", "expr": "nodejs_eventloop_lag_mean_seconds", "legendFormat": "mean" },
+                { "refId": "B", "expr": "nodejs_eventloop_lag_p99_seconds", "legendFormat": "p99" }
+            ]
+        },
+        {
+            "id": 53,
+            "type": "timeseries",
+            "title": "Active handles & requests",
+            "datasource": { "type": "prometheus", "uid": "prometheus-powerlog" },
+            "gridPos": { "h": 8, "w": 6, "x": 18, "y": 84 },
+            "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+            "targets": [
+                { "refId": "A", "expr": "nodejs_active_handles_total", "legendFormat": "handles" },
+                { "refId": "B", "expr": "nodejs_active_requests_total", "legendFormat": "requests" }
+            ]
+        },
+        {
+            "id": 54,
+            "type": "timeseries",
+            "title": "GC time (s/s)",
+            "description": "Seconds spent in GC per second, by collection kind.",
+            "datasource": { "type": "prometheus", "uid": "prometheus-powerlog" },
+            "gridPos": { "h": 8, "w": 6, "x": 0, "y": 92 },
+            "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "sum by (kind) (rate(nodejs_gc_duration_seconds_sum[1m]))",
+                    "legendFormat": "{{kind}}"
+                }
+            ]
+        },
+        {
+            "id": 55,
+            "type": "timeseries",
+            "title": "File descriptors",
+            "datasource": { "type": "prometheus", "uid": "prometheus-powerlog" },
+            "gridPos": { "h": 8, "w": 6, "x": 6, "y": 92 },
+            "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+            "targets": [
+                { "refId": "A", "expr": "process_open_fds", "legendFormat": "open" },
+                { "refId": "B", "expr": "process_max_fds", "legendFormat": "max" }
+            ]
+        },
+        {
+            "id": 56,
+            "type": "timeseries",
+            "title": "Event loop lag percentiles (s)",
+            "datasource": { "type": "prometheus", "uid": "prometheus-powerlog" },
+            "gridPos": { "h": 8, "w": 6, "x": 12, "y": 92 },
+            "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
+            "targets": [
+                { "refId": "A", "expr": "nodejs_eventloop_lag_p50_seconds", "legendFormat": "p50" },
+                { "refId": "B", "expr": "nodejs_eventloop_lag_p90_seconds", "legendFormat": "p90" },
+                { "refId": "C", "expr": "nodejs_eventloop_lag_max_seconds", "legendFormat": "max" }
+            ]
+        },
+        {
+            "id": 57,
+            "type": "timeseries",
+            "title": "External & heap-space memory",
+            "datasource": { "type": "prometheus", "uid": "prometheus-powerlog" },
+            "gridPos": { "h": 8, "w": 6, "x": 18, "y": 92 },
+            "fieldConfig": { "defaults": { "unit": "bytes" }, "overrides": [] },
+            "targets": [
+                { "refId": "A", "expr": "nodejs_external_memory_bytes", "legendFormat": "external" },
+                {
+                    "refId": "B",
+                    "expr": "sum by (space) (nodejs_heap_space_size_used_bytes)",
+                    "legendFormat": "heap {{space}}"
+                }
+            ]
+        },
+
+        {
+            "id": 106,
+            "type": "row",
+            "title": "Logs (Loki)",
+            "gridPos": { "h": 1, "w": 24, "x": 0, "y": 100 }
+        },
+        {
+            "id": 60,
+            "type": "text",
+            "title": "",
+            "gridPos": { "h": 3, "w": 24, "x": 0, "y": 101 },
+            "options": {
+                "mode": "markdown",
+                "content": "Alloy ships every **Docker container's** stdout to Loki. The container API now logs **JSON** (Pino on a non-TTY stdout), so the app panels parse structured fields and **level**; non-app containers (postgres, grafana, …) log plain text. **trace_id** links to the trace in Tempo and **correlationId** opens related logs (datasource derived fields)."
+            }
+        },
+        {
+            "id": 63,
+            "type": "timeseries",
+            "title": "App log volume by level (lines/s)",
+            "description": "App (api) only. Pino levels: 30=info, 40=warn, 50=error, 60=fatal.",
+            "datasource": { "type": "loki", "uid": "loki-powerlog" },
+            "gridPos": { "h": 6, "w": 24, "x": 0, "y": 104 },
+            "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+            "options": { "legend": { "displayMode": "list", "placement": "bottom" } },
+            "targets": [
+                {
+                    "refId": "A",
+                    "datasource": { "type": "loki", "uid": "loki-powerlog" },
+                    "expr": "sum by (level) (count_over_time({service=\"api\"} | json | __error__=\"\" [1m]))",
+                    "legendFormat": "{{level}}",
+                    "queryType": "range"
+                }
+            ]
+        },
+        {
+            "id": 61,
+            "type": "logs",
+            "title": "Logs — $service",
+            "datasource": { "type": "loki", "uid": "loki-powerlog" },
+            "gridPos": { "h": 12, "w": 24, "x": 0, "y": 110 },
+            "options": {
+                "showTime": true,
+                "showLabels": false,
+                "wrapLogMessage": true,
+                "prettifyLogMessage": true,
+                "enableLogDetails": true,
+                "dedupStrategy": "none",
+                "sortOrder": "Descending"
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "datasource": { "type": "loki", "uid": "loki-powerlog" },
+                    "expr": "{service=~\"$service\"}",
+                    "queryType": "range"
+                }
+            ]
+        },
+        {
+            "id": 62,
+            "type": "logs",
+            "title": "Errors & warnings — api",
+            "datasource": { "type": "loki", "uid": "loki-powerlog" },
+            "gridPos": { "h": 10, "w": 24, "x": 0, "y": 122 },
+            "options": {
+                "showTime": true,
+                "showLabels": false,
+                "wrapLogMessage": true,
+                "prettifyLogMessage": true,
+                "enableLogDetails": true,
+                "dedupStrategy": "none",
+                "sortOrder": "Descending"
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "datasource": { "type": "loki", "uid": "loki-powerlog" },
+                    "expr": "{service=\"api\"} | json | __error__=\"\" | level >= 40",
+                    "queryType": "range"
+                }
+            ]
+        },
+
+        {
+            "id": 109,
+            "type": "row",
+            "title": "Auth",
+            "gridPos": { "h": 1, "w": 24, "x": 0, "y": 132 }
+        },
+        {
+            "id": 90,
+            "type": "timeseries",
+            "title": "Logins (ev/s)",
+            "datasource": { "type": "prometheus", "uid": "prometheus-powerlog" },
+            "gridPos": { "h": 8, "w": 8, "x": 0, "y": 133 },
+            "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "sum by (method, status) (rate(powerlog_auth_logins_total[5m]))",
+                    "legendFormat": "{{method}} · {{status}}"
+                }
+            ]
+        },
+        {
+            "id": 91,
+            "type": "timeseries",
+            "title": "Refresh outcomes (ev/s)",
+            "description": "rotated = normal rotation · reuse_detected = a revoked token was replayed (security) · invalid = missing/expired token.",
+            "datasource": { "type": "prometheus", "uid": "prometheus-powerlog" },
+            "gridPos": { "h": 8, "w": 8, "x": 8, "y": 133 },
+            "fieldConfig": {
+                "defaults": { "unit": "short" },
+                "overrides": [
+                    {
+                        "matcher": { "id": "byName", "options": "reuse_detected" },
+                        "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "red" } }]
+                    }
+                ]
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "sum by (status) (rate(powerlog_auth_refresh_total[5m]))",
+                    "legendFormat": "{{status}}"
+                }
+            ]
+        },
+        {
+            "id": 92,
+            "type": "timeseries",
+            "title": "Registrations (ev/s)",
+            "datasource": { "type": "prometheus", "uid": "prometheus-powerlog" },
+            "gridPos": { "h": 8, "w": 8, "x": 16, "y": 133 },
+            "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "sum by (method) (rate(powerlog_auth_registrations_total[5m]))",
+                    "legendFormat": "{{method}}"
+                }
+            ]
+        },
+
+        {
+            "id": 110,
+            "type": "row",
+            "title": "Database · connection pool (app-side)",
+            "gridPos": { "h": 1, "w": 24, "x": 0, "y": 141 }
+        },
+        {
+            "id": 93,
+            "type": "timeseries",
+            "title": "Connection pool",
+            "description": "pg pool sampled at scrape time. waiting > 0 means the app is queuing for a connection (pool at max) — the saturation signal the server-side exporter can't see.",
+            "datasource": { "type": "prometheus", "uid": "prometheus-powerlog" },
+            "gridPos": { "h": 8, "w": 12, "x": 0, "y": 142 },
+            "fieldConfig": {
+                "defaults": { "unit": "short" },
+                "overrides": [
+                    {
+                        "matcher": { "id": "byName", "options": "waiting" },
+                        "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "red" } }]
+                    },
+                    {
+                        "matcher": { "id": "byName", "options": "max" },
+                        "properties": [{ "id": "custom.lineStyle", "value": { "dash": [10, 10], "fill": "dash" } }]
+                    }
+                ]
+            },
+            "targets": [
+                { "refId": "A", "expr": "powerlog_pg_pool_connections", "legendFormat": "{{state}}" },
+                { "refId": "B", "expr": "powerlog_pg_pool_max", "legendFormat": "max" }
+            ]
+        },
+
+        {
+            "id": 111,
+            "type": "row",
+            "title": "Observability stack (self-health)",
+            "gridPos": { "h": 1, "w": 24, "x": 0, "y": 150 }
+        },
+        {
+            "id": 94,
+            "type": "timeseries",
+            "title": "Loki · lines ingested (lines/s)",
+            "datasource": { "type": "prometheus", "uid": "prometheus-powerlog" },
+            "gridPos": { "h": 8, "w": 8, "x": 0, "y": 151 },
+            "fieldConfig": {
+                "defaults": { "unit": "short" },
+                "overrides": [
+                    {
+                        "matcher": { "id": "byName", "options": "discarded" },
+                        "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "red" } }]
+                    }
+                ]
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "sum(rate(loki_distributor_lines_received_total[5m]))",
+                    "legendFormat": "ingested"
+                },
+                { "refId": "B", "expr": "sum(rate(loki_discarded_samples_total[5m]))", "legendFormat": "discarded" }
+            ]
+        },
+        {
+            "id": 95,
+            "type": "timeseries",
+            "title": "Loki · bytes ingested",
+            "datasource": { "type": "prometheus", "uid": "prometheus-powerlog" },
+            "gridPos": { "h": 8, "w": 8, "x": 8, "y": 151 },
+            "fieldConfig": { "defaults": { "unit": "Bps" }, "overrides": [] },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "sum(rate(loki_distributor_bytes_received_total[5m]))",
+                    "legendFormat": "bytes/s"
+                }
+            ]
+        },
+        {
+            "id": 96,
+            "type": "timeseries",
+            "title": "Tempo · spans received (spans/s)",
+            "datasource": { "type": "prometheus", "uid": "prometheus-powerlog" },
+            "gridPos": { "h": 8, "w": 8, "x": 16, "y": 151 },
+            "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "sum(rate(tempo_distributor_spans_received_total[5m]))",
+                    "legendFormat": "received"
+                },
+                {
+                    "refId": "B",
+                    "expr": "sum(rate(tempo_distributor_metrics_generator_pushes_total[5m]))",
+                    "legendFormat": "to metrics_generator"
+                }
+            ]
+        },
+        {
+            "id": 97,
+            "type": "timeseries",
+            "title": "Tempo · live traces & flush failures",
+            "datasource": { "type": "prometheus", "uid": "prometheus-powerlog" },
+            "gridPos": { "h": 8, "w": 8, "x": 0, "y": 159 },
+            "fieldConfig": {
+                "defaults": { "unit": "short" },
+                "overrides": [
+                    {
+                        "matcher": { "id": "byName", "options": "flush failures/s" },
+                        "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "red" } }]
+                    }
+                ]
+            },
+            "targets": [
+                { "refId": "A", "expr": "sum(tempo_live_store_live_traces)", "legendFormat": "live traces" },
+                {
+                    "refId": "B",
+                    "expr": "sum(rate(tempo_live_store_local_failed_flushes_total[5m]))",
+                    "legendFormat": "flush failures/s"
+                }
+            ]
+        },
+        {
+            "id": 98,
+            "type": "timeseries",
+            "title": "Alloy · log entries read (entries/s)",
+            "datasource": { "type": "prometheus", "uid": "prometheus-powerlog" },
+            "gridPos": { "h": 8, "w": 8, "x": 8, "y": 159 },
+            "fieldConfig": {
+                "defaults": { "unit": "short" },
+                "overrides": [
+                    {
+                        "matcher": { "id": "byName", "options": "parsing errors/s" },
+                        "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "red" } }]
+                    }
+                ]
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "sum(rate(loki_source_docker_target_entries_total[5m]))",
+                    "legendFormat": "entries/s"
+                },
+                {
+                    "refId": "B",
+                    "expr": "sum(rate(loki_source_docker_target_parsing_errors_total[5m]))",
+                    "legendFormat": "parsing errors/s"
+                }
+            ]
+        },
+        {
+            "id": 99,
+            "type": "timeseries",
+            "title": "Alloy to Loki · dropped & retries (problems)",
+            "datasource": { "type": "prometheus", "uid": "prometheus-powerlog" },
+            "gridPos": { "h": 8, "w": 8, "x": 16, "y": 159 },
+            "fieldConfig": {
+                "defaults": { "unit": "short" },
+                "overrides": [
+                    {
+                        "matcher": { "id": "byName", "options": "dropped/s" },
+                        "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "red" } }]
+                    }
+                ]
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "sum(rate(loki_write_dropped_entries_total[5m]))",
+                    "legendFormat": "dropped/s"
+                },
+                { "refId": "B", "expr": "sum(rate(loki_write_batch_retries_total[5m]))", "legendFormat": "retries/s" }
+            ]
+        },
+
+        {
+            "id": 112,
+            "type": "row",
+            "title": "Object storage (R2 · app-side)",
+            "gridPos": { "h": 1, "w": 24, "x": 0, "y": 167 }
+        },
+        {
+            "id": 120,
+            "type": "timeseries",
+            "title": "R2 op rate (ops/s)",
+            "description": "Calls the API makes to R2 (avatar put/get/delete). Only emits when AVATAR_STORAGE=r2 — empty in dev (filesystem).",
+            "datasource": { "type": "prometheus", "uid": "prometheus-powerlog" },
+            "gridPos": { "h": 8, "w": 8, "x": 0, "y": 168 },
+            "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "sum by (operation) (rate(powerlog_r2_operation_duration_seconds_count[5m]))",
+                    "legendFormat": "{{operation}}"
+                }
+            ]
+        },
+        {
+            "id": 121,
+            "type": "timeseries",
+            "title": "R2 error rate (%)",
+            "datasource": { "type": "prometheus", "uid": "prometheus-powerlog" },
+            "gridPos": { "h": 8, "w": 8, "x": 8, "y": 168 },
+            "fieldConfig": { "defaults": { "unit": "percent", "min": 0 }, "overrides": [] },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "100 * sum(rate(powerlog_r2_operation_duration_seconds_count{status=\"failure\"}[5m])) / clamp_min(sum(rate(powerlog_r2_operation_duration_seconds_count[5m])), 1)",
+                    "legendFormat": "error %"
+                }
+            ]
+        },
+        {
+            "id": 122,
+            "type": "timeseries",
+            "title": "R2 latency p95 (s)",
+            "datasource": { "type": "prometheus", "uid": "prometheus-powerlog" },
+            "gridPos": { "h": 8, "w": 8, "x": 16, "y": 168 },
+            "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "histogram_quantile(0.95, sum by (le, operation) (rate(powerlog_r2_operation_duration_seconds_bucket[5m])))",
+                    "legendFormat": "{{operation}}"
+                }
+            ]
+        },
+        {
+            "id": 123,
+            "type": "timeseries",
+            "title": "R2 bytes uploaded",
+            "datasource": { "type": "prometheus", "uid": "prometheus-powerlog" },
+            "gridPos": { "h": 8, "w": 12, "x": 0, "y": 176 },
+            "fieldConfig": { "defaults": { "unit": "Bps" }, "overrides": [] },
+            "targets": [
+                { "refId": "A", "expr": "rate(powerlog_r2_bytes_uploaded_total[5m])", "legendFormat": "bytes/s" }
+            ]
+        },
+
+        {
+            "id": 130,
+            "type": "row",
+            "title": "Email (Resend)",
+            "gridPos": { "h": 1, "w": 24, "x": 0, "y": 184 }
+        },
+        {
+            "id": 131,
+            "type": "timeseries",
+            "title": "Send rate (ev/s)",
+            "description": "Transport send outcomes by purpose (powerlog_emails_sent_total).",
+            "datasource": { "type": "prometheus", "uid": "prometheus-powerlog" },
+            "gridPos": { "h": 8, "w": 8, "x": 0, "y": 185 },
+            "fieldConfig": {
+                "defaults": { "unit": "short" },
+                "overrides": [
+                    {
+                        "matcher": { "id": "byRegexp", "options": ".*failed.*" },
+                        "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "red" } }]
+                    }
+                ]
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "sum by (type, status) (rate(powerlog_emails_sent_total[5m]))",
+                    "legendFormat": "{{type}} · {{status}}"
+                }
+            ]
+        },
+        {
+            "id": 132,
+            "type": "timeseries",
+            "title": "Send latency p95 (s)",
+            "description": "Latency of the Resend API / SMTP send call.",
+            "datasource": { "type": "prometheus", "uid": "prometheus-powerlog" },
+            "gridPos": { "h": 8, "w": 8, "x": 8, "y": 185 },
+            "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "histogram_quantile(0.95, sum by (le, type) (rate(powerlog_email_send_duration_seconds_bucket[5m])))",
+                    "legendFormat": "{{type}}"
+                }
+            ]
+        },
+        {
+            "id": 133,
+            "type": "timeseries",
+            "title": "Delivery events (ev/s)",
+            "description": "Resend webhook events (delivered/bounced/complained/opened/clicked). Needs the webhook configured + RESEND_WEBHOOK_SECRET.",
+            "datasource": { "type": "prometheus", "uid": "prometheus-powerlog" },
+            "gridPos": { "h": 8, "w": 8, "x": 16, "y": 185 },
+            "fieldConfig": {
+                "defaults": { "unit": "short" },
+                "overrides": [
+                    {
+                        "matcher": { "id": "byRegexp", "options": "bounced|complained" },
+                        "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "red" } }]
+                    }
+                ]
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "sum by (event) (rate(powerlog_email_events_total[5m]))",
+                    "legendFormat": "{{event}}"
+                }
+            ]
+        },
+        {
+            "id": 134,
+            "type": "timeseries",
+            "title": "Bounces & complaints (ev/s)",
+            "description": "Deliverability red flags. Sustained values hurt sender reputation.",
+            "datasource": { "type": "prometheus", "uid": "prometheus-powerlog" },
+            "gridPos": { "h": 8, "w": 12, "x": 0, "y": 193 },
+            "fieldConfig": {
+                "defaults": { "unit": "short", "color": { "mode": "fixed", "fixedColor": "red" } },
+                "overrides": []
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "sum by (event) (rate(powerlog_email_events_total{event=~\"bounced|complained\"}[5m]))",
+                    "legendFormat": "{{event}}"
+                }
+            ]
+        },
+        {
+            "id": 135,
+            "type": "timeseries",
+            "title": "Events by type (ev/s)",
+            "datasource": { "type": "prometheus", "uid": "prometheus-powerlog" },
+            "gridPos": { "h": 8, "w": 12, "x": 12, "y": 193 },
+            "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+            "options": { "legend": { "displayMode": "table", "placement": "right", "calcs": ["lastNotNull"] } },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "sum by (type, event) (rate(powerlog_email_events_total[5m]))",
+                    "legendFormat": "{{type}} · {{event}}"
+                }
+            ]
+        },
+        {
+            "id": 136,
+            "type": "stat",
+            "title": "Domain verified",
+            "description": "Resend sending domain verification, polled via the API key. No data → not on Resend (dev) or probe not run.",
+            "datasource": { "type": "prometheus", "uid": "prometheus-powerlog" },
+            "gridPos": { "h": 6, "w": 6, "x": 0, "y": 201 },
+            "fieldConfig": {
+                "defaults": {
+                    "noValue": "N/A",
+                    "mappings": [
+                        {
+                            "type": "value",
+                            "options": {
+                                "0": { "text": "UNVERIFIED", "color": "red" },
+                                "1": { "text": "VERIFIED", "color": "green" }
+                            }
+                        }
+                    ],
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            { "color": "red", "value": null },
+                            { "color": "green", "value": 1 }
+                        ]
+                    }
+                },
+                "overrides": []
+            },
+            "options": {
+                "reduceOptions": { "calcs": ["lastNotNull"] },
+                "textMode": "value_and_name",
+                "colorMode": "background",
+                "graphMode": "none"
+            },
+            "targets": [{ "refId": "A", "expr": "powerlog_resend_domain_verified", "legendFormat": "{{domain}}" }]
+        },
+        {
+            "id": 137,
+            "type": "stat",
+            "title": "Resend API up",
+            "description": "Resend API reachable with the configured API key (list domains succeeds).",
+            "datasource": { "type": "prometheus", "uid": "prometheus-powerlog" },
+            "gridPos": { "h": 6, "w": 6, "x": 6, "y": 201 },
+            "fieldConfig": {
+                "defaults": {
+                    "noValue": "N/A",
+                    "mappings": [
+                        {
+                            "type": "value",
+                            "options": {
+                                "0": { "text": "DOWN", "color": "red" },
+                                "1": { "text": "UP", "color": "green" }
+                            }
+                        }
+                    ],
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            { "color": "red", "value": null },
+                            { "color": "green", "value": 1 }
+                        ]
+                    }
+                },
+                "overrides": []
+            },
+            "options": {
+                "reduceOptions": { "calcs": ["lastNotNull"] },
+                "textMode": "value",
+                "colorMode": "background",
+                "graphMode": "none"
+            },
+            "targets": [{ "refId": "A", "expr": "powerlog_resend_api_up", "legendFormat": "resend" }]
+        },
+        {
+            "id": 138,
+            "type": "logs",
+            "title": "Email log (sends + delivery events)",
+            "description": "PII-free email feed from the app: 'email dispatched'/'email send failed' (MeteredMailer) + 'resend webhook event' (delivery webhook). No recipients or subjects.",
+            "datasource": { "type": "loki", "uid": "loki-powerlog" },
+            "gridPos": { "h": 8, "w": 24, "x": 0, "y": 207 },
+            "options": {
+                "showTime": true,
+                "showLabels": false,
+                "wrapLogMessage": true,
+                "prettifyLogMessage": true,
+                "enableLogDetails": true,
+                "dedupStrategy": "none",
+                "sortOrder": "Descending"
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "datasource": { "type": "loki", "uid": "loki-powerlog" },
+                    "expr": "{service=\"api\"} | json | msg=~\"email dispatched|email send failed|resend webhook event\"",
+                    "queryType": "range"
+                }
+            ]
+        }
+    ]
+}

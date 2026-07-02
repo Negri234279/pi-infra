@@ -1,0 +1,45 @@
+// Discover running Docker containers and ship powerlog's container stdout/stderr
+// to powerlog's Loki. The Pi runs OTHER apps' containers too, so we KEEP only
+// containers named `powerlog-*` — this stack must not ingest foreign logs.
+
+discovery.docker "containers" {
+	host = "unix:///var/run/docker.sock"
+}
+
+discovery.relabel "containers" {
+	targets = discovery.docker.containers.targets
+
+	// Keep only this app's containers (container_name is `powerlog-*`).
+	rule {
+		source_labels = ["__meta_docker_container_name"]
+		regex         = "/powerlog-.*"
+		action        = "keep"
+	}
+
+	// Friendly container name (strip the leading "/").
+	rule {
+		source_labels = ["__meta_docker_container_name"]
+		regex         = "/(.*)"
+		target_label  = "container"
+	}
+
+	// Compose service name (powerlog-api, powerlog-web, ...).
+	rule {
+		source_labels = ["__meta_docker_container_label_com_docker_compose_service"]
+		target_label  = "service"
+	}
+}
+
+loki.source.docker "containers" {
+	host          = "unix:///var/run/docker.sock"
+	targets       = discovery.relabel.containers.output
+	relabel_rules = discovery.relabel.containers.rules
+	labels        = { job = "docker", app = "powerlog" }
+	forward_to    = [loki.write.default.receiver]
+}
+
+loki.write "default" {
+	endpoint {
+		url = "http://powerlog-loki:3100/loki/api/v1/push"
+	}
+}

@@ -1,0 +1,2 @@
+# Per-env extra Prometheus scrape jobs. Empty in prod (shared DB metrics
+# come from the pi-infra core exporter).

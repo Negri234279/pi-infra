@@ -1,0 +1,68 @@
+# powerlog datasources — SINGLE SOURCE for the dev Grafana AND the shared
+# (central) Grafana in pi-infra. Service names are unified to `powerlog-*`, so
+# the SAME URLs resolve in every environment. The sync-pi-infra action copies
+# this verbatim to pi-infra/core/grafana/provisioning/datasources/powerlog.yml.
+apiVersion: 1
+
+datasources:
+  - name: powerlog · Metrics
+    uid: prometheus-powerlog
+    type: prometheus
+    access: proxy
+    url: http://powerlog-prometheus:9090
+    # No isDefault: in pi-infra the central "Infra" datasource is the default; in
+    # dev panels reference datasources by uid/variable, so a default isn't needed.
+    jsonData:
+      timeInterval: 15s
+      httpMethod: POST
+      exemplarTraceIdDestinations:
+        - name: trace_id
+          datasourceUid: tempo-powerlog
+
+  - name: powerlog · Logs
+    uid: loki-powerlog
+    type: loki
+    access: proxy
+    url: http://powerlog-loki:3100
+    jsonData:
+      derivedFields:
+        - name: TraceID
+          matcherType: regex
+          matcherRegex: '"trace_id":"(\w+)"'
+          url: '$${__value.raw}'
+          datasourceUid: tempo-powerlog
+          urlDisplayLabel: View trace
+        - name: CorrelationID
+          matcherType: regex
+          matcherRegex: '"correlationId":"([^"]+)"'
+          url: '{service=~".+"} | json | correlationId=`$${__value.raw}`'
+          datasourceUid: loki-powerlog
+          urlDisplayLabel: Related logs
+
+  - name: powerlog · Traces
+    uid: tempo-powerlog
+    type: tempo
+    access: proxy
+    url: http://powerlog-tempo:3200
+    jsonData:
+      tracesToLogsV2:
+        datasourceUid: loki-powerlog
+        filterByTraceID: true
+        spanStartTimeShift: -1h
+        spanEndTimeShift: 1h
+      serviceMap:
+        datasourceUid: prometheus-powerlog
+      nodeGraph:
+        enabled: true
+
+  # Prometheus-native alerts (unified across envs) surfaced in Grafana's
+  # Alerting UI. In dev this points at the local powerlog-alertmanager; in
+  # pi-infra at the app stack's one over the monitoring network.
+  - name: powerlog · Alerts
+    uid: alertmanager-powerlog
+    type: alertmanager
+    access: proxy
+    url: http://powerlog-alertmanager:9093
+    jsonData:
+      implementation: prometheus
+      handleGrafanaManagedAlerts: false

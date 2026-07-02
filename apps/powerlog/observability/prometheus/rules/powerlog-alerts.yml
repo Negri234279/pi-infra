@@ -1,0 +1,109 @@
+# powerlog alert rules (Prometheus-native; routed to powerlog's own Alertmanager
+# → Discord). Translated from the dev Grafana-managed rules so prod alerting is
+# consistent with pi-infra's model (alerting runs in Prometheus/Alertmanager, not
+# Grafana). Every alert carries `app: powerlog` so the route matches only this app.
+#
+# Metrics that only exist when a feature is enabled (R2, Resend, …) simply have no
+# series when off → the rule never fires (matches the dev noDataState: OK).
+
+groups:
+  # ── Health: is the app & its dependencies up ─────────────────
+  - name: powerlog-health
+    rules:
+      - alert: PowerlogApiDown
+        expr: up{job="powerlog-api"} == 0
+        for: 1m
+        labels: { app: powerlog, severity: critical }
+        annotations:
+          summary: "powerlog API target down"
+          description: "powerlog-api is not being scraped (up == 0) for >1m."
+
+      # NOTE: Postgres-down alerting lives in the CORE (shared DB) — see
+      # pi-infra core/prometheus/rules/alerts.yml (PostgresDown). powerlog's DB
+      # health is covered there, routed to the core's Discord channel.
+
+      - alert: PowerlogRefreshTokenReuse
+        expr: increase(powerlog_auth_refresh_total{status="reuse_detected"}[10m]) > 0
+        for: 0m
+        labels: { app: powerlog, severity: critical }
+        annotations:
+          summary: "powerlog refresh-token reuse detected"
+          description: "A revoked refresh token was replayed — its family was revoked (possible theft)."
+
+      - alert: PowerlogR2Down
+        expr: min(powerlog_r2_up) == 0
+        for: 5m
+        labels: { app: powerlog, severity: critical }
+        annotations:
+          summary: "powerlog R2 bucket unreachable"
+          description: "R2 HeadObject probe failing (powerlog_r2_up == 0) — avatar storage unreachable."
+
+  # ── SLO / runtime ────────────────────────────────────────────
+  - name: powerlog-slo
+    rules:
+      - alert: PowerlogHighErrorRatio
+        expr: sum(rate(domain_errors_total[5m])) / sum(rate(http_request_duration_seconds_count[5m])) > 0.1
+        for: 5m
+        labels: { app: powerlog, severity: warning }
+        annotations:
+          summary: "powerlog high request error ratio"
+          description: ">10% of inbound requests are erroring (5m)."
+
+      - alert: PowerlogEventLoopLagHigh
+        expr: nodejs_eventloop_lag_p99_seconds > 0.2
+        for: 5m
+        labels: { app: powerlog, severity: warning }
+        annotations:
+          summary: "powerlog event loop lag p99 high"
+          description: "Node.js event loop p99 lag > 200ms (process saturated)."
+
+      - alert: PowerlogEmailSendFailures
+        expr: increase(powerlog_emails_sent_total{status="failed"}[10m]) > 0
+        for: 0m
+        labels: { app: powerlog, severity: warning }
+        annotations:
+          summary: "powerlog transactional email failures"
+          description: "One or more transactional emails failed to send (10m)."
+
+      - alert: PowerlogPgPoolSaturated
+        expr: max(powerlog_pg_pool_connections{state="waiting"}) > 0
+        for: 2m
+        labels: { app: powerlog, severity: warning }
+        annotations:
+          summary: "powerlog pg connection pool saturated"
+          description: "Clients are waiting for a pg connection (pool at max)."
+
+  # ── Email deliverability (Resend) ────────────────────────────
+  - name: powerlog-email
+    rules:
+      - alert: PowerlogResendDomainUnverified
+        expr: min(powerlog_resend_domain_verified) == 0
+        for: 10m
+        labels: { app: powerlog, severity: critical }
+        annotations:
+          summary: "powerlog Resend sending domain not verified"
+          description: "A Resend sending domain is not verified — emails will fail to send."
+
+      - alert: PowerlogResendApiDown
+        expr: powerlog_resend_api_up == 0
+        for: 10m
+        labels: { app: powerlog, severity: warning }
+        annotations:
+          summary: "powerlog Resend API unreachable"
+          description: "Resend API probe failing (powerlog_resend_api_up == 0) — key invalid or Resend down."
+
+      - alert: PowerlogEmailComplaints
+        expr: increase(powerlog_email_events_total{event="complained"}[1h]) > 0
+        for: 0m
+        labels: { app: powerlog, severity: critical }
+        annotations:
+          summary: "powerlog email spam complaints"
+          description: "Recipients marked email as spam (Resend complained event) — reputation risk."
+
+      - alert: PowerlogEmailBounceRateHigh
+        expr: sum(increase(powerlog_email_events_total{event="bounced"}[1h])) / clamp_min(sum(increase(powerlog_email_events_total{event=~"delivered|bounced"}[1h])), 1) > 0.05
+        for: 0m
+        labels: { app: powerlog, severity: warning }
+        annotations:
+          summary: "powerlog high email bounce rate"
+          description: ">5% of recent emails bounced (1h) — check recipients / domain reputation."
