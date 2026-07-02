@@ -300,6 +300,15 @@ services:
     networks:
       - db        # reach Postgres
       - monitoring # be scraped by the infra Prometheus
+  
+  docker-notifier:
+    container_name: docker-notifier
+    image: negrii/docker-notifier:latest
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    labels:
+      - com.centurylinklabs.watchtower.enable=true
 
 volumes:
   grafana-data:
