@@ -1,0 +1,20 @@
+# Cloudflare GraphQL Analytics via the Infinity datasource. Used ONLY by the
+# "Cloudflare · negri.es" dashboard for the per-subdomain breakdown — the metric
+# the cloudflare-exporter can't produce (it aggregates zone-wide). Everything else
+# on that dashboard comes from the Infra Prometheus (the exporter).
+#
+# The bearer token is interpolated from $CF_API_TOKEN, which the grafana service
+# receives from the root .env. allowedHosts pins requests to Cloudflare's API.
+apiVersion: 1
+
+datasources:
+  - name: Cloudflare GraphQL
+    uid: cloudflare-graphql
+    type: yesoreyeram-infinity-datasource
+    access: proxy
+    jsonData:
+      auth_method: bearerToken
+      allowedHosts:
+        - https://api.cloudflare.com
+    secureJsonData:
+      bearerToken: $CF_API_TOKEN

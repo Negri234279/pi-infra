@@ -28,6 +28,14 @@ services:
       - GF_SECURITY_ADMIN_PASSWORD=${GF_ADMIN_PASSWORD:-admin}
       - GF_USERS_ALLOW_SIGN_UP=false
       - GF_ANALYTICS_REPORTING_ENABLED=false
+      # Infinity datasource: lets the Cloudflare dashboard query the CF GraphQL
+      # Analytics API directly for the per-subdomain breakdown (the exporter below
+      # only produces zone-wide totals). Installed on first boot (needs internet).
+      - GF_INSTALL_PLUGINS=yesoreyeram-infinity-datasource
+      # Passed through so the provisioned Infinity datasource can authenticate to
+      # Cloudflare with the same token the exporter uses. Empty → panel just shows
+      # no data; nothing else breaks.
+      - CF_API_TOKEN=${CF_API_TOKEN:-}
     volumes:
       - grafana-data:/var/lib/grafana
       - ./grafana/provisioning:/etc/grafana/provisioning:ro
@@ -301,6 +309,34 @@ services:
       - db        # reach Postgres
       - monitoring # be scraped by the infra Prometheus
   
+  # Cloudflare R2 usage → Prometheus (historical): cloudflare_r2_storage_bytes and
+  # cloudflare_r2_operation_count per bucket, for the whole account. Polls the CF
+  # GraphQL Analytics API (~5 min). Scraped by prometheus-infra and rendered on the
+  # "Cloudflare · negri.es" dashboard. NOTE: zone HTTP analytics are NOT produced
+  # here — this exporter only implements the paid per-minute dataset, which a
+  # free-plan zone (negri.es) can't access; the dashboard's traffic panels query
+  # the free hourly dataset live via the Infinity datasource instead. Token scopes:
+  # Zone:Read + Zone Analytics:Read + Account Analytics:Read (see .env / README).
+  cloudflare-exporter:
+    image: cyb3rjak3/cloudflare-exporter:v2.3.1
+    container_name: cloudflare-exporter
+    restart: unless-stopped
+    environment:
+      - CF_API_TOKEN=${CF_API_TOKEN:-}
+      # Account-scoped tokens need the account id explicitly (also drives R2).
+      - CF_ACCOUNTS=${CF_ACCOUNT_ID:-}
+      # Optional: restrict to specific zone id(s). Empty = auto-discover every zone
+      # the token can read (needs Zone:Read). Set CF_ZONE_ID in .env to pin negri.es.
+      - CF_ZONES=${CF_ZONE_ID:-}
+      # negri.es is on the free plan by default → only request free-tier datasets.
+      # Flip CF_FREE_TIER=false in .env if the zone is on a paid plan.
+      - FREE_TIER=${CF_FREE_TIER:-true}
+      - LISTEN=:8080
+    labels:
+      - com.centurylinklabs.watchtower.enable=true
+    networks:
+      - monitoring
+
   docker-notifier:
     container_name: docker-notifier
     image: negrii/docker-notifier:latest
