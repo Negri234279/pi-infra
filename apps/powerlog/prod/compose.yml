@@ -1,0 +1,228 @@
+# ─────────────────────────────────────────────────────────────
+# powerlog — full prod stack for the shared Raspberry Pi (pi-infra).
+#
+# Self-contained: app (postgres + api + web) + its OWN observability
+# (prometheus / loki / tempo / alloy) + its OWN alerting (alertmanager →
+# powerlog's Discord, independent from the core channel).
+#
+# Every service is prefixed `powerlog-` and joins the external `monitoring`
+# network so the CENTRAL Grafana (pi-infra core) can query this stack's
+# Prometheus / Loki / Tempo as the `*-powerlog` datasources. No Grafana here —
+# the core owns it. No host ports for observability — reached by DNS on
+# `monitoring`; api/web are exposed through nginx-proxy-manager (core).
+#
+# This folder is the source of truth in the powerlog repo (infra/prod/) and is
+# synced into pi-infra/apps/powerlog/prod/ by the sync-pi-infra action. Secrets
+# live in powerlog.env on the Pi only (gitignored; see powerlog.env.example).
+# ─────────────────────────────────────────────────────────────
+name: powerlog
+
+services:
+  # ── App ──────────────────────────────────────────────────────
+  # The database is the SHARED core Postgres (pi-infra core/postgres). powerlog
+  # gets its own role+db there via apps/powerlog/postgres/provision.env; runtime
+  # connects through PgBouncer (db network), migrations go direct to Postgres.
+  powerlog-api:
+    image: negrii/powerlog-api:latest
+    container_name: powerlog-api
+    pull_policy: always
+    env_file:
+      - path: ./powerlog.env
+        required: false
+    environment:
+      NODE_ENV: production
+      APP_ENV: prod
+      API_PORT: 4000
+      # OpenTelemetry → this stack's Tempo (OTLP/HTTP).
+      OTEL_SERVICE_NAME: powerlog-api
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://powerlog-tempo:4318
+      OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
+      OTEL_SDK_DISABLED: "false"
+    # No depends_on for the DB: it lives in the core stack (separate compose file).
+    # The entrypoint migrates then starts; if the shared DB / provisioner isn't
+    # ready yet it exits non-zero and the restart policy retries until it is.
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:4000/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      # The entrypoint applies pending Drizzle migrations before listening.
+      start_period: 60s
+    deploy:
+      resources:
+        limits: { cpus: "1.0", memory: 512m }
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+    # db: reach the shared Postgres/PgBouncer. powerlog-net: be scraped by
+    # prometheus + push OTLP to tempo. monitoring: reachable by nginx-proxy-manager.
+    networks: [powerlog-net, monitoring, db]
+    restart: unless-stopped
+
+  powerlog-web:
+    image: negrii/powerlog-web:latest
+    container_name: powerlog-web
+    pull_policy: always
+    env_file:
+      - path: ./powerlog.env
+        required: false
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+    depends_on:
+      powerlog-api:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits: { cpus: "0.5", memory: 512m }
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+    networks: [powerlog-net, monitoring]
+    restart: unless-stopped
+
+  # ── Observability (metrics / logs / traces) ──────────────────
+  powerlog-prometheus:
+    image: prom/prometheus:v3.1.0
+    container_name: powerlog-prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=15d"
+      - "--storage.tsdb.retention.size=1GB"
+      - "--web.enable-lifecycle"
+      # Tempo's metrics_generator remote-writes span-metrics + service graph here.
+      - "--web.enable-remote-write-receiver"
+      # Store trace exemplars so latency panels can link to traces.
+      - "--enable-feature=exemplar-storage"
+    volumes:
+      # Shared single-source obs configs (../observability) + per-env scrape.d.
+      - ../observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ../observability/prometheus/rules:/etc/prometheus/rules:ro
+      - ./scrape.d:/etc/prometheus/scrape.d:ro
+      - powerlog-prometheus-data:/prometheus
+    deploy:
+      resources:
+        limits: { cpus: "0.5", memory: 512m }
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+    # powerlog-net: scrape app + obs. monitoring: queried by the central Grafana.
+    networks: [powerlog-net, monitoring]
+    restart: unless-stopped
+
+  powerlog-loki:
+    image: grafana/loki:3.3.2
+    container_name: powerlog-loki
+    command: ["-config.file=/etc/loki/loki-config.yaml"]
+    volumes:
+      - ../observability/loki/loki-config.yaml:/etc/loki/loki-config.yaml:ro
+      - powerlog-loki-data:/loki
+    deploy:
+      resources:
+        limits: { cpus: "0.5", memory: 384m }
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+    networks: [powerlog-net, monitoring]
+    restart: unless-stopped
+
+  powerlog-tempo:
+    image: grafana/tempo:2.6.1
+    container_name: powerlog-tempo
+    command: ["-config.file=/etc/tempo/tempo.yaml"]
+    volumes:
+      - ../observability/tempo/tempo.yaml:/etc/tempo/tempo.yaml:ro
+      - powerlog-tempo-data:/var/tempo
+    deploy:
+      resources:
+        limits: { cpus: "0.5", memory: 384m }
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+    networks: [powerlog-net, monitoring]
+    restart: unless-stopped
+
+  powerlog-alloy:
+    image: grafana/alloy:v1.5.1
+    container_name: powerlog-alloy
+    command:
+      - run
+      - --server.http.listen-addr=0.0.0.0:12345
+      - --storage.path=/var/lib/alloy/data
+      - /etc/alloy/config.alloy
+    volumes:
+      - ../observability/alloy/config.alloy:/etc/alloy/config.alloy:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - powerlog-alloy-data:/var/lib/alloy/data
+    depends_on:
+      - powerlog-loki
+    deploy:
+      resources:
+        limits: { cpus: "0.25", memory: 128m }
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+    networks: [powerlog-net]
+    restart: unless-stopped
+
+  # ── Alerting (independent from core; own Discord channel) ─────
+  # Writes POWERLOG_DISCORD_WEBHOOK_URL (from powerlog.env) into a secret file
+  # so Alertmanager reads it via webhook_url_file — the secret stays out of git.
+  powerlog-alertmanager-init:
+    image: busybox:1.37
+    container_name: powerlog-alertmanager-init
+    env_file:
+      - path: ./powerlog.env
+        required: false
+    command:
+      - "sh"
+      - "-c"
+      - 'printf "%s" "$$POWERLOG_DISCORD_WEBHOOK_URL" > /secrets/discord_webhook_url && echo "wrote powerlog discord webhook secret"'
+    volumes:
+      - powerlog-alertmanager-secrets:/secrets
+    networks: [powerlog-net]
+    restart: "no"
+
+  powerlog-alertmanager:
+    image: prom/alertmanager:v0.28.0
+    container_name: powerlog-alertmanager
+    command:
+      - "--config.file=/etc/alertmanager/alertmanager.yml"
+      - "--storage.path=/alertmanager"
+    volumes:
+      - ../observability/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - powerlog-alertmanager-secrets:/etc/alertmanager/secrets:ro
+      - powerlog-alertmanager-data:/alertmanager
+    depends_on:
+      powerlog-alertmanager-init:
+        condition: service_completed_successfully
+    deploy:
+      resources:
+        limits: { cpus: "0.25", memory: 128m }
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+    networks: [powerlog-net]
+    restart: unless-stopped
+
+volumes:
+  powerlog-prometheus-data:
+  powerlog-loki-data:
+  powerlog-tempo-data:
+  powerlog-alloy-data:
+  powerlog-alertmanager-data:
+  powerlog-alertmanager-secrets:
+
+networks:
+  # Private: app ↔ its own observability + alerting.
+  powerlog-net:
+    name: powerlog-net
+  # Shared, created once by pi-infra's scripts/create-network.sh — joined, not created.
+  monitoring:
+    external: true
+    name: monitoring
+  # Shared DB network: the core Postgres/PgBouncer ↔ this app.
+  db:
+    external: true
+    name: db

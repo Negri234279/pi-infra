@@ -1,0 +1,210 @@
+{
+    "uid": "powerlog-cloudflare-r2",
+    "title": "powerlog · Cloudflare R2",
+    "tags": ["cloudflare", "r2", "storage"],
+    "timezone": "browser",
+    "schemaVersion": 39,
+    "version": 1,
+    "refresh": "1m",
+    "time": { "from": "now-7d", "to": "now" },
+    "templating": { "list": [] },
+    "panels": [
+        {
+            "id": 1,
+            "type": "text",
+            "title": "",
+            "gridPos": { "h": 3, "w": 24, "x": 0, "y": 0 },
+            "options": {
+                "mode": "markdown",
+                "content": "Account-level **Cloudflare R2** usage from `cloudflare-exporter` (GraphQL Analytics API, ~5 min cadence). **Health** below is a live `HeadBucket` probe from the API (`powerlog_r2_up`, only when `AVATAR_STORAGE=r2`). **Note:** stored bytes & operation counts come from the exporter; object count and egress aren't exposed there."
+            }
+        },
+        {
+            "id": 10,
+            "type": "row",
+            "title": "Health (live probe)",
+            "gridPos": { "h": 1, "w": 24, "x": 0, "y": 3 }
+        },
+        {
+            "id": 11,
+            "type": "stat",
+            "title": "R2 bucket status",
+            "description": "Live HeadBucket probe from the API every 30s. UP = auth + endpoint + bucket all reachable. No data → the API isn't running with AVATAR_STORAGE=r2.",
+            "datasource": { "type": "prometheus", "uid": "prometheus-powerlog" },
+            "gridPos": { "h": 6, "w": 8, "x": 0, "y": 4 },
+            "fieldConfig": {
+                "defaults": {
+                    "mappings": [
+                        {
+                            "type": "value",
+                            "options": {
+                                "1": { "text": "UP", "color": "green", "index": 0 },
+                                "0": { "text": "DOWN", "color": "red", "index": 1 }
+                            }
+                        }
+                    ],
+                    "noValue": "no probe",
+                    "color": { "mode": "thresholds" },
+                    "thresholds": {
+                        "steps": [
+                            { "color": "red", "value": null },
+                            { "color": "green", "value": 1 }
+                        ]
+                    }
+                },
+                "overrides": []
+            },
+            "options": {
+                "reduceOptions": { "calcs": ["lastNotNull"] },
+                "colorMode": "background",
+                "graphMode": "none",
+                "textMode": "value"
+            },
+            "targets": [{ "refId": "A", "expr": "powerlog_r2_up", "legendFormat": "{{bucket}}" }]
+        },
+        {
+            "id": 12,
+            "type": "stat",
+            "title": "Last probe latency",
+            "datasource": { "type": "prometheus", "uid": "prometheus-powerlog" },
+            "gridPos": { "h": 6, "w": 8, "x": 8, "y": 4 },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "s",
+                    "color": { "mode": "thresholds" },
+                    "thresholds": {
+                        "steps": [
+                            { "color": "green", "value": null },
+                            { "color": "yellow", "value": 0.5 },
+                            { "color": "red", "value": 2 }
+                        ]
+                    }
+                },
+                "overrides": []
+            },
+            "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "value", "graphMode": "area" },
+            "targets": [{ "refId": "A", "expr": "powerlog_r2_probe_seconds", "legendFormat": "{{bucket}}" }]
+        },
+        {
+            "id": 13,
+            "type": "timeseries",
+            "title": "Bucket up (history)",
+            "datasource": { "type": "prometheus", "uid": "prometheus-powerlog" },
+            "gridPos": { "h": 6, "w": 8, "x": 16, "y": 4 },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "short",
+                    "min": 0,
+                    "max": 1,
+                    "custom": { "drawStyle": "line", "lineInterpolation": "stepAfter", "fillOpacity": 20 }
+                },
+                "overrides": []
+            },
+            "options": { "legend": { "displayMode": "list", "placement": "bottom" } },
+            "targets": [{ "refId": "A", "expr": "powerlog_r2_up", "legendFormat": "{{bucket}}" }]
+        },
+        {
+            "id": 2,
+            "type": "row",
+            "title": "Storage",
+            "gridPos": { "h": 1, "w": 24, "x": 0, "y": 10 }
+        },
+        {
+            "id": 3,
+            "type": "stat",
+            "title": "Total stored",
+            "description": "Total bytes stored across all R2 buckets in the account.",
+            "datasource": { "type": "prometheus", "uid": "prometheus-powerlog" },
+            "gridPos": { "h": 6, "w": 6, "x": 0, "y": 11 },
+            "fieldConfig": {
+                "defaults": { "unit": "decbytes", "color": { "mode": "fixed", "fixedColor": "blue" } },
+                "overrides": []
+            },
+            "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "value", "graphMode": "area" },
+            "targets": [{ "refId": "A", "expr": "sum(cloudflare_r2_storage_total_bytes)", "legendFormat": "stored" }]
+        },
+        {
+            "id": 4,
+            "type": "timeseries",
+            "title": "Stored bytes by bucket",
+            "datasource": { "type": "prometheus", "uid": "prometheus-powerlog" },
+            "gridPos": { "h": 6, "w": 18, "x": 6, "y": 11 },
+            "fieldConfig": { "defaults": { "unit": "decbytes" }, "overrides": [] },
+            "options": { "legend": { "displayMode": "table", "placement": "right", "calcs": ["lastNotNull", "max"] } },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "sum by (bucket) (cloudflare_r2_storage_bytes)",
+                    "legendFormat": "{{bucket}}"
+                }
+            ]
+        },
+        {
+            "id": 5,
+            "type": "row",
+            "title": "Operations",
+            "gridPos": { "h": 1, "w": 24, "x": 0, "y": 17 }
+        },
+        {
+            "id": 6,
+            "type": "stat",
+            "title": "Operations (selected range)",
+            "description": "Sum of R2 operations reported over the dashboard time range. Class A (writes/list) and Class B (reads) are distinguished by the `operation` label.",
+            "datasource": { "type": "prometheus", "uid": "prometheus-powerlog" },
+            "gridPos": { "h": 6, "w": 6, "x": 0, "y": 18 },
+            "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+            "options": { "reduceOptions": { "calcs": ["sum"] }, "colorMode": "value", "graphMode": "area" },
+            "targets": [{ "refId": "A", "expr": "sum(cloudflare_r2_operation_count)", "legendFormat": "operations" }]
+        },
+        {
+            "id": 7,
+            "type": "timeseries",
+            "title": "Operations by type",
+            "description": "Per-operation counts (PutObject, GetObject, ListObjects, …). Use these to see the Class A vs Class B split that drives R2 billing.",
+            "datasource": { "type": "prometheus", "uid": "prometheus-powerlog" },
+            "gridPos": { "h": 6, "w": 18, "x": 6, "y": 18 },
+            "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+            "options": { "legend": { "displayMode": "table", "placement": "right", "calcs": ["lastNotNull", "sum"] } },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "sum by (operation) (cloudflare_r2_operation_count)",
+                    "legendFormat": "{{operation}}"
+                }
+            ]
+        },
+        {
+            "id": 8,
+            "type": "piechart",
+            "title": "Operation share",
+            "datasource": { "type": "prometheus", "uid": "prometheus-powerlog" },
+            "gridPos": { "h": 7, "w": 12, "x": 0, "y": 24 },
+            "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+            "options": { "legend": { "displayMode": "table", "placement": "right", "values": ["value", "percent"] } },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "sum by (operation) (cloudflare_r2_operation_count)",
+                    "legendFormat": "{{operation}}",
+                    "instant": true
+                }
+            ]
+        },
+        {
+            "id": 9,
+            "type": "timeseries",
+            "title": "Operations by bucket",
+            "datasource": { "type": "prometheus", "uid": "prometheus-powerlog" },
+            "gridPos": { "h": 7, "w": 12, "x": 12, "y": 24 },
+            "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+            "options": { "legend": { "displayMode": "table", "placement": "right", "calcs": ["lastNotNull"] } },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "sum by (bucket) (cloudflare_r2_operation_count)",
+                    "legendFormat": "{{bucket}}"
+                }
+            ]
+        }
+    ]
+}
