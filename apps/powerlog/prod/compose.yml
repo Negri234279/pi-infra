@@ -27,7 +27,7 @@ services:
     container_name: powerlog-api
     pull_policy: always
     env_file:
-      - path: ./powerlog.env
+      - path: ./powerlog-api.env
         required: false
     environment:
       NODE_ENV: production
@@ -64,11 +64,18 @@ services:
     container_name: powerlog-web
     pull_policy: always
     env_file:
-      - path: ./powerlog.env
+      - path: ./powerlog-web.env
         required: false
     environment:
       NODE_ENV: production
       PORT: 3000
+      API_INTERNAL_URL: http://powerlog-api:4000
+      # OpenTelemetry → this stack's Tempo (OTLP/HTTP), read by @vercel/otel in
+      # instrumentation.ts. No-ops if the endpoint is unset.
+      OTEL_SERVICE_NAME: powerlog-web
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://powerlog-tempo:4318
+      OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
+      OTEL_RESOURCE_ATTRIBUTES: "deployment.environment.name=prod"
     depends_on:
       powerlog-api:
         condition: service_healthy
