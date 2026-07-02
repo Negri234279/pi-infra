@@ -52,3 +52,10 @@ scrape_configs:
   - job_name: postgres
     static_configs:
       - targets: ["postgres-exporter:9187"]
+
+  # Cloudflare account/zone analytics + R2. The exporter refreshes from CF's API
+  # every ~5 min (SCRAPE_DELAY), so a fast scrape adds nothing — poll at 60s.
+  - job_name: cloudflare
+    scrape_interval: 60s
+    static_configs:
+      - targets: ["cloudflare-exporter:8080"]
