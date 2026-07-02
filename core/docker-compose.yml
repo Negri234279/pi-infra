@@ -41,7 +41,7 @@ services:
       - ./grafana/provisioning:/etc/grafana/provisioning:ro
       - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/api/health || exit 1"]
+      test: [ "CMD-SHELL", "wget -qO- http://localhost:3000/api/health || exit 1" ]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -65,7 +65,7 @@ services:
       - ./prometheus:/etc/prometheus:ro
       - prometheus-data:/prometheus
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:9090/-/healthy || exit 1"]
+      test: [ "CMD-SHELL", "wget -qO- http://localhost:9090/-/healthy || exit 1" ]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -116,11 +116,11 @@ services:
     restart: unless-stopped
     environment:
       - TZ=Europe/Madrid
-      - WATCHTOWER_LABEL_ENABLE=true          # only update opted-in containers
-      - WATCHTOWER_CLEANUP=true               # prune the replaced images
+      - WATCHTOWER_LABEL_ENABLE=true # only update opted-in containers
+      - WATCHTOWER_CLEANUP=true # prune the replaced images
       - WATCHTOWER_INCLUDE_RESTARTING=true
-      - WATCHTOWER_ROLLING_RESTART=true       # one container at a time
-      - WATCHTOWER_POLL_INTERVAL=300          # check every 5 minutes
+      - WATCHTOWER_ROLLING_RESTART=true # one container at a time
+      - WATCHTOWER_POLL_INTERVAL=300 # check every 5 minutes
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     networks:
@@ -152,7 +152,7 @@ services:
     image: quay.io/martinhelmich/prometheus-nginxlog-exporter:v1.11.0
     container_name: npm-exporter
     restart: unless-stopped
-    command: ["-config-file", "/etc/exporter/config.yml"]
+    command: [ "-config-file", "/etc/exporter/config.yml" ]
     volumes:
       - ./nginx-proxy-manager/exporter-config.yml:/etc/exporter/config.yml:ro
       - ./nginx-proxy-manager/data/logs:/npm-logs:ro
@@ -209,7 +209,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_SUPERUSER_PASSWORD:-postgres}
       POSTGRES_DB: postgres
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -239,7 +239,7 @@ services:
       PG_EXPORTER_USER: ${PG_EXPORTER_USER:-postgres_exporter}
       PG_EXPORTER_PASSWORD: ${PG_EXPORTER_PASSWORD:-postgres_exporter}
       PGBOUNCER_AUTH_PASSWORD: ${PGBOUNCER_AUTH_PASSWORD:-pgbouncer_auth}
-    entrypoint: ["sh", "/provision.sh"]
+    entrypoint: [ "sh", "/provision.sh" ]
     volumes:
       - ./postgres/provision/provision.sh:/provision.sh:ro
       # Read every app's provisioning spec (apps/<app>/postgres/provision.env).
@@ -306,9 +306,9 @@ services:
       resources:
         limits: { cpus: "0.25", memory: 128m }
     networks:
-      - db        # reach Postgres
+      - db # reach Postgres
       - monitoring # be scraped by the infra Prometheus
-  
+
   # Cloudflare R2 usage → Prometheus (historical): cloudflare_r2_storage_bytes and
   # cloudflare_r2_operation_count per bucket, for the whole account. Polls the CF
   # GraphQL Analytics API (~5 min). Scraped by prometheus-infra and rendered on the
@@ -321,6 +321,9 @@ services:
     image: cyb3rjak3/cloudflare-exporter:v2.3.1
     container_name: cloudflare-exporter
     restart: unless-stopped
+    env_file:
+      - path: ../.env
+        required: false
     environment:
       - CF_API_TOKEN=${CF_API_TOKEN:-}
       # Account-scoped tokens need the account id explicitly (also drives R2).
@@ -332,8 +335,6 @@ services:
       # Flip CF_FREE_TIER=false in .env if the zone is on a paid plan.
       - FREE_TIER=${CF_FREE_TIER:-true}
       - LISTEN=:8080
-    labels:
-      - com.centurylinklabs.watchtower.enable=true
     networks:
       - monitoring
 
@@ -354,10 +355,10 @@ volumes:
   postgres-data:
   pgbouncer-secrets:
 
-# Shared, cross-app network. Declared external so each app's compose (under ../apps/,
-# or in its own repo) can join the SAME network (`networks: [monitoring]` +
-# `external: true`) and expose its own Prometheus to this Grafana. Create it once with
-# scripts/create-network.sh.
+    # Shared, cross-app network. Declared external so each app's compose (under ../apps/,
+    # or in its own repo) can join the SAME network (`networks: [monitoring]` +
+    # `external: true`) and expose its own Prometheus to this Grafana. Create it once with
+    # scripts/create-network.sh.
 networks:
   monitoring:
     external: true
