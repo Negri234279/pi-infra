@@ -344,6 +344,11 @@ services:
     restart: unless-stopped
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
+    env_file:
+      - path: ../.env
+    environment:
+      # The image expects DISCORD_WEBHOOK; the repo standardizes on DN_DISCORD_WEBHOOK_URL
+      - DISCORD_WEBHOOK=${DN_DISCORD_WEBHOOK_URL:-}
     labels:
       - com.centurylinklabs.watchtower.enable=true
 
