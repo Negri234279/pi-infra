@@ -43,3 +43,39 @@ loki.write "default" {
 		url = "http://powerlog-loki:3100/loki/api/v1/push"
 	}
 }
+
+// ── Grafana Faro (browser RUM from powerlog-web) ─────────────────────────
+// The Next.js app proxies same-origin /faro/* to this receiver, so the browser
+// never talks to Alloy directly (no CORS, no exposed port in prod — dev
+// publishes 12347 on the host because the web dev server runs outside compose).
+// Logs / events / measurements (Web Vitals) / exceptions land in Loki as
+// logfmt lines (query with `{app="powerlog-web"} | logfmt`); browser traces
+// forward to the same Tempo the API uses, so trace ids correlate end-to-end.
+
+faro.receiver "web" {
+	server {
+		listen_address = "0.0.0.0"
+		listen_port    = 12347
+		// Same-origin proxying means no browser preflights, but the header is
+		// harmless and future-proofs a direct-exposure setup.
+		cors_allowed_origins = ["*"]
+	}
+
+	output {
+		logs   = [loki.write.default.receiver]
+		traces = [otelcol.exporter.otlphttp.tempo.input]
+	}
+
+	// Keep labels bounded: one stream per app/kind, everything else stays in
+	// the logfmt body (view, event_name, values, ...).
+	extra_log_labels = {
+		app = "powerlog-web",
+		job = "faro",
+	}
+}
+
+otelcol.exporter.otlphttp "tempo" {
+	client {
+		endpoint = "http://powerlog-tempo:4318"
+	}
+}
