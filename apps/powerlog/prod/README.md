@@ -12,14 +12,14 @@ App + its own observability + its own alerting, all prefixed `powerlog-` and
 joined to the external `monitoring` network so the **central Grafana** (pi-infra
 core) can query this stack as the `*-powerlog` datasources:
 
-| Service                      | Role                                              |
-| ---------------------------- | ------------------------------------------------- |
-| `powerlog-api` / `powerlog-web` | the app (images `negrii/powerlog-*:latest`)    |
-| `powerlog-prometheus`        | scrapes app + obs; `external_labels: app=powerlog` |
-| `powerlog-loki`              | logs (Alloy ships only `powerlog-*` containers)   |
-| `powerlog-tempo`             | traces (OTLP from the API) + span-metrics         |
-| `powerlog-alloy`             | Docker log shipper → `powerlog-loki`              |
-| `powerlog-alertmanager` (+init) | alerts → powerlog's **own** Discord channel    |
+| Service                         | Role                                               |
+| ------------------------------- | -------------------------------------------------- |
+| `powerlog-api` / `powerlog-web` | the app (images `negrii/powerlog-*:latest`)        |
+| `powerlog-prometheus`           | scrapes app + obs; `external_labels: app=powerlog` |
+| `powerlog-loki`                 | logs (Alloy ships only `powerlog-*` containers)    |
+| `powerlog-tempo`                | traces (OTLP from the API) + span-metrics          |
+| `powerlog-alloy`                | Docker log shipper → `powerlog-loki`               |
+| `powerlog-alertmanager` (+init) | alerts → powerlog's **own** Discord channel        |
 
 There is **no Grafana here** — the pi-infra core owns the single shared Grafana.
 Its datasources (`prometheus-powerlog` / `loki-powerlog` / `tempo-powerlog`) and
@@ -85,12 +85,12 @@ This folder is **not** copied by hand. The `sync-pi-infra` GitHub Action
 `infra/**` and opens a PR in the pi-infra repo. The contract (also in
 `scripts/sync-pi-infra.sh`, runnable locally for a dry run):
 
-| Source (powerlog) | Destination (pi-infra) |
-| --- | --- |
-| `infra/prod/` | `apps/powerlog/prod/` |
-| `infra/observability/` (minus `grafana/`) | `apps/powerlog/observability/` |
-| `infra/observability/grafana/dashboards/{powerlog-overview,cloudflare-r2}.json` | `core/grafana/dashboards/powerlog/` |
-| `infra/observability/grafana/provisioning/datasources/datasources.yaml` | `core/grafana/provisioning/datasources/powerlog.yml` |
+| Source (powerlog)                                                               | Destination (pi-infra)                               |
+| ------------------------------------------------------------------------------- | ---------------------------------------------------- |
+| `infra/prod/`                                                                   | `apps/powerlog/prod/`                                |
+| `infra/observability/` (minus `grafana/`)                                       | `apps/powerlog/observability/`                       |
+| `infra/observability/grafana/dashboards/{powerlog-overview,cloudflare-r2}.json` | `core/grafana/dashboards/powerlog/`                  |
+| `infra/observability/grafana/provisioning/datasources/datasources.yaml`         | `core/grafana/provisioning/datasources/powerlog.yml` |
 
 `prod/compose.yml` mounts `../observability`, so the stack and the obs configs are
 synced side-by-side under `apps/powerlog/` to keep that path valid.
