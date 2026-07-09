@@ -4,7 +4,7 @@
     "tags": ["powerlog"],
     "timezone": "browser",
     "schemaVersion": 39,
-    "version": 8,
+    "version": 9,
     "refresh": "10s",
     "time": { "from": "now-30m", "to": "now" },
     "templating": {
@@ -494,10 +494,40 @@
         },
 
         {
+            "id": 43,
+            "type": "timeseries",
+            "title": "Mesocycle status transitions (ev/s)",
+            "datasource": { "type": "prometheus", "uid": "prometheus-powerlog" },
+            "gridPos": { "h": 8, "w": 8, "x": 0, "y": 57 },
+            "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "sum by (status) (rate(powerlog_mesocycle_status_transitions_total[5m]))",
+                    "legendFormat": "{{status}}"
+                }
+            ]
+        },
+        {
+            "id": 44,
+            "type": "timeseries",
+            "title": "Mesocycle sessions generated (ev/s)",
+            "datasource": { "type": "prometheus", "uid": "prometheus-powerlog" },
+            "gridPos": { "h": 8, "w": 8, "x": 8, "y": 57 },
+            "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "sum by (mode) (rate(powerlog_mesocycle_sessions_generated_total[5m]))",
+                    "legendFormat": "{{mode}}"
+                }
+            ]
+        },
+        {
             "id": 107,
             "type": "row",
             "title": "Traces · span metrics (Tempo)",
-            "gridPos": { "h": 1, "w": 24, "x": 0, "y": 57 }
+            "gridPos": { "h": 1, "w": 24, "x": 0, "y": 65 }
         },
         {
             "id": 70,
@@ -505,7 +535,7 @@
             "title": "Span call rate (calls/s)",
             "description": "From Tempo metrics_generator span-metrics. Populates once traffic flows after enabling the generator.",
             "datasource": { "type": "prometheus", "uid": "prometheus-powerlog" },
-            "gridPos": { "h": 8, "w": 8, "x": 0, "y": 58 },
+            "gridPos": { "h": 8, "w": 8, "x": 0, "y": 66 },
             "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
             "targets": [
                 {
@@ -520,7 +550,7 @@
             "type": "timeseries",
             "title": "Span latency p95 (s)",
             "datasource": { "type": "prometheus", "uid": "prometheus-powerlog" },
-            "gridPos": { "h": 8, "w": 8, "x": 8, "y": 58 },
+            "gridPos": { "h": 8, "w": 8, "x": 8, "y": 66 },
             "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
             "targets": [
                 {
@@ -536,7 +566,7 @@
             "title": "Service graph req rate (req/s)",
             "description": "Edges of the service graph (client → server) derived from traces.",
             "datasource": { "type": "prometheus", "uid": "prometheus-powerlog" },
-            "gridPos": { "h": 8, "w": 8, "x": 16, "y": 58 },
+            "gridPos": { "h": 8, "w": 8, "x": 16, "y": 66 },
             "fieldConfig": { "defaults": { "unit": "reqps" }, "overrides": [] },
             "targets": [
                 {
@@ -551,14 +581,14 @@
             "id": 108,
             "type": "row",
             "title": "Database (PostgreSQL)",
-            "gridPos": { "h": 1, "w": 24, "x": 0, "y": 66 }
+            "gridPos": { "h": 1, "w": 24, "x": 0, "y": 74 }
         },
         {
             "id": 80,
             "type": "timeseries",
             "title": "Connections by state",
             "datasource": { "type": "prometheus", "uid": "prometheus-powerlog" },
-            "gridPos": { "h": 8, "w": 8, "x": 0, "y": 67 },
+            "gridPos": { "h": 8, "w": 8, "x": 0, "y": 75 },
             "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
             "targets": [
                 {
@@ -573,7 +603,7 @@
             "type": "timeseries",
             "title": "Commits & rollbacks (tx/s)",
             "datasource": { "type": "prometheus", "uid": "prometheus-powerlog" },
-            "gridPos": { "h": 8, "w": 8, "x": 8, "y": 67 },
+            "gridPos": { "h": 8, "w": 8, "x": 8, "y": 75 },
             "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
             "targets": [
                 {
@@ -593,7 +623,7 @@
             "type": "timeseries",
             "title": "Cache hit ratio",
             "datasource": { "type": "prometheus", "uid": "prometheus-powerlog" },
-            "gridPos": { "h": 8, "w": 8, "x": 16, "y": 67 },
+            "gridPos": { "h": 8, "w": 8, "x": 16, "y": 75 },
             "fieldConfig": { "defaults": { "unit": "percentunit", "min": 0, "max": 1 }, "overrides": [] },
             "targets": [
                 {
@@ -608,7 +638,7 @@
             "type": "timeseries",
             "title": "Database size",
             "datasource": { "type": "prometheus", "uid": "prometheus-powerlog" },
-            "gridPos": { "h": 8, "w": 6, "x": 0, "y": 75 },
+            "gridPos": { "h": 8, "w": 6, "x": 0, "y": 83 },
             "fieldConfig": { "defaults": { "unit": "bytes" }, "overrides": [] },
             "targets": [
                 {
@@ -623,7 +653,7 @@
             "type": "timeseries",
             "title": "Tuples I/O (rows/s)",
             "datasource": { "type": "prometheus", "uid": "prometheus-powerlog" },
-            "gridPos": { "h": 8, "w": 6, "x": 6, "y": 75 },
+            "gridPos": { "h": 8, "w": 6, "x": 6, "y": 83 },
             "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
             "targets": [
                 {
@@ -653,7 +683,7 @@
             "type": "timeseries",
             "title": "Deadlocks & temp bytes",
             "datasource": { "type": "prometheus", "uid": "prometheus-powerlog" },
-            "gridPos": { "h": 8, "w": 6, "x": 12, "y": 75 },
+            "gridPos": { "h": 8, "w": 6, "x": 12, "y": 83 },
             "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
             "targets": [
                 {
@@ -673,7 +703,7 @@
             "type": "timeseries",
             "title": "Backends vs max connections",
             "datasource": { "type": "prometheus", "uid": "prometheus-powerlog" },
-            "gridPos": { "h": 8, "w": 6, "x": 18, "y": 75 },
+            "gridPos": { "h": 8, "w": 6, "x": 18, "y": 83 },
             "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
             "targets": [
                 {
@@ -689,14 +719,14 @@
             "id": 105,
             "type": "row",
             "title": "Runtime (Node.js process)",
-            "gridPos": { "h": 1, "w": 24, "x": 0, "y": 83 }
+            "gridPos": { "h": 1, "w": 24, "x": 0, "y": 91 }
         },
         {
             "id": 50,
             "type": "timeseries",
             "title": "CPU (cores)",
             "datasource": { "type": "prometheus", "uid": "prometheus-powerlog" },
-            "gridPos": { "h": 8, "w": 6, "x": 0, "y": 84 },
+            "gridPos": { "h": 8, "w": 6, "x": 0, "y": 92 },
             "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
             "targets": [{ "refId": "A", "expr": "rate(process_cpu_seconds_total[1m])", "legendFormat": "cpu cores" }]
         },
@@ -705,7 +735,7 @@
             "type": "timeseries",
             "title": "Memory",
             "datasource": { "type": "prometheus", "uid": "prometheus-powerlog" },
-            "gridPos": { "h": 8, "w": 6, "x": 6, "y": 84 },
+            "gridPos": { "h": 8, "w": 6, "x": 6, "y": 92 },
             "fieldConfig": { "defaults": { "unit": "bytes" }, "overrides": [] },
             "targets": [
                 { "refId": "A", "expr": "process_resident_memory_bytes", "legendFormat": "RSS" },
@@ -718,7 +748,7 @@
             "type": "timeseries",
             "title": "Event loop lag (s)",
             "datasource": { "type": "prometheus", "uid": "prometheus-powerlog" },
-            "gridPos": { "h": 8, "w": 6, "x": 12, "y": 84 },
+            "gridPos": { "h": 8, "w": 6, "x": 12, "y": 92 },
             "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
             "targets": [
                 { "refId": "A", "expr": "nodejs_eventloop_lag_mean_seconds", "legendFormat": "mean" },
@@ -730,7 +760,7 @@
             "type": "timeseries",
             "title": "Active handles & requests",
             "datasource": { "type": "prometheus", "uid": "prometheus-powerlog" },
-            "gridPos": { "h": 8, "w": 6, "x": 18, "y": 84 },
+            "gridPos": { "h": 8, "w": 6, "x": 18, "y": 92 },
             "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
             "targets": [
                 { "refId": "A", "expr": "nodejs_active_handles_total", "legendFormat": "handles" },
@@ -743,7 +773,7 @@
             "title": "GC time (s/s)",
             "description": "Seconds spent in GC per second, by collection kind.",
             "datasource": { "type": "prometheus", "uid": "prometheus-powerlog" },
-            "gridPos": { "h": 8, "w": 6, "x": 0, "y": 92 },
+            "gridPos": { "h": 8, "w": 6, "x": 0, "y": 100 },
             "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
             "targets": [
                 {
@@ -758,7 +788,7 @@
             "type": "timeseries",
             "title": "File descriptors",
             "datasource": { "type": "prometheus", "uid": "prometheus-powerlog" },
-            "gridPos": { "h": 8, "w": 6, "x": 6, "y": 92 },
+            "gridPos": { "h": 8, "w": 6, "x": 6, "y": 100 },
             "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
             "targets": [
                 { "refId": "A", "expr": "process_open_fds", "legendFormat": "open" },
@@ -770,7 +800,7 @@
             "type": "timeseries",
             "title": "Event loop lag percentiles (s)",
             "datasource": { "type": "prometheus", "uid": "prometheus-powerlog" },
-            "gridPos": { "h": 8, "w": 6, "x": 12, "y": 92 },
+            "gridPos": { "h": 8, "w": 6, "x": 12, "y": 100 },
             "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
             "targets": [
                 { "refId": "A", "expr": "nodejs_eventloop_lag_p50_seconds", "legendFormat": "p50" },
@@ -783,7 +813,7 @@
             "type": "timeseries",
             "title": "External & heap-space memory",
             "datasource": { "type": "prometheus", "uid": "prometheus-powerlog" },
-            "gridPos": { "h": 8, "w": 6, "x": 18, "y": 92 },
+            "gridPos": { "h": 8, "w": 6, "x": 18, "y": 100 },
             "fieldConfig": { "defaults": { "unit": "bytes" }, "overrides": [] },
             "targets": [
                 { "refId": "A", "expr": "nodejs_external_memory_bytes", "legendFormat": "external" },
@@ -799,13 +829,13 @@
             "id": 106,
             "type": "row",
             "title": "Logs (Loki)",
-            "gridPos": { "h": 1, "w": 24, "x": 0, "y": 100 }
+            "gridPos": { "h": 1, "w": 24, "x": 0, "y": 108 }
         },
         {
             "id": 60,
             "type": "text",
             "title": "",
-            "gridPos": { "h": 3, "w": 24, "x": 0, "y": 101 },
+            "gridPos": { "h": 3, "w": 24, "x": 0, "y": 109 },
             "options": {
                 "mode": "markdown",
                 "content": "Alloy ships every **Docker container's** stdout to Loki. The container API now logs **JSON** (Pino on a non-TTY stdout), so the app panels parse structured fields and **level**; non-app containers (postgres, grafana, …) log plain text. **trace_id** links to the trace in Tempo and **correlationId** opens related logs (datasource derived fields)."
@@ -817,7 +847,7 @@
             "title": "App log volume by level (lines/s)",
             "description": "App (api) only. Pino levels: 30=info, 40=warn, 50=error, 60=fatal.",
             "datasource": { "type": "loki", "uid": "loki-powerlog" },
-            "gridPos": { "h": 6, "w": 24, "x": 0, "y": 104 },
+            "gridPos": { "h": 6, "w": 24, "x": 0, "y": 112 },
             "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
             "options": { "legend": { "displayMode": "list", "placement": "bottom" } },
             "targets": [
@@ -835,7 +865,7 @@
             "type": "logs",
             "title": "Logs — $service",
             "datasource": { "type": "loki", "uid": "loki-powerlog" },
-            "gridPos": { "h": 12, "w": 24, "x": 0, "y": 110 },
+            "gridPos": { "h": 12, "w": 24, "x": 0, "y": 118 },
             "options": {
                 "showTime": true,
                 "showLabels": false,
@@ -859,7 +889,7 @@
             "type": "logs",
             "title": "Errors & warnings — api",
             "datasource": { "type": "loki", "uid": "loki-powerlog" },
-            "gridPos": { "h": 10, "w": 24, "x": 0, "y": 122 },
+            "gridPos": { "h": 10, "w": 24, "x": 0, "y": 130 },
             "options": {
                 "showTime": true,
                 "showLabels": false,
@@ -883,14 +913,14 @@
             "id": 109,
             "type": "row",
             "title": "Auth",
-            "gridPos": { "h": 1, "w": 24, "x": 0, "y": 132 }
+            "gridPos": { "h": 1, "w": 24, "x": 0, "y": 140 }
         },
         {
             "id": 90,
             "type": "timeseries",
             "title": "Logins (ev/s)",
             "datasource": { "type": "prometheus", "uid": "prometheus-powerlog" },
-            "gridPos": { "h": 8, "w": 8, "x": 0, "y": 133 },
+            "gridPos": { "h": 8, "w": 8, "x": 0, "y": 141 },
             "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
             "targets": [
                 {
@@ -906,7 +936,7 @@
             "title": "Refresh outcomes (ev/s)",
             "description": "rotated = normal rotation · reuse_detected = a revoked token was replayed (security) · invalid = missing/expired token.",
             "datasource": { "type": "prometheus", "uid": "prometheus-powerlog" },
-            "gridPos": { "h": 8, "w": 8, "x": 8, "y": 133 },
+            "gridPos": { "h": 8, "w": 8, "x": 8, "y": 141 },
             "fieldConfig": {
                 "defaults": { "unit": "short" },
                 "overrides": [
@@ -929,7 +959,7 @@
             "type": "timeseries",
             "title": "Registrations (ev/s)",
             "datasource": { "type": "prometheus", "uid": "prometheus-powerlog" },
-            "gridPos": { "h": 8, "w": 8, "x": 16, "y": 133 },
+            "gridPos": { "h": 8, "w": 8, "x": 16, "y": 141 },
             "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
             "targets": [
                 {
@@ -944,7 +974,7 @@
             "id": 110,
             "type": "row",
             "title": "Database · connection pool (app-side)",
-            "gridPos": { "h": 1, "w": 24, "x": 0, "y": 141 }
+            "gridPos": { "h": 1, "w": 24, "x": 0, "y": 149 }
         },
         {
             "id": 93,
@@ -952,7 +982,7 @@
             "title": "Connection pool",
             "description": "pg pool sampled at scrape time. waiting > 0 means the app is queuing for a connection (pool at max) — the saturation signal the server-side exporter can't see.",
             "datasource": { "type": "prometheus", "uid": "prometheus-powerlog" },
-            "gridPos": { "h": 8, "w": 12, "x": 0, "y": 142 },
+            "gridPos": { "h": 8, "w": 12, "x": 0, "y": 150 },
             "fieldConfig": {
                 "defaults": { "unit": "short" },
                 "overrides": [
@@ -976,14 +1006,14 @@
             "id": 111,
             "type": "row",
             "title": "Observability stack (self-health)",
-            "gridPos": { "h": 1, "w": 24, "x": 0, "y": 150 }
+            "gridPos": { "h": 1, "w": 24, "x": 0, "y": 158 }
         },
         {
             "id": 94,
             "type": "timeseries",
             "title": "Loki · lines ingested (lines/s)",
             "datasource": { "type": "prometheus", "uid": "prometheus-powerlog" },
-            "gridPos": { "h": 8, "w": 8, "x": 0, "y": 151 },
+            "gridPos": { "h": 8, "w": 8, "x": 0, "y": 159 },
             "fieldConfig": {
                 "defaults": { "unit": "short" },
                 "overrides": [
@@ -1007,7 +1037,7 @@
             "type": "timeseries",
             "title": "Loki · bytes ingested",
             "datasource": { "type": "prometheus", "uid": "prometheus-powerlog" },
-            "gridPos": { "h": 8, "w": 8, "x": 8, "y": 151 },
+            "gridPos": { "h": 8, "w": 8, "x": 8, "y": 159 },
             "fieldConfig": { "defaults": { "unit": "Bps" }, "overrides": [] },
             "targets": [
                 {
@@ -1022,7 +1052,7 @@
             "type": "timeseries",
             "title": "Tempo · spans received (spans/s)",
             "datasource": { "type": "prometheus", "uid": "prometheus-powerlog" },
-            "gridPos": { "h": 8, "w": 8, "x": 16, "y": 151 },
+            "gridPos": { "h": 8, "w": 8, "x": 16, "y": 159 },
             "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
             "targets": [
                 {
@@ -1042,7 +1072,7 @@
             "type": "timeseries",
             "title": "Tempo · live traces & flush failures",
             "datasource": { "type": "prometheus", "uid": "prometheus-powerlog" },
-            "gridPos": { "h": 8, "w": 8, "x": 0, "y": 159 },
+            "gridPos": { "h": 8, "w": 8, "x": 0, "y": 167 },
             "fieldConfig": {
                 "defaults": { "unit": "short" },
                 "overrides": [
@@ -1066,7 +1096,7 @@
             "type": "timeseries",
             "title": "Alloy · log entries read (entries/s)",
             "datasource": { "type": "prometheus", "uid": "prometheus-powerlog" },
-            "gridPos": { "h": 8, "w": 8, "x": 8, "y": 159 },
+            "gridPos": { "h": 8, "w": 8, "x": 8, "y": 167 },
             "fieldConfig": {
                 "defaults": { "unit": "short" },
                 "overrides": [
@@ -1094,7 +1124,7 @@
             "type": "timeseries",
             "title": "Alloy to Loki · dropped & retries (problems)",
             "datasource": { "type": "prometheus", "uid": "prometheus-powerlog" },
-            "gridPos": { "h": 8, "w": 8, "x": 16, "y": 159 },
+            "gridPos": { "h": 8, "w": 8, "x": 16, "y": 167 },
             "fieldConfig": {
                 "defaults": { "unit": "short" },
                 "overrides": [
@@ -1118,7 +1148,7 @@
             "id": 112,
             "type": "row",
             "title": "Object storage (R2 · app-side)",
-            "gridPos": { "h": 1, "w": 24, "x": 0, "y": 167 }
+            "gridPos": { "h": 1, "w": 24, "x": 0, "y": 175 }
         },
         {
             "id": 120,
@@ -1126,7 +1156,7 @@
             "title": "R2 op rate (ops/s)",
             "description": "Calls the API makes to R2 (avatar put/get/delete). Only emits when AVATAR_STORAGE=r2 — empty in dev (filesystem).",
             "datasource": { "type": "prometheus", "uid": "prometheus-powerlog" },
-            "gridPos": { "h": 8, "w": 8, "x": 0, "y": 168 },
+            "gridPos": { "h": 8, "w": 8, "x": 0, "y": 176 },
             "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
             "targets": [
                 {
@@ -1141,7 +1171,7 @@
             "type": "timeseries",
             "title": "R2 error rate (%)",
             "datasource": { "type": "prometheus", "uid": "prometheus-powerlog" },
-            "gridPos": { "h": 8, "w": 8, "x": 8, "y": 168 },
+            "gridPos": { "h": 8, "w": 8, "x": 8, "y": 176 },
             "fieldConfig": { "defaults": { "unit": "percent", "min": 0 }, "overrides": [] },
             "targets": [
                 {
@@ -1156,7 +1186,7 @@
             "type": "timeseries",
             "title": "R2 latency p95 (s)",
             "datasource": { "type": "prometheus", "uid": "prometheus-powerlog" },
-            "gridPos": { "h": 8, "w": 8, "x": 16, "y": 168 },
+            "gridPos": { "h": 8, "w": 8, "x": 16, "y": 176 },
             "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
             "targets": [
                 {
@@ -1171,7 +1201,7 @@
             "type": "timeseries",
             "title": "R2 bytes uploaded",
             "datasource": { "type": "prometheus", "uid": "prometheus-powerlog" },
-            "gridPos": { "h": 8, "w": 12, "x": 0, "y": 176 },
+            "gridPos": { "h": 8, "w": 12, "x": 0, "y": 184 },
             "fieldConfig": { "defaults": { "unit": "Bps" }, "overrides": [] },
             "targets": [
                 { "refId": "A", "expr": "rate(powerlog_r2_bytes_uploaded_total[5m])", "legendFormat": "bytes/s" }
@@ -1182,7 +1212,7 @@
             "id": 130,
             "type": "row",
             "title": "Email (Resend)",
-            "gridPos": { "h": 1, "w": 24, "x": 0, "y": 184 }
+            "gridPos": { "h": 1, "w": 24, "x": 0, "y": 192 }
         },
         {
             "id": 131,
@@ -1190,7 +1220,7 @@
             "title": "Send rate (ev/s)",
             "description": "Transport send outcomes by purpose (powerlog_emails_sent_total).",
             "datasource": { "type": "prometheus", "uid": "prometheus-powerlog" },
-            "gridPos": { "h": 8, "w": 8, "x": 0, "y": 185 },
+            "gridPos": { "h": 8, "w": 8, "x": 0, "y": 193 },
             "fieldConfig": {
                 "defaults": { "unit": "short" },
                 "overrides": [
@@ -1214,7 +1244,7 @@
             "title": "Send latency p95 (s)",
             "description": "Latency of the Resend API / SMTP send call.",
             "datasource": { "type": "prometheus", "uid": "prometheus-powerlog" },
-            "gridPos": { "h": 8, "w": 8, "x": 8, "y": 185 },
+            "gridPos": { "h": 8, "w": 8, "x": 8, "y": 193 },
             "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
             "targets": [
                 {
@@ -1230,7 +1260,7 @@
             "title": "Delivery events (ev/s)",
             "description": "Resend webhook events (delivered/bounced/complained/opened/clicked). Needs the webhook configured + RESEND_WEBHOOK_SECRET.",
             "datasource": { "type": "prometheus", "uid": "prometheus-powerlog" },
-            "gridPos": { "h": 8, "w": 8, "x": 16, "y": 185 },
+            "gridPos": { "h": 8, "w": 8, "x": 16, "y": 193 },
             "fieldConfig": {
                 "defaults": { "unit": "short" },
                 "overrides": [
@@ -1254,7 +1284,7 @@
             "title": "Bounces & complaints (ev/s)",
             "description": "Deliverability red flags. Sustained values hurt sender reputation.",
             "datasource": { "type": "prometheus", "uid": "prometheus-powerlog" },
-            "gridPos": { "h": 8, "w": 12, "x": 0, "y": 193 },
+            "gridPos": { "h": 8, "w": 12, "x": 0, "y": 201 },
             "fieldConfig": {
                 "defaults": { "unit": "short", "color": { "mode": "fixed", "fixedColor": "red" } },
                 "overrides": []
@@ -1272,7 +1302,7 @@
             "type": "timeseries",
             "title": "Events by type (ev/s)",
             "datasource": { "type": "prometheus", "uid": "prometheus-powerlog" },
-            "gridPos": { "h": 8, "w": 12, "x": 12, "y": 193 },
+            "gridPos": { "h": 8, "w": 12, "x": 12, "y": 201 },
             "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
             "options": { "legend": { "displayMode": "table", "placement": "right", "calcs": ["lastNotNull"] } },
             "targets": [
@@ -1289,7 +1319,7 @@
             "title": "Domain verified",
             "description": "Resend sending domain verification, polled via the API key. No data → not on Resend (dev) or probe not run.",
             "datasource": { "type": "prometheus", "uid": "prometheus-powerlog" },
-            "gridPos": { "h": 6, "w": 6, "x": 0, "y": 201 },
+            "gridPos": { "h": 6, "w": 6, "x": 0, "y": 209 },
             "fieldConfig": {
                 "defaults": {
                     "noValue": "N/A",
@@ -1326,7 +1356,7 @@
             "title": "Resend API up",
             "description": "Resend API reachable with the configured API key (list domains succeeds).",
             "datasource": { "type": "prometheus", "uid": "prometheus-powerlog" },
-            "gridPos": { "h": 6, "w": 6, "x": 6, "y": 201 },
+            "gridPos": { "h": 6, "w": 6, "x": 6, "y": 209 },
             "fieldConfig": {
                 "defaults": {
                     "noValue": "N/A",
@@ -1363,7 +1393,7 @@
             "title": "Email log (sends + delivery events)",
             "description": "PII-free email feed from the app: 'email dispatched'/'email send failed' (MeteredMailer) + 'resend webhook event' (delivery webhook). No recipients or subjects.",
             "datasource": { "type": "loki", "uid": "loki-powerlog" },
-            "gridPos": { "h": 8, "w": 24, "x": 0, "y": 207 },
+            "gridPos": { "h": 8, "w": 24, "x": 0, "y": 215 },
             "options": {
                 "showTime": true,
                 "showLabels": false,
