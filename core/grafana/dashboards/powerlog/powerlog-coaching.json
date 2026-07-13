@@ -1,0 +1,684 @@
+{
+    "uid": "powerlog-coaching",
+    "title": "powerlog · Coaching",
+    "tags": ["powerlog", "business"],
+    "timezone": "browser",
+    "schemaVersion": 39,
+    "version": 1,
+    "refresh": "1m",
+    "time": {
+        "from": "now-7d",
+        "to": "now"
+    },
+    "panels": [
+        {
+            "id": 1,
+            "type": "row",
+            "title": "Where coaching stands right now",
+            "gridPos": {
+                "h": 1,
+                "w": 24,
+                "x": 0,
+                "y": 0
+            }
+        },
+        {
+            "id": 2,
+            "type": "stat",
+            "title": "Active links",
+            "description": "Coach-athlete pairs currently linked.",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus-powerlog"
+            },
+            "gridPos": {
+                "h": 4,
+                "w": 4,
+                "x": 0,
+                "y": 1
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "none"
+                },
+                "overrides": []
+            },
+            "options": {
+                "reduceOptions": {
+                    "calcs": ["lastNotNull"]
+                },
+                "colorMode": "none",
+                "graphMode": "area",
+                "textMode": "auto"
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "powerlog_coaching_links",
+                    "instant": true
+                }
+            ]
+        },
+        {
+            "id": 3,
+            "type": "stat",
+            "title": "Coaches with athletes",
+            "description": "Coaches with at least one athlete - a coach with none isn't coaching.",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus-powerlog"
+            },
+            "gridPos": {
+                "h": 4,
+                "w": 4,
+                "x": 4,
+                "y": 1
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "none"
+                },
+                "overrides": []
+            },
+            "options": {
+                "reduceOptions": {
+                    "calcs": ["lastNotNull"]
+                },
+                "colorMode": "none",
+                "graphMode": "area",
+                "textMode": "auto"
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "powerlog_coaching_coaches",
+                    "instant": true
+                }
+            ]
+        },
+        {
+            "id": 4,
+            "type": "stat",
+            "title": "Athletes with a coach",
+            "description": "",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus-powerlog"
+            },
+            "gridPos": {
+                "h": 4,
+                "w": 4,
+                "x": 8,
+                "y": 1
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "none"
+                },
+                "overrides": []
+            },
+            "options": {
+                "reduceOptions": {
+                    "calcs": ["lastNotNull"]
+                },
+                "colorMode": "none",
+                "graphMode": "area",
+                "textMode": "auto"
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "powerlog_coaching_athletes",
+                    "instant": true
+                }
+            ]
+        },
+        {
+            "id": 5,
+            "type": "stat",
+            "title": "Athletes per coach",
+            "description": "Average roster size. Watch it against the plan limits before you charge for them.",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus-powerlog"
+            },
+            "gridPos": {
+                "h": 4,
+                "w": 4,
+                "x": 12,
+                "y": 1
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "none",
+                    "decimals": 1
+                },
+                "overrides": []
+            },
+            "options": {
+                "reduceOptions": {
+                    "calcs": ["lastNotNull"]
+                },
+                "colorMode": "none",
+                "graphMode": "area",
+                "textMode": "auto"
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "powerlog_coaching_links / clamp_min(powerlog_coaching_coaches, 1)",
+                    "instant": true
+                }
+            ]
+        },
+        {
+            "id": 6,
+            "type": "stat",
+            "title": "Pending invitations",
+            "description": "The backlog: invitations sent and never answered. Growing = the invite mail or the accept flow is failing someone.",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus-powerlog"
+            },
+            "gridPos": {
+                "h": 4,
+                "w": 4,
+                "x": 16,
+                "y": 1
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "none"
+                },
+                "overrides": []
+            },
+            "options": {
+                "reduceOptions": {
+                    "calcs": ["lastNotNull"]
+                },
+                "colorMode": "value",
+                "graphMode": "area",
+                "textMode": "auto"
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "powerlog_coaching_pending_invitations",
+                    "instant": true
+                }
+            ]
+        },
+        {
+            "id": 7,
+            "type": "stat",
+            "title": "Accept rate (7d)",
+            "description": "Accepted over sent in the last 7 days. The single number that says whether invites work.",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus-powerlog"
+            },
+            "gridPos": {
+                "h": 4,
+                "w": 4,
+                "x": 20,
+                "y": 1
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "percentunit"
+                },
+                "overrides": []
+            },
+            "options": {
+                "reduceOptions": {
+                    "calcs": ["lastNotNull"]
+                },
+                "colorMode": "value",
+                "graphMode": "area",
+                "textMode": "auto"
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "sum(increase(powerlog_coach_invitations_total{status=\"accepted\"}[7d])) / clamp_min(sum(increase(powerlog_coach_invitations_total{status=\"sent\"}[7d])), 1)",
+                    "instant": true
+                }
+            ]
+        },
+        {
+            "id": 8,
+            "type": "row",
+            "title": "Invitation funnel",
+            "gridPos": {
+                "h": 1,
+                "w": 24,
+                "x": 0,
+                "y": 5
+            }
+        },
+        {
+            "id": 9,
+            "type": "timeseries",
+            "title": "Invitations by outcome",
+            "description": "sent -> accepted / declined / cancelled. 'sent' counts the issue, the rest count how it ended (they land later, so they don't line up in the same bucket).",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus-powerlog"
+            },
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 0,
+                "y": 6
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "none",
+                    "custom": {
+                        "fillOpacity": 60,
+                        "lineWidth": 2,
+                        "stacking": {
+                            "mode": "normal",
+                            "group": "A"
+                        }
+                    }
+                },
+                "overrides": []
+            },
+            "options": {
+                "legend": {
+                    "displayMode": "list",
+                    "placement": "bottom",
+                    "showLegend": true
+                },
+                "tooltip": {
+                    "mode": "multi",
+                    "sort": "desc"
+                }
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "sum by (status) (increase(powerlog_coach_invitations_total[$__rate_interval]))",
+                    "legendFormat": "{{status}}"
+                }
+            ]
+        },
+        {
+            "id": 10,
+            "type": "timeseries",
+            "title": "Invitations sent, by invitee",
+            "description": "existing = the invitee already had an account. new = the email had none, so accepting it means a signup. This is coaching as an acquisition channel.",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus-powerlog"
+            },
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 12,
+                "y": 6
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "none",
+                    "custom": {
+                        "fillOpacity": 60,
+                        "lineWidth": 2,
+                        "stacking": {
+                            "mode": "normal",
+                            "group": "A"
+                        }
+                    }
+                },
+                "overrides": []
+            },
+            "options": {
+                "legend": {
+                    "displayMode": "list",
+                    "placement": "bottom",
+                    "showLegend": true
+                },
+                "tooltip": {
+                    "mode": "multi",
+                    "sort": "desc"
+                }
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "sum by (invitee) (increase(powerlog_coach_invitations_total{status=\"sent\"}[$__rate_interval]))",
+                    "legendFormat": "{{invitee}}"
+                }
+            ]
+        },
+        {
+            "id": 11,
+            "type": "bargauge",
+            "title": "Funnel - last 7 days",
+            "description": "",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus-powerlog"
+            },
+            "gridPos": {
+                "h": 8,
+                "w": 8,
+                "x": 0,
+                "y": 14
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "none",
+                    "decimals": 0
+                },
+                "overrides": []
+            },
+            "options": {
+                "displayMode": "gradient",
+                "orientation": "horizontal",
+                "reduceOptions": {
+                    "calcs": ["lastNotNull"]
+                },
+                "showUnfilled": true
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "sum(increase(powerlog_coach_invitations_total{status=\"sent\"}[7d]))",
+                    "legendFormat": "sent",
+                    "instant": true
+                },
+                {
+                    "refId": "B",
+                    "expr": "sum(increase(powerlog_coach_invitations_total{status=\"accepted\"}[7d]))",
+                    "legendFormat": "accepted",
+                    "instant": true
+                },
+                {
+                    "refId": "C",
+                    "expr": "sum(increase(powerlog_coach_invitations_total{status=\"declined\"}[7d]))",
+                    "legendFormat": "declined",
+                    "instant": true
+                },
+                {
+                    "refId": "D",
+                    "expr": "sum(increase(powerlog_coach_invitations_total{status=\"cancelled\"}[7d]))",
+                    "legendFormat": "cancelled",
+                    "instant": true
+                }
+            ]
+        },
+        {
+            "id": 12,
+            "type": "stat",
+            "title": "Signups brought in by invites (7d)",
+            "description": "Invitations to an address with no account that turned into a registered, linked athlete (auto-linked on signup). No CQRS command runs on that path - this counter is the only way to see it. (increase() extrapolates, so at these volumes read it as 'about N', not an exact count.)",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus-powerlog"
+            },
+            "gridPos": {
+                "h": 8,
+                "w": 8,
+                "x": 8,
+                "y": 14
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "none",
+                    "decimals": 0
+                },
+                "overrides": []
+            },
+            "options": {
+                "reduceOptions": {
+                    "calcs": ["lastNotNull"]
+                },
+                "colorMode": "value",
+                "graphMode": "area",
+                "textMode": "auto"
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "sum(increase(powerlog_coach_invitations_total{status=\"accepted\", invitee=\"new\"}[7d]))",
+                    "instant": true
+                }
+            ]
+        },
+        {
+            "id": 13,
+            "type": "stat",
+            "title": "Net links (7d)",
+            "description": "Links gained minus links broken. Negative = coaching is shrinking.",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus-powerlog"
+            },
+            "gridPos": {
+                "h": 8,
+                "w": 8,
+                "x": 16,
+                "y": 14
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "none",
+                    "decimals": 0
+                },
+                "overrides": []
+            },
+            "options": {
+                "reduceOptions": {
+                    "calcs": ["lastNotNull"]
+                },
+                "colorMode": "value",
+                "graphMode": "area",
+                "textMode": "auto"
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "sum(increase(powerlog_coach_invitations_total{status=\"accepted\"}[7d])) - sum(increase(powerlog_coach_links_removed_total[7d]))",
+                    "instant": true
+                }
+            ]
+        },
+        {
+            "id": 14,
+            "type": "row",
+            "title": "Churn and coach activity",
+            "gridPos": {
+                "h": 1,
+                "w": 24,
+                "x": 0,
+                "y": 22
+            }
+        },
+        {
+            "id": 15,
+            "type": "timeseries",
+            "title": "Links broken, by who ended it",
+            "description": "coach = the coach dropped the athlete. athlete = the athlete left. Athlete-driven churn is the one that should worry you.",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus-powerlog"
+            },
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 0,
+                "y": 23
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "none",
+                    "custom": {
+                        "fillOpacity": 60,
+                        "lineWidth": 2,
+                        "stacking": {
+                            "mode": "normal",
+                            "group": "A"
+                        }
+                    }
+                },
+                "overrides": []
+            },
+            "options": {
+                "legend": {
+                    "displayMode": "list",
+                    "placement": "bottom",
+                    "showLegend": true
+                },
+                "tooltip": {
+                    "mode": "multi",
+                    "sort": "desc"
+                }
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "sum by (by) (increase(powerlog_coach_links_removed_total[$__rate_interval]))",
+                    "legendFormat": "{{by}}"
+                }
+            ]
+        },
+        {
+            "id": 16,
+            "type": "timeseries",
+            "title": "Coaching actions (req/s)",
+            "description": "Free from CqrsInstrumentation - no extra instrumentation needed for the rate of every coaching command.",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus-powerlog"
+            },
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 12,
+                "y": 23
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "reqps",
+                    "custom": {
+                        "fillOpacity": 0,
+                        "lineWidth": 2
+                    }
+                },
+                "overrides": []
+            },
+            "options": {
+                "legend": {
+                    "displayMode": "list",
+                    "placement": "bottom",
+                    "showLegend": true
+                },
+                "tooltip": {
+                    "mode": "multi",
+                    "sort": "desc"
+                }
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "sum by (command) (rate(cqrs_command_duration_seconds_count{command=~\"InviteAthleteCommand|AcceptInvitationCommand|DeclineInvitationCommand|CancelInvitationCommand|RemoveAthleteCommand|LeaveCoachCommand|SetAthleteNoteCommand\", status=\"success\"}[$__rate_interval]))",
+                    "legendFormat": "{{command}}"
+                }
+            ]
+        },
+        {
+            "id": 17,
+            "type": "timeseries",
+            "title": "Coach planning for athletes (req/s)",
+            "description": "What a coach actually does once linked: plans sessions, assigns blocks. The engagement signal - a coach who links athletes and never plans is churn waiting to happen.",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus-powerlog"
+            },
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 0,
+                "y": 31
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "reqps",
+                    "custom": {
+                        "fillOpacity": 0,
+                        "lineWidth": 2
+                    }
+                },
+                "overrides": []
+            },
+            "options": {
+                "legend": {
+                    "displayMode": "list",
+                    "placement": "bottom",
+                    "showLegend": true
+                },
+                "tooltip": {
+                    "mode": "multi",
+                    "sort": "desc"
+                }
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "sum by (command) (rate(cqrs_command_duration_seconds_count{command=~\"PlanWorkoutSessionCommand|PlanSessionFromTemplateCommand|AssignMesocycleToAthleteCommand\", status=\"success\"}[$__rate_interval]))",
+                    "legendFormat": "{{command}}"
+                }
+            ]
+        },
+        {
+            "id": 18,
+            "type": "timeseries",
+            "title": "Coaching errors, by code",
+            "description": "Expected domain errors (already counted by GlobalExceptionFilter). A spike in INVITATION_NOT_FOUND or NOT_YOUR_* is a UI bug or someone probing.",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus-powerlog"
+            },
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 12,
+                "y": 31
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "none",
+                    "custom": {
+                        "fillOpacity": 60,
+                        "lineWidth": 2,
+                        "stacking": {
+                            "mode": "normal",
+                            "group": "A"
+                        }
+                    }
+                },
+                "overrides": []
+            },
+            "options": {
+                "legend": {
+                    "displayMode": "list",
+                    "placement": "bottom",
+                    "showLegend": true
+                },
+                "tooltip": {
+                    "mode": "multi",
+                    "sort": "desc"
+                }
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "sum by (code) (increase(domain_errors_total{code=~\"ALREADY_LINKED|CANNOT_INVITE_SELF|INVITATION_ALREADY_PENDING|INVITATION_NOT_FOUND|INVALID_INVITATION_STATE|NOT_YOUR_COACH|NOT_YOUR_ATHLETE|ATHLETE_NOT_FOUND\"}[$__rate_interval]))",
+                    "legendFormat": "{{code}}"
+                }
+            ]
+        }
+    ]
+}

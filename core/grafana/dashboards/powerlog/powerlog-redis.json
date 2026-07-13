@@ -1,0 +1,861 @@
+{
+    "uid": "powerlog-redis",
+    "title": "powerlog · Redis & realtime",
+    "tags": ["powerlog", "infra"],
+    "timezone": "browser",
+    "schemaVersion": 39,
+    "version": 1,
+    "refresh": "30s",
+    "time": {
+        "from": "now-6h",
+        "to": "now"
+    },
+    "panels": [
+        {
+            "id": 1,
+            "type": "row",
+            "title": "Health",
+            "gridPos": {
+                "h": 1,
+                "w": 24,
+                "x": 0,
+                "y": 0
+            }
+        },
+        {
+            "id": 2,
+            "type": "stat",
+            "title": "Redis (server)",
+            "description": "From the redis_exporter: can it talk to the server at all.",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus-powerlog"
+            },
+            "gridPos": {
+                "h": 4,
+                "w": 4,
+                "x": 0,
+                "y": 1
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "none",
+                    "mappings": [
+                        {
+                            "type": "value",
+                            "options": {
+                                "0": {
+                                    "text": "DOWN",
+                                    "color": "red"
+                                },
+                                "1": {
+                                    "text": "UP",
+                                    "color": "green"
+                                }
+                            }
+                        }
+                    ]
+                },
+                "overrides": []
+            },
+            "options": {
+                "reduceOptions": {
+                    "calcs": ["lastNotNull"]
+                },
+                "colorMode": "background",
+                "graphMode": "area",
+                "textMode": "auto"
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "redis_up",
+                    "instant": true
+                }
+            ]
+        },
+        {
+            "id": 3,
+            "type": "stat",
+            "title": "Redis (as the API sees it)",
+            "description": "The API's own client. 0 also means REDIS_URL is unset - Redis is optional and every feature falls back in-process, so this being 0 while the server is UP means the API is misconfigured, not that Redis is broken.",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus-powerlog"
+            },
+            "gridPos": {
+                "h": 4,
+                "w": 4,
+                "x": 4,
+                "y": 1
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "none",
+                    "mappings": [
+                        {
+                            "type": "value",
+                            "options": {
+                                "0": {
+                                    "text": "DOWN",
+                                    "color": "red"
+                                },
+                                "1": {
+                                    "text": "UP",
+                                    "color": "green"
+                                }
+                            }
+                        }
+                    ]
+                },
+                "overrides": []
+            },
+            "options": {
+                "reduceOptions": {
+                    "calcs": ["lastNotNull"]
+                },
+                "colorMode": "background",
+                "graphMode": "area",
+                "textMode": "auto"
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "powerlog_redis_up",
+                    "instant": true
+                }
+            ]
+        },
+        {
+            "id": 4,
+            "type": "stat",
+            "title": "Uptime",
+            "description": "Resets to 0 on restart. With appendonly on, jobs survive it - but a restart you didn't order is worth a look.",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus-powerlog"
+            },
+            "gridPos": {
+                "h": 4,
+                "w": 4,
+                "x": 8,
+                "y": 1
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "s"
+                },
+                "overrides": []
+            },
+            "options": {
+                "reduceOptions": {
+                    "calcs": ["lastNotNull"]
+                },
+                "colorMode": "none",
+                "graphMode": "area",
+                "textMode": "auto"
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "redis_uptime_in_seconds",
+                    "instant": true
+                }
+            ]
+        },
+        {
+            "id": 5,
+            "type": "stat",
+            "title": "Connected clients",
+            "description": "The API holds at least 2 (commands + the pub/sub subscriber). Climbing without new replicas = a connection leak.",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus-powerlog"
+            },
+            "gridPos": {
+                "h": 4,
+                "w": 4,
+                "x": 12,
+                "y": 1
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "none"
+                },
+                "overrides": []
+            },
+            "options": {
+                "reduceOptions": {
+                    "calcs": ["lastNotNull"]
+                },
+                "colorMode": "none",
+                "graphMode": "area",
+                "textMode": "auto"
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "redis_connected_clients",
+                    "instant": true
+                }
+            ]
+        },
+        {
+            "id": 6,
+            "type": "stat",
+            "title": "Blocked clients",
+            "description": "Clients parked in a blocking command (BLPOP and friends). Normal once BullMQ workers are in; should be ~0 before that.",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus-powerlog"
+            },
+            "gridPos": {
+                "h": 4,
+                "w": 4,
+                "x": 16,
+                "y": 1
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "none"
+                },
+                "overrides": []
+            },
+            "options": {
+                "reduceOptions": {
+                    "calcs": ["lastNotNull"]
+                },
+                "colorMode": "value",
+                "graphMode": "area",
+                "textMode": "auto"
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "redis_blocked_clients",
+                    "instant": true
+                }
+            ]
+        },
+        {
+            "id": 7,
+            "type": "stat",
+            "title": "Pub/sub channels",
+            "description": "Should be 1: powerlog:realtime. 0 means no API instance is subscribed - cross-instance realtime is dead even though Redis is up.",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus-powerlog"
+            },
+            "gridPos": {
+                "h": 4,
+                "w": 4,
+                "x": 20,
+                "y": 1
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "none"
+                },
+                "overrides": []
+            },
+            "options": {
+                "reduceOptions": {
+                    "calcs": ["lastNotNull"]
+                },
+                "colorMode": "none",
+                "graphMode": "area",
+                "textMode": "auto"
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "redis_pubsub_channels",
+                    "instant": true
+                }
+            ]
+        },
+        {
+            "id": 8,
+            "type": "row",
+            "title": "Memory (noeviction: a full keyspace fails writes, it does not evict)",
+            "gridPos": {
+                "h": 1,
+                "w": 24,
+                "x": 0,
+                "y": 5
+            }
+        },
+        {
+            "id": 9,
+            "type": "timeseries",
+            "title": "Memory used vs limit",
+            "description": "maxmemory is 256MB with policy noeviction: hitting it does NOT quietly drop keys (that would destroy BullMQ jobs) - it starts rejecting writes. This is the panel that tells you before that happens.",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus-powerlog"
+            },
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 0,
+                "y": 6
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "bytes",
+                    "custom": {
+                        "fillOpacity": 20,
+                        "lineWidth": 2
+                    }
+                },
+                "overrides": []
+            },
+            "options": {
+                "legend": {
+                    "displayMode": "list",
+                    "placement": "bottom",
+                    "showLegend": true
+                },
+                "tooltip": {
+                    "mode": "multi",
+                    "sort": "desc"
+                }
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "redis_memory_used_bytes",
+                    "legendFormat": "used"
+                },
+                {
+                    "refId": "B",
+                    "expr": "redis_memory_max_bytes",
+                    "legendFormat": "maxmemory"
+                }
+            ]
+        },
+        {
+            "id": 10,
+            "type": "stat",
+            "title": "Memory used",
+            "description": "Of the 256MB cap. Past ~85% start pruning: cached values need their own TTL (nothing expires them for you under noeviction).",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus-powerlog"
+            },
+            "gridPos": {
+                "h": 8,
+                "w": 6,
+                "x": 12,
+                "y": 6
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "percentunit",
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            },
+                            {
+                                "color": "yellow",
+                                "value": 0.7
+                            },
+                            {
+                                "color": "red",
+                                "value": 0.85
+                            }
+                        ]
+                    }
+                },
+                "overrides": []
+            },
+            "options": {
+                "reduceOptions": {
+                    "calcs": ["lastNotNull"]
+                },
+                "colorMode": "background",
+                "graphMode": "area",
+                "textMode": "auto"
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "redis_memory_used_bytes / clamp_min(redis_memory_max_bytes, 1)",
+                    "instant": true
+                }
+            ]
+        },
+        {
+            "id": 11,
+            "type": "timeseries",
+            "title": "Keys evicted / expired (per s)",
+            "description": "evicted MUST stay at 0 - under noeviction anything above 0 means the policy was changed and jobs can silently vanish. expired is healthy: it's your cached values ageing out via their TTL.",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus-powerlog"
+            },
+            "gridPos": {
+                "h": 8,
+                "w": 6,
+                "x": 18,
+                "y": 6
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "ops",
+                    "custom": {
+                        "fillOpacity": 0,
+                        "lineWidth": 2
+                    }
+                },
+                "overrides": []
+            },
+            "options": {
+                "legend": {
+                    "displayMode": "list",
+                    "placement": "bottom",
+                    "showLegend": true
+                },
+                "tooltip": {
+                    "mode": "multi",
+                    "sort": "desc"
+                }
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "rate(redis_evicted_keys_total[$__rate_interval])",
+                    "legendFormat": "evicted"
+                },
+                {
+                    "refId": "B",
+                    "expr": "rate(redis_expired_keys_total[$__rate_interval])",
+                    "legendFormat": "expired (TTL)"
+                }
+            ]
+        },
+        {
+            "id": 12,
+            "type": "row",
+            "title": "Throughput",
+            "gridPos": {
+                "h": 1,
+                "w": 24,
+                "x": 0,
+                "y": 14
+            }
+        },
+        {
+            "id": 13,
+            "type": "timeseries",
+            "title": "Commands per second",
+            "description": "",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus-powerlog"
+            },
+            "gridPos": {
+                "h": 8,
+                "w": 8,
+                "x": 0,
+                "y": 15
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "ops",
+                    "custom": {
+                        "fillOpacity": 0,
+                        "lineWidth": 2
+                    }
+                },
+                "overrides": []
+            },
+            "options": {
+                "legend": {
+                    "displayMode": "list",
+                    "placement": "bottom",
+                    "showLegend": true
+                },
+                "tooltip": {
+                    "mode": "multi",
+                    "sort": "desc"
+                }
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "rate(redis_commands_processed_total[$__rate_interval])",
+                    "legendFormat": "commands/s"
+                }
+            ]
+        },
+        {
+            "id": 14,
+            "type": "timeseries",
+            "title": "Top commands (per s)",
+            "description": "Today this is publish/subscribe from the realtime bus. When BullMQ lands you'll see the queue commands (lpush/brpoplpush/evalsha) take over.",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus-powerlog"
+            },
+            "gridPos": {
+                "h": 8,
+                "w": 8,
+                "x": 8,
+                "y": 15
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "ops",
+                    "custom": {
+                        "fillOpacity": 0,
+                        "lineWidth": 2
+                    }
+                },
+                "overrides": []
+            },
+            "options": {
+                "legend": {
+                    "displayMode": "list",
+                    "placement": "bottom",
+                    "showLegend": true
+                },
+                "tooltip": {
+                    "mode": "multi",
+                    "sort": "desc"
+                }
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "topk(10, sum by (cmd) (rate(redis_commands_total[$__rate_interval])))",
+                    "legendFormat": "{{cmd}}"
+                }
+            ]
+        },
+        {
+            "id": 15,
+            "type": "timeseries",
+            "title": "Network in / out",
+            "description": "",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus-powerlog"
+            },
+            "gridPos": {
+                "h": 8,
+                "w": 8,
+                "x": 16,
+                "y": 15
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "Bps",
+                    "custom": {
+                        "fillOpacity": 0,
+                        "lineWidth": 2
+                    }
+                },
+                "overrides": []
+            },
+            "options": {
+                "legend": {
+                    "displayMode": "list",
+                    "placement": "bottom",
+                    "showLegend": true
+                },
+                "tooltip": {
+                    "mode": "multi",
+                    "sort": "desc"
+                }
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "rate(redis_net_input_bytes_total[$__rate_interval])",
+                    "legendFormat": "in"
+                },
+                {
+                    "refId": "B",
+                    "expr": "rate(redis_net_output_bytes_total[$__rate_interval])",
+                    "legendFormat": "out"
+                }
+            ]
+        },
+        {
+            "id": 16,
+            "type": "timeseries",
+            "title": "Keys in the keyspace",
+            "description": "Empty today (pub/sub stores nothing). It starts growing with the cache and the BullMQ job hashes.",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus-powerlog"
+            },
+            "gridPos": {
+                "h": 8,
+                "w": 8,
+                "x": 0,
+                "y": 23
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "none",
+                    "custom": {
+                        "fillOpacity": 0,
+                        "lineWidth": 2
+                    }
+                },
+                "overrides": []
+            },
+            "options": {
+                "legend": {
+                    "displayMode": "list",
+                    "placement": "bottom",
+                    "showLegend": true
+                },
+                "tooltip": {
+                    "mode": "multi",
+                    "sort": "desc"
+                }
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "redis_db_keys",
+                    "legendFormat": "{{db}}"
+                }
+            ]
+        },
+        {
+            "id": 17,
+            "type": "timeseries",
+            "title": "Keyspace hit rate",
+            "description": "Only meaningful once something is actually cached. A low hit rate then means the cache isn't paying for itself.",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus-powerlog"
+            },
+            "gridPos": {
+                "h": 8,
+                "w": 8,
+                "x": 8,
+                "y": 23
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "percentunit",
+                    "custom": {
+                        "fillOpacity": 0,
+                        "lineWidth": 2
+                    }
+                },
+                "overrides": []
+            },
+            "options": {
+                "legend": {
+                    "displayMode": "list",
+                    "placement": "bottom",
+                    "showLegend": true
+                },
+                "tooltip": {
+                    "mode": "multi",
+                    "sort": "desc"
+                }
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "rate(redis_keyspace_hits_total[$__rate_interval]) / clamp_min(rate(redis_keyspace_hits_total[$__rate_interval]) + rate(redis_keyspace_misses_total[$__rate_interval]), 1)",
+                    "legendFormat": "hit rate"
+                }
+            ]
+        },
+        {
+            "id": 18,
+            "type": "timeseries",
+            "title": "Rejected connections",
+            "description": "Connections turned away because maxclients was hit. Should be flat 0.",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus-powerlog"
+            },
+            "gridPos": {
+                "h": 8,
+                "w": 8,
+                "x": 16,
+                "y": 23
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "ops",
+                    "custom": {
+                        "fillOpacity": 0,
+                        "lineWidth": 2
+                    }
+                },
+                "overrides": []
+            },
+            "options": {
+                "legend": {
+                    "displayMode": "list",
+                    "placement": "bottom",
+                    "showLegend": true
+                },
+                "tooltip": {
+                    "mode": "multi",
+                    "sort": "desc"
+                }
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "rate(redis_rejected_connections_total[$__rate_interval])",
+                    "legendFormat": "rejected/s"
+                }
+            ]
+        },
+        {
+            "id": 19,
+            "type": "row",
+            "title": "Realtime (SSE) - what rides on Redis today",
+            "gridPos": {
+                "h": 1,
+                "w": 24,
+                "x": 0,
+                "y": 31
+            }
+        },
+        {
+            "id": 20,
+            "type": "stat",
+            "title": "Open SSE connections",
+            "description": "One per open tab of a signed-in user - a rough 'users with the app open right now'.",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus-powerlog"
+            },
+            "gridPos": {
+                "h": 4,
+                "w": 6,
+                "x": 0,
+                "y": 32
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "none"
+                },
+                "overrides": []
+            },
+            "options": {
+                "reduceOptions": {
+                    "calcs": ["lastNotNull"]
+                },
+                "colorMode": "value",
+                "graphMode": "area",
+                "textMode": "auto"
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "sum(powerlog_realtime_connections)",
+                    "instant": true
+                }
+            ]
+        },
+        {
+            "id": 21,
+            "type": "timeseries",
+            "title": "Open SSE connections",
+            "description": "Per API instance. With several replicas this is also how you see the load balancer spreading the long-lived connections.",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus-powerlog"
+            },
+            "gridPos": {
+                "h": 8,
+                "w": 9,
+                "x": 6,
+                "y": 32
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "none",
+                    "custom": {
+                        "fillOpacity": 0,
+                        "lineWidth": 2
+                    }
+                },
+                "overrides": []
+            },
+            "options": {
+                "legend": {
+                    "displayMode": "list",
+                    "placement": "bottom",
+                    "showLegend": true
+                },
+                "tooltip": {
+                    "mode": "multi",
+                    "sort": "desc"
+                }
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "sum by (instance) (powerlog_realtime_connections)",
+                    "legendFormat": "{{instance}}"
+                }
+            ]
+        },
+        {
+            "id": 22,
+            "type": "timeseries",
+            "title": "Realtime events pushed (per s)",
+            "description": "Counts recipients, not publishes (an event fanned out to a coach and an athlete counts 2). athlete_linked spiking with no coach_invitation before it means invites are being accepted from links, not from the app.",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus-powerlog"
+            },
+            "gridPos": {
+                "h": 8,
+                "w": 9,
+                "x": 15,
+                "y": 32
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "ops",
+                    "custom": {
+                        "fillOpacity": 60,
+                        "lineWidth": 2,
+                        "stacking": {
+                            "mode": "normal",
+                            "group": "A"
+                        }
+                    }
+                },
+                "overrides": []
+            },
+            "options": {
+                "legend": {
+                    "displayMode": "list",
+                    "placement": "bottom",
+                    "showLegend": true
+                },
+                "tooltip": {
+                    "mode": "multi",
+                    "sort": "desc"
+                }
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "sum by (type) (rate(powerlog_realtime_events_total[$__rate_interval]))",
+                    "legendFormat": "{{type}}"
+                }
+            ]
+        }
+    ]
+}

@@ -29,6 +29,12 @@ scrape_configs:
     static_configs:
       - targets: ["powerlog-api:4000"]
 
+  # powerlog owns its Redis in every env (unlike Postgres, shared in prod), so this
+  # job belongs in the shared config rather than a per-env scrape.d file.
+  - job_name: powerlog-redis
+    static_configs:
+      - targets: ["powerlog-redis-exporter:9121"]
+
   - job_name: powerlog-prometheus
     static_configs:
       - targets: ["localhost:9090"]

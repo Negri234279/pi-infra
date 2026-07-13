@@ -33,11 +33,17 @@ services:
       NODE_ENV: production
       APP_ENV: prod
       API_PORT: 4000
+      # This stack's own Redis (see below). Unset → the app still boots, with the
+      # realtime fan-out confined to this instance.
+      REDIS_URL: redis://powerlog-redis:6379
       # OpenTelemetry → this stack's Tempo (OTLP/HTTP).
       OTEL_SERVICE_NAME: powerlog-api
       OTEL_EXPORTER_OTLP_ENDPOINT: http://powerlog-tempo:4318
       OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
       OTEL_SDK_DISABLED: "false"
+    depends_on:
+      powerlog-redis:
+        condition: service_healthy
     # No depends_on for the DB: it lives in the core stack (separate compose file).
     # The entrypoint migrates then starts; if the shared DB / provisioner isn't
     # ready yet it exits non-zero and the restart policy retries until it is.
@@ -60,6 +66,54 @@ services:
     restart: unless-stopped
     labels:
       - com.centurylinklabs.watchtower.enable=true
+
+  # powerlog's OWN Redis (unlike Postgres, which is the shared core one): it will
+  # hold this app's queues and cache, so isolating it keeps a bad job or a full
+  # keyspace from touching the other apps on the Pi — and it costs ~10 MB.
+  #
+  # appendonly: BullMQ jobs must survive a restart of the Pi.
+  # noeviction + maxmemory: BullMQ requires it (evicting a key would silently
+  # destroy a job), so cached values must carry their own TTLs instead of relying
+  # on eviction. A full keyspace fails writes loudly rather than corrupting jobs.
+  powerlog-redis:
+    image: redis:7-alpine
+    container_name: powerlog-redis
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "256mb", "--maxmemory-policy", "noeviction"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    volumes:
+      - powerlog-redis-data:/data
+    deploy:
+      resources:
+        limits: { cpus: "0.5", memory: 320m }
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+    # powerlog-net only: no host port, unreachable from outside the app stack.
+    networks: [powerlog-net]
+    restart: unless-stopped
+
+  # Redis internals for Grafana (memory vs maxmemory, ops/s, keyspace, clients).
+  # Scraped by this stack's Prometheus via the shared prometheus.yml.
+  powerlog-redis-exporter:
+    image: oliver006/redis_exporter:v1.67.0
+    container_name: powerlog-redis-exporter
+    environment:
+      REDIS_ADDR: redis://powerlog-redis:6379
+    depends_on:
+      powerlog-redis:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits: { cpus: "0.2", memory: 64m }
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+    networks: [powerlog-net]
+    restart: unless-stopped
 
   powerlog-web:
     image: negrii/powerlog-web:latest
@@ -218,6 +272,7 @@ services:
     restart: unless-stopped
 
 volumes:
+  powerlog-redis-data:
   powerlog-prometheus-data:
   powerlog-loki-data:
   powerlog-tempo-data:

@@ -30,8 +30,22 @@ are unchanged, so inter-service config (datasources, Alloy push, OTLP) is too.
 | Loki       | http://localhost:13100 | fed by Alloy               |
 | Alloy      | http://localhost:12345 | tails Docker stdout        |
 
-Grafana ships pre-provisioned datasources (Prometheus/Loki/Tempo) and the
-**powerlog · API overview** dashboard.
+Grafana ships pre-provisioned datasources (Prometheus/Loki/Tempo) and these
+dashboards (drop a JSON in `grafana/dashboards/` to add one):
+
+| Dashboard                       | What it answers                                                                                                                |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| **powerlog · API overview**     | HTTP/GraphQL, CQRS, errors, DB, runtime, logs, auth, R2, email.                                                                |
+| **powerlog · Coaching**         | The invitation funnel (incl. invites that turn into signups), churn by actor, current links/backlog, what coaches actually do. |
+| **powerlog · Redis & realtime** | Redis health/memory/throughput (via `redis_exporter`) + the SSE streams and events that ride on it.                            |
+| **powerlog · PostgreSQL**       | Server-side DB metrics (postgres_exporter, dev only — prod's DB is the shared core one).                                       |
+| **powerlog · Cloudflare R2**    | Avatar object storage.                                                                                                         |
+| **powerlog · Web RUM (Faro)**   | Browser-side sessions, web vitals, JS errors.                                                                                  |
+
+Exporters: `powerlog-postgres-exporter` (dev only) and `powerlog-redis-exporter`
+(**dev and prod** — powerlog owns its Redis, whereas prod's Postgres belongs to
+the shared core stack). The Redis job lives in the shared `prometheus.yml`; the
+Postgres one is dropped into the per-env `scrape.d/`.
 
 ## How the correlation works
 
@@ -63,9 +77,22 @@ Grafana ships pre-provisioned datasources (Prometheus/Loki/Tempo) and the
 - `powerlog_avatars_processed_total{source,status}`
 - `powerlog_notifications_created_total{type}`
 - `powerlog_build_info{version,service,environment}` (constant 1 — release pin)
+- **Coaching** (→ _powerlog · Coaching_):
+    - `powerlog_coach_invitations_total{status,invitee}` — the funnel. `invitee` is
+      `existing` (the invitee already had an account) or `new` (the email had none),
+      so accepted+new is the sign-up auto-link — which runs in an event handler and
+      is therefore invisible to the per-command CQRS counters. What those already
+      cover (rate/failures of every coaching command) is deliberately not repeated.
+    - `powerlog_coach_links_removed_total{by}` — churn, by who ended it.
+    - `powerlog_coaching_{links,coaches,athletes,pending_invitations}` — current
+      state, sampled at scrape time from the read model the admin dashboard uses.
+- **Redis / realtime** (→ _powerlog · Redis & realtime_):
+    - `powerlog_redis_up` — 0 also means "not configured" (Redis is optional).
+    - `powerlog_realtime_connections` — open SSE streams (≈ tabs with the app open).
+    - `powerlog_realtime_events_total{type}` — counts recipients, not publishes.
 - plus default Node.js process metrics (`process_*`, `nodejs_*`).
 
-All of the above are visualised in the **powerlog · API overview** dashboard
+The API-wide ones are visualised in the **powerlog · API overview** dashboard
 (Overview · HTTP & GraphQL · CQRS · Errors · Business · Runtime · Logs).
 
 ## Disabling tracing
