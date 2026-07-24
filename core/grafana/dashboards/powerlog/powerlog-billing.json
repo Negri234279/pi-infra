@@ -1,0 +1,1051 @@
+{
+    "uid": "powerlog-billing",
+    "title": "Powerlog · Billing",
+    "tags": ["powerlog", "billing"],
+    "timezone": "browser",
+    "schemaVersion": 39,
+    "version": 2,
+    "refresh": "1m",
+    "time": {
+        "from": "now-24h",
+        "to": "now"
+    },
+    "panels": [
+        {
+            "id": 1,
+            "type": "row",
+            "title": "Where the business stands",
+            "gridPos": {
+                "h": 1,
+                "w": 24,
+                "x": 0,
+                "y": 0
+            }
+        },
+        {
+            "id": 2,
+            "type": "stat",
+            "title": "Active subscriptions",
+            "description": "Subscriptions currently granting their plan (trialing, active or past_due).",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus-powerlog"
+            },
+            "gridPos": {
+                "h": 4,
+                "w": 4,
+                "x": 0,
+                "y": 1
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "none",
+                    "decimals": 0
+                },
+                "overrides": []
+            },
+            "options": {
+                "reduceOptions": {
+                    "calcs": ["lastNotNull"]
+                },
+                "colorMode": "none",
+                "graphMode": "area",
+                "textMode": "auto"
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "sum(powerlog_subscriptions)",
+                    "instant": true
+                }
+            ]
+        },
+        {
+            "id": 3,
+            "type": "stat",
+            "title": "MRR (EUR)",
+            "description": "Monthly recurring revenue, every interval normalised to a month. A yearly plan is not 12x a monthly one.",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus-powerlog"
+            },
+            "gridPos": {
+                "h": 4,
+                "w": 4,
+                "x": 4,
+                "y": 1
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "currencyEUR",
+                    "decimals": 0
+                },
+                "overrides": []
+            },
+            "options": {
+                "reduceOptions": {
+                    "calcs": ["lastNotNull"]
+                },
+                "colorMode": "none",
+                "graphMode": "area",
+                "textMode": "auto"
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "sum(powerlog_mrr_cents{currency=\"EUR\"}) / 100",
+                    "instant": true
+                }
+            ]
+        },
+        {
+            "id": 4,
+            "type": "stat",
+            "title": "MRR (USD)",
+            "description": "Same, in dollars. Currencies are never added together — that would be an invented exchange rate.",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus-powerlog"
+            },
+            "gridPos": {
+                "h": 4,
+                "w": 4,
+                "x": 8,
+                "y": 1
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "currencyUSD",
+                    "decimals": 0
+                },
+                "overrides": []
+            },
+            "options": {
+                "reduceOptions": {
+                    "calcs": ["lastNotNull"]
+                },
+                "colorMode": "none",
+                "graphMode": "area",
+                "textMode": "auto"
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "sum(powerlog_mrr_cents{currency=\"USD\"}) / 100",
+                    "instant": true
+                }
+            ]
+        },
+        {
+            "id": 5,
+            "type": "stat",
+            "title": "In trial",
+            "description": "Trials running. They pay nothing yet, so they are not in the MRR.",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus-powerlog"
+            },
+            "gridPos": {
+                "h": 4,
+                "w": 4,
+                "x": 12,
+                "y": 1
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "none",
+                    "decimals": 0
+                },
+                "overrides": []
+            },
+            "options": {
+                "reduceOptions": {
+                    "calcs": ["lastNotNull"]
+                },
+                "colorMode": "none",
+                "graphMode": "area",
+                "textMode": "auto"
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "sum(powerlog_subscriptions{status=\"trialing\"})",
+                    "instant": true
+                }
+            ]
+        },
+        {
+            "id": 6,
+            "type": "stat",
+            "title": "Payment failing",
+            "description": "past_due: the gateway is retrying the charge and the user keeps the plan meanwhile.",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus-powerlog"
+            },
+            "gridPos": {
+                "h": 4,
+                "w": 4,
+                "x": 16,
+                "y": 1
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "none",
+                    "decimals": 0,
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            },
+                            {
+                                "color": "red",
+                                "value": 1
+                            }
+                        ]
+                    }
+                },
+                "overrides": []
+            },
+            "options": {
+                "reduceOptions": {
+                    "calcs": ["lastNotNull"]
+                },
+                "colorMode": "value",
+                "graphMode": "area",
+                "textMode": "auto"
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "sum(powerlog_subscriptions{status=\"past_due\"})",
+                    "instant": true
+                }
+            ]
+        },
+        {
+            "id": 7,
+            "type": "stat",
+            "title": "Cancelling",
+            "description": "Cancelled but still inside the period they paid for: churn already decided, not yet visible.",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus-powerlog"
+            },
+            "gridPos": {
+                "h": 4,
+                "w": 4,
+                "x": 20,
+                "y": 1
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "none",
+                    "decimals": 0
+                },
+                "overrides": []
+            },
+            "options": {
+                "reduceOptions": {
+                    "calcs": ["lastNotNull"]
+                },
+                "colorMode": "none",
+                "graphMode": "area",
+                "textMode": "auto"
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "powerlog_subscriptions_canceling",
+                    "instant": true
+                }
+            ]
+        },
+        {
+            "id": 8,
+            "type": "timeseries",
+            "title": "Subscriptions by plan",
+            "description": "Which plans of the catalog actually sell, and which are dead.",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus-powerlog"
+            },
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 0,
+                "y": 5
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "none",
+                    "custom": {
+                        "fillOpacity": 20,
+                        "stacking": {
+                            "mode": "normal"
+                        }
+                    }
+                },
+                "overrides": []
+            },
+            "options": {
+                "legend": {
+                    "displayMode": "list",
+                    "placement": "bottom"
+                }
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "powerlog_subscriptions_by_plan",
+                    "legendFormat": "{{plan}}"
+                }
+            ]
+        },
+        {
+            "id": 9,
+            "type": "timeseries",
+            "title": "Subscriptions by gateway",
+            "description": "Where the money comes in. Answers \"which provider do people actually use?\".",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus-powerlog"
+            },
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 12,
+                "y": 5
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "none",
+                    "custom": {
+                        "fillOpacity": 20,
+                        "stacking": {
+                            "mode": "normal"
+                        }
+                    }
+                },
+                "overrides": []
+            },
+            "options": {
+                "legend": {
+                    "displayMode": "list",
+                    "placement": "bottom"
+                }
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "sum by (gateway) (powerlog_subscriptions)",
+                    "legendFormat": "{{gateway}}"
+                }
+            ]
+        },
+        {
+            "id": 24,
+            "type": "row",
+            "title": "Revenue — cash collected, not book value",
+            "gridPos": {
+                "h": 1,
+                "w": 24,
+                "x": 0,
+                "y": 13
+            }
+        },
+        {
+            "id": 25,
+            "type": "timeseries",
+            "title": "Revenue collected by currency (per day)",
+            "description": "What paid invoices actually brought in. MRR is the promise; this is the cash that landed.",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus-powerlog"
+            },
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 0,
+                "y": 14
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "none",
+                    "decimals": 2,
+                    "custom": {
+                        "fillOpacity": 20
+                    }
+                },
+                "overrides": []
+            },
+            "options": {
+                "legend": {
+                    "displayMode": "list",
+                    "placement": "bottom"
+                }
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "sum by (currency) (increase(powerlog_revenue_cents_total[1d])) / 100",
+                    "legendFormat": "{{currency}}"
+                }
+            ]
+        },
+        {
+            "id": 26,
+            "type": "timeseries",
+            "title": "Revenue by plan (per day)",
+            "description": "Which plans earn. Amounts are in whatever currency they were paid — for exact accounting read the invoices.",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus-powerlog"
+            },
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 12,
+                "y": 14
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "none",
+                    "decimals": 2,
+                    "custom": {
+                        "fillOpacity": 20
+                    }
+                },
+                "overrides": []
+            },
+            "options": {
+                "legend": {
+                    "displayMode": "list",
+                    "placement": "bottom"
+                }
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "sum by (plan) (increase(powerlog_revenue_cents_total[1d])) / 100",
+                    "legendFormat": "{{plan}}"
+                }
+            ]
+        },
+        {
+            "id": 10,
+            "type": "row",
+            "title": "Checkout funnel",
+            "gridPos": {
+                "h": 1,
+                "w": 24,
+                "x": 0,
+                "y": 22
+            }
+        },
+        {
+            "id": 11,
+            "type": "timeseries",
+            "title": "Checkouts started vs completed",
+            "description": "Where people fall out, per gateway. increase() extrapolates, so at low volume the numbers are fractional — read the shape, not the decimals.",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus-powerlog"
+            },
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 0,
+                "y": 23
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "none",
+                    "custom": {
+                        "fillOpacity": 0,
+                        "stacking": {
+                            "mode": "none"
+                        }
+                    }
+                },
+                "overrides": []
+            },
+            "options": {
+                "legend": {
+                    "displayMode": "list",
+                    "placement": "bottom"
+                }
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "sum by (gateway) (increase(powerlog_checkout_sessions_total{status=\"started\"}[1h]))",
+                    "legendFormat": "started · {{gateway}}"
+                },
+                {
+                    "refId": "B",
+                    "expr": "sum by (gateway) (increase(powerlog_checkout_sessions_total{status=\"completed\"}[1h]))",
+                    "legendFormat": "completed · {{gateway}}"
+                },
+                {
+                    "refId": "C",
+                    "expr": "sum by (gateway) (increase(powerlog_checkout_sessions_total{status=\"expired\"}[1h]))",
+                    "legendFormat": "abandoned · {{gateway}}"
+                }
+            ]
+        },
+        {
+            "id": 12,
+            "type": "timeseries",
+            "title": "Signups that came in through an offer",
+            "description": "Do the promos convert, or are we discounting people who would have paid anyway?",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus-powerlog"
+            },
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 12,
+                "y": 23
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "none",
+                    "custom": {
+                        "fillOpacity": 0,
+                        "stacking": {
+                            "mode": "none"
+                        }
+                    }
+                },
+                "overrides": []
+            },
+            "options": {
+                "legend": {
+                    "displayMode": "list",
+                    "placement": "bottom"
+                }
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "sum by (plan) (increase(powerlog_offer_redemptions_total[1d]))",
+                    "legendFormat": "{{plan}}"
+                }
+            ]
+        },
+        {
+            "id": 13,
+            "type": "row",
+            "title": "Lifecycle",
+            "gridPos": {
+                "h": 1,
+                "w": 24,
+                "x": 0,
+                "y": 31
+            }
+        },
+        {
+            "id": 14,
+            "type": "timeseries",
+            "title": "Subscription events",
+            "description": "Activations, renewals, upgrades, downgrades and churn — the whole story, from the webhooks.",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus-powerlog"
+            },
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 0,
+                "y": 32
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "none",
+                    "custom": {
+                        "fillOpacity": 0,
+                        "stacking": {
+                            "mode": "none"
+                        }
+                    }
+                },
+                "overrides": []
+            },
+            "options": {
+                "legend": {
+                    "displayMode": "list",
+                    "placement": "bottom"
+                }
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "sum by (type) (increase(powerlog_subscription_events_total[1h]))",
+                    "legendFormat": "{{type}}"
+                }
+            ]
+        },
+        {
+            "id": 15,
+            "type": "barchart",
+            "title": "Demand for features people do not pay for",
+            "description": "Every denial is a user asking for something their plan does not include. The most valuable product signal in the block: it says WHICH feature to sell.",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus-powerlog"
+            },
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 12,
+                "y": 32
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "none",
+                    "decimals": 0
+                },
+                "overrides": []
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "sum by (feature) (increase(powerlog_entitlement_denials_total[7d]))",
+                    "legendFormat": "{{feature}}",
+                    "instant": true
+                }
+            ]
+        },
+        {
+            "id": 16,
+            "type": "row",
+            "title": "Integration health — the channel everything else depends on",
+            "gridPos": {
+                "h": 1,
+                "w": 24,
+                "x": 0,
+                "y": 40
+            }
+        },
+        {
+            "id": 17,
+            "type": "stat",
+            "title": "DRIFT — should be 0",
+            "description": "Subscriptions the gateway thinks are live and we do not (or the reverse). A webhook we never received bills people wrongly for weeks in silence; this is the only thing that sees it. ALERT ON THIS.",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus-powerlog"
+            },
+            "gridPos": {
+                "h": 4,
+                "w": 4,
+                "x": 0,
+                "y": 41
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "none",
+                    "decimals": 0,
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            },
+                            {
+                                "color": "red",
+                                "value": 1
+                            }
+                        ]
+                    }
+                },
+                "overrides": []
+            },
+            "options": {
+                "reduceOptions": {
+                    "calcs": ["lastNotNull"]
+                },
+                "colorMode": "value",
+                "graphMode": "area",
+                "textMode": "auto"
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "sum(powerlog_billing_drift)",
+                    "instant": true
+                }
+            ]
+        },
+        {
+            "id": 18,
+            "type": "stat",
+            "title": "Webhooks received (6h) — 0 is BAD",
+            "description": "A long silence is not calm, it is deaf: the providers send events constantly, so nothing arriving means the endpoint is broken. Zero here is the cheapest way to see it.",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus-powerlog"
+            },
+            "gridPos": {
+                "h": 4,
+                "w": 4,
+                "x": 4,
+                "y": 41
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "none",
+                    "decimals": 0,
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "red",
+                                "value": null
+                            },
+                            {
+                                "color": "green",
+                                "value": 1
+                            }
+                        ]
+                    }
+                },
+                "overrides": []
+            },
+            "options": {
+                "reduceOptions": {
+                    "calcs": ["lastNotNull"]
+                },
+                "colorMode": "value",
+                "graphMode": "area",
+                "textMode": "auto"
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "sum(increase(powerlog_billing_webhooks_total[6h])) or vector(0)",
+                    "instant": true
+                }
+            ]
+        },
+        {
+            "id": 19,
+            "type": "stat",
+            "title": "Failed webhooks (1h)",
+            "description": "Handlers that blew up. The event keeps its payload and can be replayed from /admin/billing.",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus-powerlog"
+            },
+            "gridPos": {
+                "h": 4,
+                "w": 4,
+                "x": 8,
+                "y": 41
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "none",
+                    "decimals": 0,
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            },
+                            {
+                                "color": "red",
+                                "value": 1
+                            }
+                        ]
+                    }
+                },
+                "overrides": []
+            },
+            "options": {
+                "reduceOptions": {
+                    "calcs": ["lastNotNull"]
+                },
+                "colorMode": "value",
+                "graphMode": "area",
+                "textMode": "auto"
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "sum(increase(powerlog_billing_webhooks_total{status=\"failed\"}[1h]))",
+                    "instant": true
+                }
+            ]
+        },
+        {
+            "id": 20,
+            "type": "stat",
+            "title": "Duplicates (1h)",
+            "description": "Retries the idempotency swallowed. Seeing some is HEALTHY — it proves a replayed event cannot charge twice.",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus-powerlog"
+            },
+            "gridPos": {
+                "h": 4,
+                "w": 4,
+                "x": 12,
+                "y": 41
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "none",
+                    "decimals": 0
+                },
+                "overrides": []
+            },
+            "options": {
+                "reduceOptions": {
+                    "calcs": ["lastNotNull"]
+                },
+                "colorMode": "none",
+                "graphMode": "area",
+                "textMode": "auto"
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "sum(increase(powerlog_billing_webhooks_total{status=\"duplicate\"}[1h]))",
+                    "instant": true
+                }
+            ]
+        },
+        {
+            "id": 27,
+            "type": "stat",
+            "title": "Rejected (1h)",
+            "description": "Signature verification refused them. A stream of these right after a deploy is a webhook secret rotated wrong.",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus-powerlog"
+            },
+            "gridPos": {
+                "h": 4,
+                "w": 4,
+                "x": 16,
+                "y": 41
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "none",
+                    "decimals": 0,
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            },
+                            {
+                                "color": "red",
+                                "value": 1
+                            }
+                        ]
+                    }
+                },
+                "overrides": []
+            },
+            "options": {
+                "reduceOptions": {
+                    "calcs": ["lastNotNull"]
+                },
+                "colorMode": "value",
+                "graphMode": "area",
+                "textMode": "auto"
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "sum(increase(powerlog_billing_webhooks_total{status=\"rejected\"}[1h]))",
+                    "instant": true
+                }
+            ]
+        },
+        {
+            "id": 28,
+            "type": "stat",
+            "title": "Awaiting replay — 0 is good",
+            "description": "Failed events the backoff retries could not clear, waiting for a human in /admin/billing.",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus-powerlog"
+            },
+            "gridPos": {
+                "h": 4,
+                "w": 4,
+                "x": 20,
+                "y": 41
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "none",
+                    "decimals": 0,
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            },
+                            {
+                                "color": "red",
+                                "value": 1
+                            }
+                        ]
+                    }
+                },
+                "overrides": []
+            },
+            "options": {
+                "reduceOptions": {
+                    "calcs": ["lastNotNull"]
+                },
+                "colorMode": "value",
+                "graphMode": "area",
+                "textMode": "auto"
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "sum(powerlog_billing_webhooks_pending_replay)",
+                    "instant": true
+                }
+            ]
+        },
+        {
+            "id": 21,
+            "type": "timeseries",
+            "title": "Webhooks by outcome",
+            "description": "processed / failed / duplicate, per gateway.",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus-powerlog"
+            },
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 0,
+                "y": 45
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "none",
+                    "custom": {
+                        "fillOpacity": 0,
+                        "stacking": {
+                            "mode": "none"
+                        }
+                    }
+                },
+                "overrides": []
+            },
+            "options": {
+                "legend": {
+                    "displayMode": "list",
+                    "placement": "bottom"
+                }
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "sum by (gateway, status) (increase(powerlog_billing_webhooks_total[1h]))",
+                    "legendFormat": "{{gateway}} · {{status}}"
+                }
+            ]
+        },
+        {
+            "id": 22,
+            "type": "timeseries",
+            "title": "Gateway latency (p95)",
+            "description": "How slow the providers are being, per operation. The same treatment mail and R2 get.",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus-powerlog"
+            },
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 12,
+                "y": 45
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "s",
+                    "custom": {
+                        "fillOpacity": 0,
+                        "stacking": {
+                            "mode": "none"
+                        }
+                    }
+                },
+                "overrides": []
+            },
+            "options": {
+                "legend": {
+                    "displayMode": "list",
+                    "placement": "bottom"
+                }
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "histogram_quantile(0.95, sum by (le, gateway, operation) (rate(powerlog_gateway_request_duration_seconds_bucket[5m])))",
+                    "legendFormat": "{{gateway}} · {{operation}}"
+                }
+            ]
+        },
+        {
+            "id": 23,
+            "type": "timeseries",
+            "title": "Catalog publications",
+            "description": "Plans pushed to a gateway. A failure here means a price nobody can buy.",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus-powerlog"
+            },
+            "gridPos": {
+                "h": 6,
+                "w": 24,
+                "x": 0,
+                "y": 53
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "none",
+                    "custom": {
+                        "fillOpacity": 0,
+                        "stacking": {
+                            "mode": "none"
+                        }
+                    }
+                },
+                "overrides": []
+            },
+            "options": {
+                "legend": {
+                    "displayMode": "list",
+                    "placement": "bottom"
+                }
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "sum by (gateway, status) (increase(powerlog_plan_sync_total[1d]))",
+                    "legendFormat": "{{gateway}} · {{status}}"
+                }
+            ]
+        }
+    ]
+}

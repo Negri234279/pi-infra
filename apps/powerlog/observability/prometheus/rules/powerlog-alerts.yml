@@ -107,3 +107,64 @@ groups:
         annotations:
           summary: "powerlog high email bounce rate"
           description: ">5% of recent emails bounced (1h) — check recipients / domain reputation."
+
+      # ── Billing ────────────────────────────────────────────────────
+      # The drift gauge is the whole point of the reconciliation job: a webhook we
+      # never received bills people wrongly for WEEKS without anything throwing,
+      # logging or turning red. This number should always be zero.
+      - alert: PowerlogBillingDrift
+        expr: sum(powerlog_billing_drift) > 0
+        for: 15m
+        labels: { app: powerlog, severity: critical }
+        annotations:
+          summary: "powerlog billing drift"
+          description: "Our subscriptions and the gateway's disagree — a webhook was probably lost. Check /admin/billing and replay the failed events."
+
+      - alert: PowerlogBillingWebhooksFailing
+        expr: sum(increase(powerlog_billing_webhooks_total{status="failed"}[1h])) > 0
+        for: 0m
+        labels: { app: powerlog, severity: warning }
+        annotations:
+          summary: "powerlog billing webhooks failing"
+          description: "A billing webhook handler blew up. The event kept its payload — replay it from /admin/billing."
+
+      # Silence on this channel is not calm, it is deaf: the providers send events
+      # constantly, so nothing arriving for hours means the endpoint is broken (bad
+      # URL, TLS, proxy). Guarded by sum(powerlog_subscriptions) > 0 so it stays quiet
+      # until there is actually someone to bill.
+      #
+      # `or on() vector(0)` is load-bearing: the webhooks counter carries labels, so
+      # its series does not exist until the FIRST webhook lands — and increase() over
+      # a missing series returns empty, not zero. Without the fallback this alert
+      # could never fire in the one case that matters most: an endpoint that has never
+      # worked at all (which is exactly what happened here — the TLS handshake failed
+      # and not a single event ever arrived).
+      - alert: PowerlogBillingWebhooksSilent
+        expr: (sum(increase(powerlog_billing_webhooks_total[6h])) or on() vector(0)) == 0 and on() sum(powerlog_subscriptions) > 0
+        for: 30m
+        labels: { app: powerlog, severity: warning }
+        annotations:
+          summary: "powerlog billing webhooks silent"
+          description: "No billing webhook in 6h while subscriptions exist — the endpoint is probably unreachable from the gateway."
+
+      # WebhooksFailing says it happened; this says it is STILL not fixed. The gauge
+      # holds the alert open until a human actually replays the events, so a failure
+      # that outlived every backoff retry cannot slip by as a one-shot notification.
+      - alert: PowerlogBillingWebhookReplayBacklog
+        expr: sum(powerlog_billing_webhooks_pending_replay) > 0
+        for: 30m
+        labels: { app: powerlog, severity: warning }
+        annotations:
+          summary: "powerlog billing webhooks awaiting replay"
+          description: "Failed billing webhook events have sat unresolved for 30m — the backoff retries gave up. Replay them from /admin/billing."
+
+      # Rejected is different from failed: the payload never got in, because its
+      # signature did not verify. One or two are internet noise; a sustained stream
+      # right after a deploy is a webhook secret rotated wrong, and every real event
+      # is bouncing off while the provider quietly retries.
+      - alert: PowerlogBillingWebhooksRejected
+        expr: sum(increase(powerlog_billing_webhooks_total{status="rejected"}[30m])) > 3
+        labels: { app: powerlog, severity: warning }
+        annotations:
+          summary: "powerlog billing webhooks rejected"
+          description: "Several billing webhooks failed signature verification in 30m — check STRIPE_WEBHOOK_SECRET / PAYPAL_WEBHOOK_ID."
