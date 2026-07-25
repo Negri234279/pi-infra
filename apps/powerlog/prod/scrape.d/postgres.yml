@@ -1,0 +1,26 @@
+# PROD (+ STAGING) extra scrape: the SHARED core Postgres exporter (pi-infra
+# core/postgres-exporter), reachable by DNS on the `monitoring` network. Unlike
+# dev — which scrapes its own per-app exporter — prod/staging use the shared core
+# DB, whose exporter is otherwise only scraped by pi-infra's Prometheus. Scraping
+# it here too puts pg_* into powerlog's OWN Prometheus, so the overview dashboard's
+# Postgres panels (single-source JSON, pinned to the prometheus-powerlog datasource)
+# show data just like in dev.
+#
+# STAGING gets this for free: its compose layers over ../prod/compose.yml and does
+# not override powerlog-prometheus, so it reuses this same `./scrape.d` mount.
+#
+# The shared exporter auto-discovers EVERY app's database (labelled by `datname`);
+# the metric_relabel keeps only powerlog's series plus the db-agnostic ones that
+# carry no datname (pg_up, pg_settings_*) — the empty alternative in the regex.
+#
+# NOTE: scrape_config_files files are NOT bare lists — Prometheus unmarshals each
+# file into a mapping with a `scrape_configs` key (a bare `- job_name:` list
+# crash-loops it with "cannot unmarshal !!seq into config.ScrapeConfigs").
+scrape_configs:
+  - job_name: powerlog-postgres
+    static_configs:
+      - targets: ["postgres-exporter:9187"]
+    metric_relabel_configs:
+      - source_labels: [datname]
+        regex: "powerlog|"
+        action: keep
