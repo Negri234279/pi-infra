@@ -94,7 +94,9 @@ groups:
   - name: monitoring
     rules:
       - alert: TargetDown
-        expr: up == 0
+        # wg-easy is excluded: its metrics are opt-in (enabled in the UI), so it has
+        # its own longer-fused alert in the `vpn` group below to avoid false positives.
+        expr: up{job!="wg-easy"} == 0
         for: 5m
         labels:
           severity: warning
@@ -110,6 +112,21 @@ groups:
         annotations:
           summary: "cAdvisor is down"
           description: "No per-container metrics for >5m (job=cadvisor)."
+
+  # ── Remote access (wg-easy VPN) ─────────────────────────────────────────
+  - name: vpn
+    rules:
+      - alert: WgEasyMetricsDown
+        # Long fuse: metrics are opt-in, so a fresh deploy legitimately reads down
+        # until you flip General → Prometheus in the wg-easy UI. After that, this
+        # catches the VPN container actually being down.
+        expr: up{job="wg-easy"} == 0
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "wg-easy VPN metrics unreachable"
+          description: "No WireGuard metrics for >15m. If you just deployed, enable Prometheus in wg-easy (Admin → General → Prometheus). Otherwise the VPN container may be down — remote access is affected."
 
   # ── Shared database (postgres-exporter) ─────────────────────────────────
   - name: database

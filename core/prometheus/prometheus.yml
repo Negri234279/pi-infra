@@ -59,3 +59,12 @@ scrape_configs:
     scrape_interval: 60s
     static_configs:
       - targets: ["cloudflare-exporter:8080"]
+
+  # WireGuard VPN (wg-easy). Metrics are OPT-IN: enable them once in the admin UI
+  # (General → Prometheus) or this target reads as down. No Bearer token is set, so
+  # it's scraped straight over the monitoring network at /metrics/prometheus.
+  - job_name: wg-easy
+    scrape_interval: 30s
+    metrics_path: /metrics/prometheus
+    static_configs:
+      - targets: ["wg-easy:51821"]

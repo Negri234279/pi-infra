@@ -18,6 +18,7 @@ RPi5 ── Docker
 │   ├─ node-exporter ....... host: CPU / RAM / swap / disk / net / temp
 │   ├─ cadvisor ............ every container on the Pi
 │   ├─ alertmanager ........ :9093  → routes alerts → Discord
+│   ├─ wg-easy ............. :51820/udp (VPN) + :51821 (admin UI)  → remote access
 │   └─ <app>-prometheus .... lives under apps/<app>/, joins this network
 │
 └─ network "<app>-net" (private: app ↔ db ↔ its own Prometheus)
@@ -65,13 +66,14 @@ machines does.
 | Grafana          | http://192.168.1.7:3000        | admin / `GF_ADMIN_PASSWORD`      |
 | Prometheus infra | http://192.168.1.7:9090        | host + container + NPM metrics   |
 | Alertmanager     | http://192.168.1.7:9093        | routes alerts → Discord          |
+| wg-easy (VPN)    | http://192.168.1.7:51821       | admin UI · `WG_ADMIN_USERNAME` / `WG_ADMIN_PASSWORD` · tunnel on UDP 51820 |
 | node-exporter    | (internal `node-exporter:9100`)| host metrics                     |
 | cadvisor         | (internal `cadvisor:8080`)     | per-container metrics            |
 | npm-exporter     | (internal `npm-exporter:4040`) | NPM request metrics              |
 
 Grafana ships pre-provisioned: the **Infra** datasource (default), an **Alertmanager**
 datasource, a **powerlog** datasource template, plus the **Node Exporter Full**,
-**Cadvisor**, **NPM** and **Pi · overview** dashboards.
+**Cadvisor**, **NPM**, **Pi · overview** and **WireGuard · VPN** dashboards.
 
 > Run only the core (no apps): `docker compose -f core/docker-compose.yml up -d`.
 
@@ -169,6 +171,37 @@ invariant are documented in
 
 **Migrating an existing NPM:** stop your old NPM, copy its `data/` and `letsencrypt/`
 into `core/nginx-proxy-manager/`, and free ports `80`/`443`/`81` before `up`.
+
+## Remote access (WireGuard VPN)
+
+[`wg-easy`](https://github.com/wg-easy/wg-easy) is a core service: a WireGuard server
+with a web admin UI (`:51821`) that gives a **GitHub Actions runner** or **your own
+devices** an encrypted way onto the Pi's LAN **without publishing any service** — only
+**UDP 51820** is ever internet-facing, and even that only when you want remote (vs
+LAN-only) access.
+
+- **Config** lives in the root `.env` (`WG_*`). `WG_HOST` is the address clients dial:
+  LAN-only devices can use the Pi's IP (`192.168.1.7`); a GitHub Action over the
+  internet needs a **public IP / DDNS hostname** there plus a router rule forwarding
+  **UDP 51820 → 192.168.1.7**. `WG_ALLOWED_IPS` (default `10.8.0.0/24,192.168.1.0/24`)
+  is what clients route through the tunnel — the VPN subnet plus the home LAN, so a
+  connected client reaches `192.168.1.7` and its services.
+- **First boot** applies the `INIT_*` values (`WG_ADMIN_USERNAME` / `WG_ADMIN_PASSWORD`,
+  host, port, DNS, subnets) so the setup wizard is skipped. Afterwards, add clients and
+  change settings from the admin UI; edits there win over env.
+- **GitHub Actions:** create a client in the UI, download its `.conf`, store it as a
+  repo secret, and have the workflow bring up the tunnel (e.g. `wg-quick up`) before
+  the steps that need to reach the Pi. Point them at `192.168.1.7` (or the VPN gateway
+  `10.8.0.1`).
+- **Observability:** `wg-easy` joins `monitoring` and `prometheus-infra` scrapes
+  `wg-easy:51821/metrics/prometheus` (`wireguard_*` metrics → the **WireGuard · VPN**
+  dashboard, vpn folder). Metrics are **opt-in** — enable them once in the admin UI
+  (**General → Prometheus**); until then the target reads down (its alert `WgEasyMetricsDown`
+  has a 15-min fuse and it's excluded from the generic `TargetDown` to avoid noise).
+
+> The Pi kernel needs the `wireguard` module (built-in on RPi OS). The container gets
+> `NET_ADMIN` + `SYS_MODULE`, mounts `/lib/modules:ro`, and sets `ip_forward` /
+> `src_valid_mark` sysctls — no host changes required.
 
 ## Alerting
 

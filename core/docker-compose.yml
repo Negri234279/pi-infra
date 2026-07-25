@@ -164,6 +164,58 @@ services:
   # Writes the Discord webhook (from .env / DISCORD_WEBHOOK_URL) into a file so
   # Alertmanager can read it via `webhook_url_file` — Alertmanager does NOT
   # expand env vars in its config, so the secret stays out of the YAML and git.
+  # ── Remote access (WireGuard VPN) ────────────────────────────────────────
+  # wg-easy = a WireGuard server + web admin UI. Lets a GitHub Actions runner or any
+  # of your own devices reach the Pi and its LAN over an encrypted tunnel WITHOUT
+  # publishing any service to the internet: only ONE UDP port (51820) needs a router
+  # port-forward — everything else stays private behind the VPN. Joins `monitoring`
+  # so prometheus-infra can scrape it (enable metrics once in the UI: General →
+  # Prometheus). Admin UI on :51821.
+  #
+  # WG_HOST is what clients dial: for LAN-only devices the Pi's IP (192.168.1.7) works;
+  # for a GitHub Action over the internet set WG_HOST to your public IP / DDNS host in
+  # .env and forward UDP 51820 on the router to 192.168.1.7. INIT_* apply only on the
+  # FIRST boot — afterwards manage clients/settings from the admin UI.
+  wg-easy:
+    image: ghcr.io/wg-easy/wg-easy:15.3.0
+    container_name: wg-easy
+    restart: unless-stopped
+    ports:
+      - "51820:51820/udp" # WireGuard tunnel — the ONLY port that needs internet exposure
+      - "51821:51821/tcp" # web admin UI + /metrics/prometheus (keep LAN/VPN-only)
+    environment:
+      # Unattended first-boot setup (skips the web wizard). USERNAME+PASSWORD+HOST+PORT
+      # are one group and must all be set together.
+      - INIT_ENABLED=true
+      - INIT_USERNAME=${WG_ADMIN_USERNAME:-admin}
+      - INIT_PASSWORD=${WG_ADMIN_PASSWORD:-changeme_wg}
+      - INIT_HOST=${WG_HOST:-192.168.1.7}
+      - INIT_PORT=${WG_PORT:-51820}
+      - INIT_DNS=${WG_DNS:-1.1.1.1}
+      # IPv4/IPv6 client subnets (set together). Pinned so INIT_ALLOWED_IPS below can
+      # reference the VPN subnet deterministically.
+      - INIT_IPV4_CIDR=${WG_IPV4_CIDR:-10.8.0.0/24}
+      - INIT_IPV6_CIDR=${WG_IPV6_CIDR:-fdcc:ad94:bacf:61a3::/64}
+      # What clients route through the tunnel: the VPN subnet + the Pi's LAN, so a
+      # connected runner/device can reach 192.168.1.7 and everything on the home LAN.
+      - INIT_ALLOWED_IPS=${WG_ALLOWED_IPS:-10.8.0.0/24,192.168.1.0/24}
+      - PORT=51821
+      - HOST=0.0.0.0
+      # Admin UI over http on the LAN/VPN; front it with NPM+TLS if ever exposed.
+      - INSECURE=true
+      - DISABLE_IPV6=true
+    volumes:
+      - wg-easy-data:/etc/wireguard
+      - /lib/modules:/lib/modules:ro
+    cap_add:
+      - NET_ADMIN
+      - SYS_MODULE
+    sysctls:
+      - net.ipv4.ip_forward=1
+      - net.ipv4.conf.all.src_valid_mark=1
+    networks:
+      - monitoring
+
   alertmanager-init:
     image: busybox:1.38.0
     container_name: alertmanager-init
@@ -359,6 +411,7 @@ volumes:
   alertmanager-secrets:
   postgres-data:
   pgbouncer-secrets:
+  wg-easy-data:
 
     # Shared, cross-app network. Declared external so each app's compose (under ../apps/,
     # or in its own repo) can join the SAME network (`networks: [monitoring]` +
