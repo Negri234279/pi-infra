@@ -66,6 +66,29 @@ cp postgres/provision.env.example postgres/provision.env   # DB name / user / pa
   and `MIGRATIONS_DATABASE_URL` (→ `postgres:5432`) must use the **same password**
   as `provision.env` (single source of truth).
 
+## WebSockets (presence + live chat)
+
+The browser opens a Socket.IO connection (`path: /ws`) **directly** to
+`api.powerlog.negri.es` — Next's `/api/*` rewrite can't be used because it does
+not forward the WS `Upgrade` header (the SSE `/events` stream does go through it,
+being plain HTTP). For the handshake to succeed, on the **`api.powerlog.negri.es`
+proxy host** in nginx-proxy-manager:
+
+1. Turn **"Websockets Support" ON** (off by default → the `Upgrade` gets a 400).
+2. In _Advanced_, add `proxy_read_timeout 3600s;` (the Socket.IO 25s ping keeps
+   the connection alive, but don't sit right on NPM's 60s default).
+
+The cookie already reaches the API: `COOKIE_DOMAIN=powerlog.negri.es` makes `pl_at`
+first-party to the `api.*` subdomain, and `SameSite=Lax` sends it on the handshake
+(same registrable site). The client sets `withCredentials: true`; the API's
+`IoAdapter` sets `cors: { origin: WEB_ORIGIN, credentials: true }` (engine.io
+validates origin separately from `enableCors`).
+
+**Debugging a failed handshake:** upgrade errors (e.g. a 400 when Websockets
+Support is off) are returned by nginx-proxy-manager, which lives in the **core**
+stack and is not on `powerlog-net` — so they **do not appear in powerlog's Loki**.
+Look at the NPM container logs, not Grafana.
+
 ## Run
 
 In production it comes up as part of the pi-infra root `docker compose up -d`

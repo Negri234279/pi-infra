@@ -168,3 +168,20 @@ groups:
         annotations:
           summary: "powerlog billing webhooks rejected"
           description: "Several billing webhooks failed signature verification in 30m — check STRIPE_WEBHOOK_SECRET / PAYPAL_WEBHOOK_ID."
+
+  # ── Chat / realtime WebSocket ────────────────────────────────
+  # The most likely — and silent — failure mode of the WS transport: the proxy
+  # (nginx-proxy-manager) stops passing the `Upgrade` handshake, so every chat
+  # socket dies while the app keeps answering plain HTTP 200s. Zero open sockets
+  # WHILE GraphQL traffic flows means real sessions exist (a user with the app
+  # open drives GraphQL) but none of them could establish a socket. `for: 15m`
+  # rides over a deploy (sockets reconnect in seconds) and quiet periods.
+  - name: powerlog-chat
+    rules:
+      - alert: PowerlogChatWsConnectionsDown
+        expr: powerlog_chat_ws_connections == 0 and on() sum(rate(http_request_duration_seconds_count{kind="graphql"}[10m])) > 0
+        for: 15m
+        labels: { app: powerlog, severity: warning }
+        annotations:
+          summary: "powerlog chat WebSocket connections at zero"
+          description: "No chat WebSocket connections for 15m while GraphQL traffic continues — the proxy has probably stopped passing WS upgrades (check nginx-proxy-manager 'Websockets Support' on api.powerlog.negri.es)."
