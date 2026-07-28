@@ -1,0 +1,150 @@
+{
+    "uid": "powerlog-push",
+    "title": "powerlog · Web Push",
+    "tags": ["powerlog", "feature"],
+    "timezone": "browser",
+    "schemaVersion": 39,
+    "version": 1,
+    "refresh": "30s",
+    "time": {
+        "from": "now-24h",
+        "to": "now"
+    },
+    "panels": [
+        {
+            "id": 1,
+            "type": "row",
+            "title": "Web Push",
+            "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 }
+        },
+        {
+            "id": 2,
+            "type": "stat",
+            "title": "Subscriptions",
+            "description": "Registered browser push subscriptions right now (one per device a user opted in on). 0 while VAPID is configured means nobody has opted in yet.",
+            "datasource": { "type": "prometheus", "uid": "prometheus-powerlog" },
+            "gridPos": { "h": 4, "w": 6, "x": 0, "y": 1 },
+            "fieldConfig": {
+                "defaults": { "unit": "none" },
+                "overrides": []
+            },
+            "options": {
+                "reduceOptions": { "calcs": ["lastNotNull"] },
+                "colorMode": "background",
+                "graphMode": "area",
+                "textMode": "auto"
+            },
+            "targets": [{ "refId": "A", "expr": "powerlog_push_subscriptions", "instant": true }]
+        },
+        {
+            "id": 3,
+            "type": "stat",
+            "title": "Delivered (24h)",
+            "description": "Push notifications accepted by the push service in the last 24h.",
+            "datasource": { "type": "prometheus", "uid": "prometheus-powerlog" },
+            "gridPos": { "h": 4, "w": 6, "x": 6, "y": 1 },
+            "fieldConfig": {
+                "defaults": { "unit": "none", "color": { "mode": "fixed", "fixedColor": "green" } },
+                "overrides": []
+            },
+            "options": {
+                "reduceOptions": { "calcs": ["lastNotNull"] },
+                "colorMode": "value",
+                "graphMode": "area",
+                "textMode": "auto"
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "sum(increase(powerlog_push_sent_total{status=\"sent\"}[24h]))",
+                    "instant": true
+                }
+            ]
+        },
+        {
+            "id": 4,
+            "type": "stat",
+            "title": "Pruned — gone (24h)",
+            "description": "Subscriptions the push service reported as gone (404/410) and we deleted. Normal churn (browsers uninstalled, permission revoked).",
+            "datasource": { "type": "prometheus", "uid": "prometheus-powerlog" },
+            "gridPos": { "h": 4, "w": 6, "x": 12, "y": 1 },
+            "fieldConfig": {
+                "defaults": { "unit": "none" },
+                "overrides": []
+            },
+            "options": {
+                "reduceOptions": { "calcs": ["lastNotNull"] },
+                "colorMode": "none",
+                "graphMode": "area",
+                "textMode": "auto"
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "sum(increase(powerlog_push_sent_total{status=\"gone\"}[24h]))",
+                    "instant": true
+                }
+            ]
+        },
+        {
+            "id": 5,
+            "type": "stat",
+            "title": "Errors (24h)",
+            "description": "Failed deliveries that are NOT dead subscriptions — a sustained non-zero value means VAPID misconfig or the push service is unreachable (alerted on: PowerlogPushDeliveryErrors).",
+            "datasource": { "type": "prometheus", "uid": "prometheus-powerlog" },
+            "gridPos": { "h": 4, "w": 6, "x": 18, "y": 1 },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "none",
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            { "color": "green", "value": null },
+                            { "color": "red", "value": 1 }
+                        ]
+                    }
+                },
+                "overrides": []
+            },
+            "options": {
+                "reduceOptions": { "calcs": ["lastNotNull"] },
+                "colorMode": "background",
+                "graphMode": "area",
+                "textMode": "auto"
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "sum(increase(powerlog_push_sent_total{status=\"error\"}[24h]))",
+                    "instant": true
+                }
+            ]
+        },
+        {
+            "id": 6,
+            "type": "timeseries",
+            "title": "Deliveries by outcome",
+            "description": "Per-second rate of push deliveries, split by outcome (sent / gone / error).",
+            "datasource": { "type": "prometheus", "uid": "prometheus-powerlog" },
+            "gridPos": { "h": 8, "w": 24, "x": 0, "y": 5 },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "reqps",
+                    "custom": { "fillOpacity": 20, "lineWidth": 2 }
+                },
+                "overrides": []
+            },
+            "options": {
+                "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true },
+                "tooltip": { "mode": "multi", "sort": "desc" }
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "sum by (status) (rate(powerlog_push_sent_total[5m]))",
+                    "legendFormat": "{{status}}"
+                }
+            ]
+        }
+    ]
+}

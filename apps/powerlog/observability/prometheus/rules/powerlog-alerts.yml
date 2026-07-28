@@ -185,3 +185,19 @@ groups:
         annotations:
           summary: "powerlog chat WebSocket connections at zero"
           description: "No chat WebSocket connections for 15m while GraphQL traffic continues — the proxy has probably stopped passing WS upgrades (check nginx-proxy-manager 'Websockets Support' on api.powerlog.negri.es)."
+
+  # ── Web Push ─────────────────────────────────────────────────
+  # `error` deliveries (not `gone` — those are dead subscriptions we prune, which
+  # is normal). A sustained run of errors means the VAPID keys are misconfigured
+  # or the push service is unreachable — every notification is silently failing.
+  # No `or vector(0)` guard: the series only exists once a push errors, and that
+  # absence is correct (nothing to alert on until something fails).
+  - name: powerlog-push
+    rules:
+      - alert: PowerlogPushDeliveryErrors
+        expr: sum(increase(powerlog_push_sent_total{status="error"}[15m])) > 10
+        for: 10m
+        labels: { app: powerlog, severity: warning }
+        annotations:
+          summary: "powerlog Web Push deliveries failing"
+          description: "More than 10 push deliveries errored in 15m (sustained 10m) — check VAPID_PUBLIC_KEY/VAPID_PRIVATE_KEY and that the push service is reachable. 'gone' outcomes are normal pruning and are not counted here."
