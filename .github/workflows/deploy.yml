@@ -77,7 +77,7 @@ jobs:
           ssh -i ~/.ssh/id_deploy -p "$PI_SSH_PORT" \
             -o StrictHostKeyChecking=yes \
             "$PI_SSH_USER@$PI_SSH_HOST" \
-            "cd '$PI_REPO_PATH' && ./scripts/deploy.sh"
+            "sudo -u negri $PI_REPO_PATH/scripts/deploy.sh"
 
       - name: Tear down WireGuard tunnel
         if: always()
