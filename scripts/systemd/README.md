@@ -41,5 +41,7 @@ Change the cadence by editing `OnUnitActiveSec=` in the timer, then
 - It only recreates services whose definition changed and hot-reloads/restarts the
   ones whose mounted config changed — it never bounces the whole stack for a one-line
   edit.
-- Want instant deploys instead of polling? Point a GitHub Actions job at the Pi over
-  SSH and have it run `./scripts/deploy.sh` — same script, push-based.
+- Want instant deploys instead of polling? [`.github/workflows/deploy.yml`](../../.github/workflows/deploy.yml)
+  does exactly that: on every push to `main` it connects through the wg-easy VPN and
+  runs this same `./scripts/deploy.sh` over SSH — push-based. You can run both (the
+  script is idempotent) or disable this timer once the Action is working.

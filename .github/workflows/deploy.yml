@@ -1,0 +1,84 @@
+name: Deploy to Pi
+
+# Push-based deploy: on every push to main, connect to the home network through the
+# wg-easy WireGuard VPN and run scripts/deploy.sh on the Pi over SSH. Same script the
+# systemd timer runs — this just makes it instant instead of polling every 5 minutes.
+#
+# Required repo secrets (Settings → Secrets and variables → Actions):
+#   WIREGUARD_CONFIG  Client .conf downloaded from the wg-easy admin UI for a peer
+#                     named e.g. "github-actions", stored base64-encoded. Its Endpoint
+#                     must be your PUBLIC IP / DDNS host on UDP 51820 (set WG_HOST
+#                     accordingly and forward UDP 51820 on the router → 192.168.1.7).
+#                     Encode with:  base64 -w0 github-actions.conf
+#   SSH_PRIVATE_KEY   Private key whose public key is in ~/.ssh/authorized_keys of the
+#                     deploy user on the Pi.
+#   SSH_KNOWN_HOSTS   The Pi's host key line(s), for strict host-key checking. Grab it
+#                     from a device already on the VPN:  ssh-keyscan 192.168.1.7
+#
+# Optional repo variables (Settings → Secrets and variables → Actions → Variables):
+#   PI_SSH_HOST   default 192.168.1.7  (the Pi's LAN IP; reachable through the tunnel
+#                                       because AllowedIPs covers 192.168.1.0/24. Do
+#                                       NOT use 10.8.0.1 — that's wg-easy's in-container
+#                                       interface, which has no sshd.)
+#   PI_SSH_USER   default negri
+#   PI_SSH_PORT   default 22
+#   PI_REPO_PATH  default /home/negri/pi-infra
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+# Never run two deploys at once; a newer push supersedes an in-flight one.
+concurrency:
+  group: deploy-pi
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      PI_SSH_HOST: ${{ vars.PI_SSH_HOST || '192.168.1.7' }}
+      PI_SSH_USER: ${{ vars.PI_SSH_USER || 'negri' }}
+      PI_SSH_PORT: ${{ vars.PI_SSH_PORT || '22' }}
+      PI_REPO_PATH: ${{ vars.PI_REPO_PATH || '/home/negri/pi-infra' }}
+    steps:
+      - name: Install WireGuard tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq wireguard-tools
+
+      - name: Bring up WireGuard tunnel
+        run: |
+          umask 077
+          mkdir -p /etc/wireguard
+          # Strip the DNS line: wg-quick would need resolvconf to apply it, and we reach
+          # the Pi by IP over the tunnel so client DNS is irrelevant here.
+          printf '%s' "${{ secrets.WIREGUARD_CONFIG }}" | base64 -d \
+            | sudo tee /etc/wireguard/wg0.conf >/dev/null
+          sudo sed -i '/^\s*DNS\s*=/d' /etc/wireguard/wg0.conf
+          sudo wg-quick up wg0
+          sudo wg show
+
+      - name: Configure SSH
+        run: |
+          umask 077
+          mkdir -p ~/.ssh
+          printf '%s\n' "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+          # Pin the Pi's host key from the secret (grab it once on the Pi with:
+          #   ssh-keyscan -p 22 192.168.1.7   — run from a device already on the VPN).
+          printf '%s\n' "${{ secrets.SSH_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Run deploy.sh on the Pi
+        run: |
+          ssh -i ~/.ssh/id_deploy -p "$PI_SSH_PORT" \
+            -o StrictHostKeyChecking=yes \
+            "$PI_SSH_USER@$PI_SSH_HOST" \
+            "cd '$PI_REPO_PATH' && ./scripts/deploy.sh"
+
+      - name: Tear down WireGuard tunnel
+        if: always()
+        run: sudo wg-quick down wg0 || true
