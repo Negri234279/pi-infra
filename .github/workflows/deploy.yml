@@ -40,7 +40,7 @@ jobs:
     timeout-minutes: 10
     env:
       PI_SSH_HOST: ${{ vars.PI_SSH_HOST || '192.168.1.7' }}
-      PI_SSH_USER: ${{ vars.PI_SSH_USER || 'negri' }}
+      PI_SSH_USER: ${{ vars.PI_SSH_USER || 'github-deploy' }}
       PI_SSH_PORT: ${{ vars.PI_SSH_PORT || '22' }}
       PI_REPO_PATH: ${{ vars.PI_REPO_PATH || '/home/negri/pi-infra' }}
     steps:
