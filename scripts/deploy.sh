@@ -34,9 +34,26 @@ CHANGED="$(git diff --name-only "$OLD" "$NEW")"
 changed() { grep -q "$1" <<<"$CHANGED"; }
 
 # New image tags only ever arrive via a compose file change (images are pinned).
-if changed '\(^\|/\)\(docker-compose\.yml\|compose\.yml\)$'; then
-  log "compose changed -> pulling images"
+# Scope the pull to only the apps whose compose actually changed; a change to the
+# root or core compose still pulls the whole stack. Unrelated `:latest` images are
+# kept fresh independently by watchtower, so skipping them here is safe.
+if changed '\(^\|/\)docker-compose\.yml$'; then
+  log "root/core compose changed -> pulling all images"
   docker compose pull --quiet
+else
+  PULL_SERVICES=()
+  for app_compose in apps/wake-lan-app/compose.yml apps/powerlog/prod/compose.yml; do
+    if changed "^${app_compose}\$"; then
+      log "$app_compose changed -> queueing its images"
+      while IFS= read -r svc; do
+        PULL_SERVICES+=("$svc")
+      done < <(docker compose -f "$app_compose" config --services)
+    fi
+  done
+  if [ ${#PULL_SERVICES[@]} -gt 0 ]; then
+    log "pulling images for: ${PULL_SERVICES[*]}"
+    docker compose pull --quiet "${PULL_SERVICES[@]}"
+  fi
 fi
 
 # Recreate any service whose *definition* changed (image, ports, env, mounts list).
