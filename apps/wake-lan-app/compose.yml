@@ -1,0 +1,20 @@
+name: wake-lan
+
+services:
+  wake-lan-app:
+    container_name: wake-lan-app
+    image: negrii/wake-lan-app:latest
+    restart: unless-stopped
+    volumes:
+      - wol-data-prod:/data
+    environment:
+      - NODE_ENV=production
+      - PORT=4321
+      - DATA_FILE=/data/devices.json
+    labels:
+      - com.centurylinklabs.watchtower.enable=true
+    network_mode: host
+    pull_policy: always
+
+volumes:
+  wol-data-prod:
