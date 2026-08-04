@@ -1,0 +1,77 @@
+{
+    "annotations": { "list": [] },
+    "editable": true,
+    "graphTooltip": 0,
+    "schemaVersion": 39,
+    "tags": ["proxy-control"],
+    "title": "proxy-control · Overview",
+    "uid": "proxy-control-overview",
+    "time": { "from": "now-6h", "to": "now" },
+    "timezone": "browser",
+    "refresh": "30s",
+    "panels": [
+        {
+            "id": 1,
+            "type": "stat",
+            "title": "App up",
+            "datasource": { "type": "prometheus", "uid": "prometheus-proxy-control" },
+            "gridPos": { "h": 6, "w": 6, "x": 0, "y": 0 },
+            "fieldConfig": {
+                "defaults": {
+                    "mappings": [
+                        {
+                            "type": "value",
+                            "options": {
+                                "0": { "text": "DOWN", "color": "red" },
+                                "1": { "text": "UP", "color": "green" }
+                            }
+                        }
+                    ],
+                    "color": { "mode": "thresholds" },
+                    "thresholds": {
+                        "steps": [
+                            { "color": "red", "value": null },
+                            { "color": "green", "value": 1 }
+                        ]
+                    }
+                }
+            },
+            "targets": [{ "expr": "up{job=\"proxy-control\"}", "refId": "A" }]
+        },
+        {
+            "id": 2,
+            "type": "stat",
+            "title": "Dominios totales",
+            "datasource": { "type": "prometheus", "uid": "prometheus-proxy-control" },
+            "gridPos": { "h": 6, "w": 6, "x": 6, "y": 0 },
+            "targets": [{ "expr": "sum(proxy_control_domains)", "refId": "A" }]
+        },
+        {
+            "id": 3,
+            "type": "timeseries",
+            "title": "Dominios por estado",
+            "datasource": { "type": "prometheus", "uid": "prometheus-proxy-control" },
+            "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+            "targets": [{ "expr": "proxy_control_domains", "legendFormat": "{{state}}", "refId": "A" }]
+        },
+        {
+            "id": 4,
+            "type": "timeseries",
+            "title": "Reconciliaciones (rate 5m)",
+            "datasource": { "type": "prometheus", "uid": "prometheus-proxy-control" },
+            "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+            "targets": [
+                { "expr": "rate(proxy_control_reconcile_total[5m])", "legendFormat": "{{result}}", "refId": "A" }
+            ]
+        },
+        {
+            "id": 5,
+            "type": "logs",
+            "title": "Logs",
+            "datasource": { "type": "loki", "uid": "loki-proxy-control" },
+            "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+            "options": { "showTime": true, "wrapLogMessage": true, "sortOrder": "Descending" },
+            "targets": [{ "expr": "{app=\"proxy-control\"}", "refId": "A" }]
+        }
+    ]
+}
