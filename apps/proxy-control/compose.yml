@@ -1,0 +1,165 @@
+# ─────────────────────────────────────────────────────────────
+# proxy-control — stack de PROD para la Raspberry Pi (pi-infra).
+#
+# NO despliega Postgres, PgBouncer ni Grafana: usa los del CORE uniéndose a sus redes
+# externas `db` (postgres/pgbouncer) y `monitoring` (para que la Grafana del core consulte
+# este Prometheus/Loki). Trae su PROPIA observabilidad (proxy-control-{prometheus,loki,alloy})
+# y su alerting (alertmanager → Discord propio). Se expone por el NPM del core (sin puertos).
+#
+# Esta carpeta es la fuente de verdad y el sync la sube a pi-infra/apps/proxy-control/
+# (el script reescribe los montajes de observabilidad al layout aterrizado). Secretos en
+# proxy-control.env solo en la Pi (gitignored; ver proxy-control.env.example).
+# ─────────────────────────────────────────────────────────────
+name: proxy-control
+
+services:
+    # Migraciones (one-shot): conexión DIRECTA a Postgres (no PgBouncer). Corre con la MISMA
+    # imagen del app (node migrate.mjs), antes de que arranque el servidor.
+    proxy-control-migrate:
+        image: negrii/proxy-control:latest
+        container_name: proxy-control-migrate
+        pull_policy: always
+        command: ['node', 'migrate.mjs']
+        env_file:
+            - path: ./proxy-control.env
+              required: false
+        networks: [db]
+        restart: 'no'
+
+    proxy-control:
+        image: negrii/proxy-control:latest
+        container_name: proxy-control
+        pull_policy: always
+        env_file:
+            - path: ./proxy-control.env
+              required: false
+        environment:
+            NODE_ENV: production
+            HOST: 0.0.0.0
+            PORT: 4321
+        depends_on:
+            proxy-control-migrate:
+                condition: service_completed_successfully
+        healthcheck:
+            test: ['CMD-SHELL', 'wget -q --spider http://localhost:4321/health || exit 1']
+            interval: 15s
+            timeout: 5s
+            retries: 5
+            start_period: 30s
+        deploy:
+            resources:
+                limits: { cpus: '0.75', memory: 384m }
+        logging:
+            driver: json-file
+            options: { max-size: '10m', max-file: '3' }
+        # db: runtime → pgbouncer. proxy-control-net: ser scrapeado por su Prometheus.
+        # monitoring: alcanzable por el nginx-proxy-manager del core.
+        networks: [proxy-control-net, monitoring, db]
+        restart: unless-stopped
+        labels:
+            - com.centurylinklabs.watchtower.enable=true
+
+    proxy-control-prometheus:
+        image: prom/prometheus:v3.1.0
+        container_name: proxy-control-prometheus
+        command:
+            - --config.file=/etc/prometheus/prometheus.yml
+            - --storage.tsdb.path=/prometheus
+            - --storage.tsdb.retention.time=15d
+            - --storage.tsdb.retention.size=512MB
+        volumes:
+            - ./observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+            - ./observability/prometheus/rules:/etc/prometheus/rules:ro
+            - ./scrape.d:/etc/prometheus/scrape.d:ro
+            - proxy-control-prometheus-data:/prometheus
+        logging:
+            driver: json-file
+            options: { max-size: '10m', max-file: '3' }
+        # proxy-control-net: scrapear el app. monitoring: consultado por la Grafana del core.
+        networks: [proxy-control-net, monitoring]
+        restart: unless-stopped
+
+    proxy-control-loki:
+        image: grafana/loki:3.3.2
+        container_name: proxy-control-loki
+        command: ['-config.file=/etc/loki/loki-config.yaml']
+        volumes:
+            - ./observability/loki/loki-config.yaml:/etc/loki/loki-config.yaml:ro
+            - proxy-control-loki-data:/loki
+        logging:
+            driver: json-file
+            options: { max-size: '10m', max-file: '3' }
+        networks: [proxy-control-net, monitoring]
+        restart: unless-stopped
+
+    proxy-control-alloy:
+        image: grafana/alloy:v1.5.1
+        container_name: proxy-control-alloy
+        command:
+            - run
+            - --server.http.listen-addr=0.0.0.0:12345
+            - --storage.path=/var/lib/alloy/data
+            - /etc/alloy/config.alloy
+        volumes:
+            - ./observability/alloy/config.alloy:/etc/alloy/config.alloy:ro
+            - /var/run/docker.sock:/var/run/docker.sock:ro
+            - proxy-control-alloy-data:/var/lib/alloy/data
+        depends_on:
+            - proxy-control-loki
+        logging:
+            driver: json-file
+            options: { max-size: '10m', max-file: '3' }
+        networks: [proxy-control-net]
+        restart: unless-stopped
+
+    proxy-control-alertmanager-init:
+        image: busybox:1.37
+        container_name: proxy-control-alertmanager-init
+        env_file:
+            - path: ./proxy-control.env
+              required: false
+        command:
+            - sh
+            - -c
+            - 'printf "%s" "$$PROXY_CONTROL_DISCORD_WEBHOOK_URL" > /secrets/discord_webhook_url && echo ok'
+        volumes:
+            - proxy-control-alertmanager-secrets:/secrets
+        networks: [proxy-control-net]
+        restart: 'no'
+
+    proxy-control-alertmanager:
+        image: prom/alertmanager:v0.28.0
+        container_name: proxy-control-alertmanager
+        command:
+            - --config.file=/etc/alertmanager/alertmanager.yml
+            - --storage.path=/alertmanager
+        volumes:
+            - ./observability/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+            - proxy-control-alertmanager-secrets:/etc/alertmanager/secrets:ro
+            - proxy-control-alertmanager-data:/alertmanager
+        depends_on:
+            proxy-control-alertmanager-init:
+                condition: service_completed_successfully
+        logging:
+            driver: json-file
+            options: { max-size: '10m', max-file: '3' }
+        networks: [proxy-control-net]
+        restart: unless-stopped
+
+volumes:
+    proxy-control-prometheus-data:
+    proxy-control-loki-data:
+    proxy-control-alloy-data:
+    proxy-control-alertmanager-data:
+    proxy-control-alertmanager-secrets:
+
+networks:
+    proxy-control-net:
+        name: proxy-control-net
+    # Compartidas, creadas por pi-infra/scripts/create-network.sh — se unen, no se crean.
+    monitoring:
+        external: true
+        name: monitoring
+    db:
+        external: true
+        name: db

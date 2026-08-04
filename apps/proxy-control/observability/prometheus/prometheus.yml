@@ -1,0 +1,43 @@
+# Prometheus de proxy-control — ÚNICA fuente compartida por dev y prod.
+# Funciona en ambos porque los nombres de servicio están unificados (proxy-control-*).
+# Extras por-entorno (p. ej. el postgres-exporter de dev) se añaden en scrape.d/.
+
+global:
+    scrape_interval: 15s
+    evaluation_interval: 15s
+    external_labels:
+        app: proxy-control
+
+rule_files:
+    - /etc/prometheus/rules/*.yml
+
+# Jobs extra por entorno (dev añade Postgres; prod monta un scrape.d vacío).
+scrape_config_files:
+    - /etc/prometheus/scrape.d/*.yml
+
+alerting:
+    alertmanagers:
+        - static_configs:
+              - targets: ['proxy-control-alertmanager:9093']
+
+scrape_configs:
+    - job_name: proxy-control
+      metrics_path: /metrics
+      static_configs:
+          - targets: ['proxy-control:4321']
+
+    - job_name: proxy-control-prometheus
+      static_configs:
+          - targets: ['localhost:9090']
+
+    - job_name: proxy-control-loki
+      static_configs:
+          - targets: ['proxy-control-loki:3100']
+
+    - job_name: proxy-control-alloy
+      static_configs:
+          - targets: ['proxy-control-alloy:12345']
+
+    - job_name: proxy-control-alertmanager
+      static_configs:
+          - targets: ['proxy-control-alertmanager:9093']

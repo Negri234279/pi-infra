@@ -1,0 +1,29 @@
+groups:
+    - name: proxy-control
+      rules:
+          - alert: ProxyControlDown
+            expr: up{job="proxy-control"} == 0
+            for: 2m
+            labels:
+                severity: critical
+            annotations:
+                summary: proxy-control no responde
+                description: El endpoint /metrics de proxy-control lleva 2m sin responder.
+
+          - alert: ProxyControlDomainsInError
+            expr: proxy_control_domains{state="error"} > 0
+            for: 10m
+            labels:
+                severity: warning
+            annotations:
+                summary: Dominios en estado error
+                description: "{{ $value }} dominio(s) llevan 10m en estado 'error' (revisa la reconciliación)."
+
+          - alert: ProxyControlReconcileErrors
+            expr: increase(proxy_control_reconcile_total{result="error"}[15m]) > 3
+            for: 0m
+            labels:
+                severity: warning
+            annotations:
+                summary: Reconciliaciones fallando
+                description: Más de 3 reconciliaciones con error en los últimos 15 minutos.
