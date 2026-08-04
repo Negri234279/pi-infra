@@ -69,8 +69,9 @@ GRANT CONNECT ON DATABASE postgres TO "${PG_EXPORTER_USER}";
 SQL
 
 # ── 3. Per-app role + database + grants ──
+# Glob covers both flat (apps/<app>/postgres/) and env-layered (apps/<app>/prod/postgres/) layouts.
 found_app=0
-for f in /apps/*/postgres/provision.env; do
+for f in /apps/*/postgres/provision.env /apps/*/prod/postgres/provision.env; do
   [ -f "$f" ] || continue
   found_app=1
   APP_DB=''
