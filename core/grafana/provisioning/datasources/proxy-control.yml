@@ -1,0 +1,30 @@
+# Datasources de proxy-control — ÚNICA fuente para la Grafana de dev Y la Grafana central
+# de pi-infra. Los nombres de servicio están unificados (proxy-control-*), así que las
+# mismas URLs resuelven en ambos entornos. El sync copia este fichero a
+# pi-infra/core/grafana/provisioning/datasources/proxy-control.yml.
+apiVersion: 1
+
+datasources:
+    - name: proxy-control · Metrics
+      uid: prometheus-proxy-control
+      type: prometheus
+      access: proxy
+      url: http://proxy-control-prometheus:9090
+      jsonData:
+          timeInterval: 15s
+          httpMethod: POST
+
+    - name: proxy-control · Logs
+      uid: loki-proxy-control
+      type: loki
+      access: proxy
+      url: http://proxy-control-loki:3100
+
+    - name: proxy-control · Alerts
+      uid: alertmanager-proxy-control
+      type: alertmanager
+      access: proxy
+      url: http://proxy-control-alertmanager:9093
+      jsonData:
+          implementation: prometheus
+          handleGrafanaManagedAlerts: false

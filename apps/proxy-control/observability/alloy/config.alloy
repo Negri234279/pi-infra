@@ -1,0 +1,45 @@
+// Descubre los contenedores Docker y envía los logs (stdout/stderr) de proxy-control a
+// su Loki. En la Pi corren OTRAS apps, así que se QUEDA solo con los contenedores
+// `proxy-control*` (no debe ingerir logs ajenos).
+
+discovery.docker "containers" {
+	host = "unix:///var/run/docker.sock"
+}
+
+discovery.relabel "containers" {
+	targets = discovery.docker.containers.targets
+
+	// Solo contenedores de esta app (nombre `proxy-control*`).
+	rule {
+		source_labels = ["__meta_docker_container_name"]
+		regex         = "/proxy-control.*"
+		action        = "keep"
+	}
+
+	// Nombre legible (quita la barra inicial).
+	rule {
+		source_labels = ["__meta_docker_container_name"]
+		regex         = "/(.*)"
+		target_label  = "container"
+	}
+
+	// Nombre del servicio de compose.
+	rule {
+		source_labels = ["__meta_docker_container_label_com_docker_compose_service"]
+		target_label  = "service"
+	}
+}
+
+loki.source.docker "containers" {
+	host          = "unix:///var/run/docker.sock"
+	targets       = discovery.relabel.containers.output
+	relabel_rules = discovery.relabel.containers.rules
+	labels        = { job = "docker", app = "proxy-control" }
+	forward_to    = [loki.write.default.receiver]
+}
+
+loki.write "default" {
+	endpoint {
+		url = "http://proxy-control-loki:3100/loki/api/v1/push"
+	}
+}
