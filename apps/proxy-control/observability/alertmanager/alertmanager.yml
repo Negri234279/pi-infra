@@ -5,7 +5,7 @@
 
 route:
     receiver: discord
-    group_by: ['alertname']
+    group_by: ['alertname', 'hostname']
     group_wait: 30s
     group_interval: 5m
     repeat_interval: 4h
