@@ -1,0 +1,12 @@
+apiVersion: 1
+
+# Core Loki — INFRA logs (currently the MikroTik router's remote syslog, shipped
+# by core Alloy). Lives in the core stack; reached by service DNS on the shared
+# `monitoring` network. Per-app Loki instances (e.g. powerlog) keep their OWN
+# datasource file, synced from the app repo — keep this one core-only.
+datasources:
+  - name: Loki
+    uid: loki-infra
+    type: loki
+    access: proxy
+    url: http://loki:3100

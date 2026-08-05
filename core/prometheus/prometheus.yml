@@ -68,3 +68,31 @@ scrape_configs:
     metrics_path: /metrics/prometheus
     static_configs:
       - targets: ["wg-easy:51821"]
+
+  # MikroTik RB750Gr3 router via mktxp (RouterOS API). mktxp scrapes the router
+  # every ~5s internally; a 30s scrape here is plenty. Device credentials live in
+  # core/mktxp/mktxp.conf (gitignored).
+  - job_name: mikrotik
+    scrape_interval: 30s
+    static_configs:
+      - targets: ["mktxp:49090"]
+
+  # CSS326 switch via snmp-exporter (SwOS SNMP v2c, IF-MIB). Prometheus asks the
+  # exporter to poll the switch: __address__ is the SWITCH ip (passed as the
+  # target param), then rewritten to the exporter's own address. `module` picks
+  # the OID set, `auth` picks the community (see core/snmp-exporter/snmp.yml).
+  - job_name: switch-snmp
+    scrape_interval: 30s
+    metrics_path: /snmp
+    params:
+      module: [if_mib]
+      auth: [public_v2]
+    static_configs:
+      - targets: ["192.168.1.5"] # the CSS326 switch
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: "snmp-exporter:9116"

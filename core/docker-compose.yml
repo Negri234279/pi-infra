@@ -403,6 +403,77 @@ services:
     labels:
       - com.centurylinklabs.watchtower.enable=true
 
+  # ── Network gear observability (MikroTik router + CSS326 switch) ─────────
+  # mktxp: MikroTik RB750Gr3 metrics via the RouterOS API. Reads the gitignored
+  # core/mktxp/mktxp.conf (device + read-only API password). Scraped by
+  # prometheus-infra as job `mikrotik`. See core/network/README.md.
+  mktxp:
+    image: ghcr.io/akpw/mktxp:latest
+    container_name: mktxp
+    restart: unless-stopped
+    # Image default cmd is already `mktxp export` (entrypoint is null), and its
+    # default config dir is ~/mktxp = /home/mktxp/mktxp — so just mount the config.
+    volumes:
+      - ./mktxp:/home/mktxp/mktxp:ro
+    networks:
+      - monitoring
+
+  # snmp-exporter: polls the CSS326 switch over SNMP v2c (IF-MIB) on Prometheus's
+  # behalf (job `switch-snmp`). SwOS has no remote logging, so the switch is
+  # metrics-only. Enable SNMP in the SwOS web UI first (System → SNMP).
+  snmp-exporter:
+    image: prom/snmp-exporter:v0.29.0
+    container_name: snmp-exporter
+    restart: unless-stopped
+    command:
+      - "--config.file=/etc/snmp_exporter/snmp.yml"
+    volumes:
+      - ./snmp-exporter/snmp.yml:/etc/snmp_exporter/snmp.yml:ro
+    networks:
+      - monitoring
+
+  # Core Loki: infra logs (currently the router's remote syslog). Its ruler
+  # evaluates core/loki/rules/ and pushes log-based alerts to the same
+  # Alertmanager as the metric alerts. Queried by Grafana as the `Loki` datasource.
+  loki:
+    image: grafana/loki:3.3.2
+    container_name: loki
+    restart: unless-stopped
+    command: ["-config.file=/etc/loki/loki-config.yaml"]
+    volumes:
+      - ./loki/loki-config.yaml:/etc/loki/loki-config.yaml:ro
+      - ./loki/rules:/loki/rules:ro
+      - loki-data:/loki
+    healthcheck:
+      test: [ "CMD-SHELL", "wget -qO- http://localhost:3100/ready || exit 1" ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    networks:
+      - monitoring
+
+  # Alloy: receives the router's remote syslog on 514 (udp+tcp) and ships it to
+  # Loki. 514 is the ONE new host port — LAN only, so the router can reach the Pi.
+  alloy:
+    image: grafana/alloy:v1.5.1
+    container_name: alloy
+    restart: unless-stopped
+    command:
+      - run
+      - --server.http.listen-addr=0.0.0.0:12345
+      - --storage.path=/var/lib/alloy/data
+      - /etc/alloy/config.alloy
+    ports:
+      - "514:514/udp" # MikroTik remote syslog (BSD/RFC3164)
+      - "514:514/tcp"
+    volumes:
+      - ./alloy/config.alloy:/etc/alloy/config.alloy:ro
+      - alloy-data:/var/lib/alloy/data
+    depends_on:
+      - loki
+    networks:
+      - monitoring
+
 volumes:
   grafana-data:
   prometheus-data:
@@ -411,6 +482,8 @@ volumes:
   postgres-data:
   pgbouncer-secrets:
   wg-easy-data:
+  loki-data:
+  alloy-data:
 
     # Shared, cross-app network. Declared external so each app's compose (under ../apps/,
     # or in its own repo) can join the SAME network (`networks: [monitoring]` +

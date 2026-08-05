@@ -14,4 +14,10 @@ core/nginx-proxy-manager/letsencrypt/
 
 secrets/
 !secrets/.gitkeep
+
+# mktxp device inventory holds the RouterOS API password — keep the real file
+# local; only mktxp.conf.example (and the secret-free _mktxp.conf) are committed.
+core/mktxp/mktxp.conf
 # Local-only compose override (e.g. skip node-exporter on Docker Desktop).
+
+.mcp.json

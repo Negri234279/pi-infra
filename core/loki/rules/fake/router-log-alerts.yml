@@ -1,0 +1,65 @@
+# LogQL alert rules evaluated by Loki's ruler (core/loki/loki-config.yaml) and
+# pushed to the core Alertmanager → Discord. Tenant is `fake` (auth disabled).
+#
+# These fire on the CONTENT of the MikroTik router's remote syslog. The switch
+# (SwOS) has no remote logging, so there are no switch log alerts.
+groups:
+  - name: router-logs
+    rules:
+      # Any error/critical line in the router log within 5m. Fires on EITHER
+      # signal, so a RouterOS "system,error" is caught even if its text has no
+      # obvious keyword:
+      #   1. the syslog SEVERITY label (err/crit/alert/emerg — the regex covers
+      #      both the short and long spellings the parser may emit), OR
+      #   2. an error/failure keyword in the message text (belt-and-braces, e.g.
+      #      if a RouterOS version forwards everything at a fixed severity).
+      # `or` unions the two: count_over_time over a selector with no matching
+      # lines yields no series, so whichever side has data drives the result.
+      - alert: RouterLogErrors
+        expr: |
+          sum(count_over_time({job="syslog", source="router", severity=~"err.*|crit.*|alert|emerg.*"}[5m])) > 0
+          or
+          sum(count_over_time({job="syslog", source="router"}
+              |~ `(?i)\b(error|critical|fatal|fail(ed|ure)?|panic)\b` [5m])) > 0
+        for: 0m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Errors in the MikroTik router log"
+          description: "{{ $value }} error/critical line(s) in the router syslog over the last 5m. Check Grafana → Mikrotik Logs."
+
+      # Link flaps / interface down events (RouterOS logs these under `interface`).
+      - alert: RouterLinkDown
+        expr: |
+          sum(count_over_time({job="syslog", source="router"}
+              |~ `(?i)link.*(down|lost)` [5m])) > 0
+        for: 0m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Router reported a link going down"
+          description: "The router logged a link down/lost event in the last 5m."
+
+      # Failed logins / auth failures against the router.
+      - alert: RouterAuthFailures
+        expr: |
+          sum(count_over_time({job="syslog", source="router"}
+              |~ `(?i)(login failure|authentication failed|bad password)` [10m])) >= 5
+        for: 0m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Repeated auth failures on the router"
+          description: "{{ $value }} failed-login lines in the router log over 10m — possible brute-force or a misconfigured client."
+
+      # The router stopped sending syslog entirely (nothing in 30m). Catches the
+      # router being down OR remote logging having been turned off.
+      - alert: RouterSyslogSilent
+        expr: |
+          sum(count_over_time({job="syslog", source="router"}[30m])) == 0
+        for: 0m
+        labels:
+          severity: warning
+        annotations:
+          summary: "No syslog from the router for 30m"
+          description: "The router has sent no log lines for 30m. If you didn't just (re)deploy, the router may be down or remote logging disabled."

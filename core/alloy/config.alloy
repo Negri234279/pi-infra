@@ -1,0 +1,45 @@
+// Core Alloy — receives the MikroTik router's REMOTE SYSLOG and ships it to the
+// core Loki. RouterOS sends BSD-syslog (RFC3164) to the Pi on udp/tcp 514 (see
+// core/network/README.md for the router-side `/system logging` commands). SwOS
+// switches can't do this — they have no remote logging — so this only carries
+// the router for now.
+
+loki.source.syslog "network" {
+	// UDP is what RouterOS `remote` logging uses by default.
+	listener {
+		address       = "0.0.0.0:514"
+		protocol      = "udp"
+		syslog_format = "rfc3164"
+		labels        = { job = "syslog", source = "router" }
+	}
+	// TCP too, in case you switch the router to remote-protocol=tcp.
+	listener {
+		address       = "0.0.0.0:514"
+		protocol      = "tcp"
+		syslog_format = "rfc3164"
+		labels        = { job = "syslog", source = "router" }
+	}
+	forward_to = [loki.relabel.network.receiver]
+}
+
+// The syslog parser exposes the message metadata as internal __syslog_* labels;
+// promote the two useful ones to real labels (kept bounded), and drop the rest.
+// Everything else stays in the log body, queried with LogQL line filters.
+loki.relabel "network" {
+	forward_to = [loki.write.default.receiver]
+
+	rule {
+		source_labels = ["__syslog_message_hostname"]
+		target_label  = "hostname"
+	}
+	rule {
+		source_labels = ["__syslog_message_severity"]
+		target_label  = "severity"
+	}
+}
+
+loki.write "default" {
+	endpoint {
+		url = "http://loki:3100/loki/api/v1/push"
+	}
+}

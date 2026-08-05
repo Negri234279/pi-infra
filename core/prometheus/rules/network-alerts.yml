@@ -1,0 +1,89 @@
+# Alert rules for the network gear (MikroTik RB750Gr3 router via mktxp, and the
+# CSS326 switch via snmp-exporter). Metric-based; log-based router alerts live in
+# Loki's ruler (core/loki/rules/). Same severity labels → same Discord routing.
+groups:
+  # ── Exporters up ─────────────────────────────────────────────────────────
+  - name: network-exporters
+    rules:
+      - alert: MikrotikExporterDown
+        expr: up{job="mikrotik"} == 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "mktxp (MikroTik exporter) is down"
+          description: "No router metrics for >5m (job=mikrotik)."
+
+      - alert: SwitchSnmpDown
+        expr: up{job="switch-snmp"} == 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "snmp-exporter scrape of the switch is failing"
+          description: "No SNMP metrics from the CSS326 switch for >5m (job=switch-snmp) — snmp-exporter down or the switch unreachable."
+
+  # ── Router (mktxp) ───────────────────────────────────────────────────────
+  - name: router
+    rules:
+      # mktxp has no explicit "router up" metric: when it can't reach the router's
+      # API it simply stops exporting that router's series. So the reachability
+      # signal is the identity metric going ABSENT (the exporter itself stays up,
+      # so up{job="mikrotik"} won't catch this).
+      - alert: RouterUnreachable
+        expr: absent(mktxp_system_identity_info)
+        for: 3m
+        labels:
+          severity: critical
+        annotations:
+          summary: "MikroTik router unreachable"
+          description: "mktxp has exported no metrics for the router for >3m — its API is unreachable (wrong credentials, api service off, or the gateway is down)."
+
+      # A monitored interface that was up went down. `interface` collector.
+      - alert: RouterInterfaceDown
+        expr: mktxp_interface_running == 0
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Router interface down"
+          description: "Interface {{ $labels.name }} on {{ $labels.routerboard_name }} is not running for >2m."
+
+      # This hEX RB750Gr3 DOES expose a routerboard temperature sensor (~42°C
+      # idle), so this is live. 70°C is a comfortable warning threshold.
+      - alert: RouterHighTemperature
+        expr: mktxp_system_routerboard_temperature > 70
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Router running hot"
+          description: "Router temperature {{ $value }}°C for >5m on {{ $labels.routerboard_name }}."
+
+  # ── Switch (snmp-exporter / IF-MIB) ──────────────────────────────────────
+  - name: switch
+    rules:
+      # A port that is administratively enabled but operationally down. Tune the
+      # ifName regex to your uplinks if the per-port noise is too much.
+      - alert: SwitchPortDown
+        expr: |
+          ifOperStatus{job="switch-snmp"} == 2
+            and ifAdminStatus{job="switch-snmp"} == 1
+        for: 3m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Switch port down"
+          description: "Port {{ $labels.ifName }} ({{ $labels.ifAlias }}) on the CSS326 is admin-up but link-down for >3m."
+
+      # Rising interface error rate — cabling / duplex / SFP issues.
+      - alert: SwitchInterfaceErrors
+        expr: |
+          rate(ifInErrors{job="switch-snmp"}[5m])
+            + rate(ifOutErrors{job="switch-snmp"}[5m]) > 1
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Errors on a switch port"
+          description: "Port {{ $labels.ifName }} on the CSS326 is logging >1 error/s for >10m — check the cable/SFP."

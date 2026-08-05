@@ -1,0 +1,168 @@
+# snmp-exporter config for the MikroTik CSS326-24G-2S+RM switch (SwOS 2.18).
+#
+# SwOS speaks SNMP v1/v2c and exposes IF-MIB (per-port counters + status),
+# SNMPv2-MIB and BRIDGE-MIB. It has NO remote syslog and NO SNMP traps, so this
+# is metrics-only. Enable SNMP on the switch first: SwOS web UI → System → SNMP
+# (Enabled + Community). See core/network/README.md.
+#
+# The `if_mib` module below is the standard IF-MIB walk (hand-maintained subset
+# of what the snmp_exporter generator produces). Counter metrics get ifName /
+# ifDescr / ifAlias attached as labels via lookups, so per-port panels read well.
+
+auths:
+  # Referenced by the prometheus job via `params: { auth: [public_v2] }`.
+  # Change `community` to whatever you set on the switch.
+  public_v2:
+    community: public
+    version: 2
+
+modules:
+  if_mib:
+    walk:
+      - 1.3.6.1.2.1.2.2        # ifTable
+      - 1.3.6.1.2.1.31.1.1     # ifXTable
+    get:
+      - 1.3.6.1.2.1.1.3.0      # sysUpTime
+    metrics:
+      - name: sysUpTime
+        oid: 1.3.6.1.2.1.1.3
+        type: gauge
+        help: The time (in hundredths of a second) since the network management portion of the system was last re-initialized - 1.3.6.1.2.1.1.3
+
+      # ── Index / identity metrics (provide the lookup labels) ──────────────
+      - name: ifIndex
+        oid: 1.3.6.1.2.1.2.2.1.1
+        type: gauge
+        help: A unique value for each interface - 1.3.6.1.2.1.2.2.1.1
+        indexes:
+          - labelname: ifIndex
+            type: gauge
+      - name: ifDescr
+        oid: 1.3.6.1.2.1.2.2.1.2
+        type: DisplayString
+        help: A textual string containing information about the interface - 1.3.6.1.2.1.2.2.1.2
+        indexes:
+          - labelname: ifIndex
+            type: gauge
+      - name: ifName
+        oid: 1.3.6.1.2.1.31.1.1.1.1
+        type: DisplayString
+        help: The textual name of the interface - 1.3.6.1.2.1.31.1.1.1.1
+        indexes:
+          - labelname: ifIndex
+            type: gauge
+      - name: ifAlias
+        oid: 1.3.6.1.2.1.31.1.1.1.18
+        type: DisplayString
+        help: This object is an alias name for the interface as specified by a network manager - 1.3.6.1.2.1.31.1.1.1.18
+        indexes:
+          - labelname: ifIndex
+            type: gauge
+
+      # ── Status ────────────────────────────────────────────────────────────
+      - name: ifAdminStatus
+        oid: 1.3.6.1.2.1.2.2.1.7
+        type: gauge
+        help: The desired state of the interface (1=up 2=down 3=testing) - 1.3.6.1.2.1.2.2.1.7
+        indexes:
+          - labelname: ifIndex
+            type: gauge
+        lookups: &iflookups
+          - labels: [ifIndex]
+            labelname: ifName
+          - labels: [ifIndex]
+            labelname: ifDescr
+          - labels: [ifIndex]
+            labelname: ifAlias
+      - name: ifOperStatus
+        oid: 1.3.6.1.2.1.2.2.1.8
+        type: gauge
+        help: The current operational state of the interface (1=up 2=down 3=testing) - 1.3.6.1.2.1.2.2.1.8
+        indexes:
+          - labelname: ifIndex
+            type: gauge
+        lookups: *iflookups
+      - name: ifSpeed
+        oid: 1.3.6.1.2.1.2.2.1.5
+        type: gauge
+        help: An estimate of the interface's current bandwidth in bits per second - 1.3.6.1.2.1.2.2.1.5
+        indexes:
+          - labelname: ifIndex
+            type: gauge
+        lookups: *iflookups
+      - name: ifHighSpeed
+        oid: 1.3.6.1.2.1.31.1.1.1.15
+        type: gauge
+        help: An estimate of the interface's current bandwidth in units of 1,000,000 bits per second - 1.3.6.1.2.1.31.1.1.1.15
+        indexes:
+          - labelname: ifIndex
+            type: gauge
+        lookups: *iflookups
+
+      # ── Traffic counters (64-bit HC where available) ──────────────────────
+      - name: ifHCInOctets
+        oid: 1.3.6.1.2.1.31.1.1.1.6
+        type: counter
+        help: The total number of octets received on the interface - 1.3.6.1.2.1.31.1.1.1.6
+        indexes:
+          - labelname: ifIndex
+            type: gauge
+        lookups: *iflookups
+      - name: ifHCOutOctets
+        oid: 1.3.6.1.2.1.31.1.1.1.10
+        type: counter
+        help: The total number of octets transmitted out of the interface - 1.3.6.1.2.1.31.1.1.1.10
+        indexes:
+          - labelname: ifIndex
+            type: gauge
+        lookups: *iflookups
+      - name: ifInOctets
+        oid: 1.3.6.1.2.1.2.2.1.10
+        type: counter
+        help: The total number of octets received on the interface (32-bit) - 1.3.6.1.2.1.2.2.1.10
+        indexes:
+          - labelname: ifIndex
+            type: gauge
+        lookups: *iflookups
+      - name: ifOutOctets
+        oid: 1.3.6.1.2.1.2.2.1.16
+        type: counter
+        help: The total number of octets transmitted out of the interface (32-bit) - 1.3.6.1.2.1.2.2.1.16
+        indexes:
+          - labelname: ifIndex
+            type: gauge
+        lookups: *iflookups
+
+      # ── Errors / discards ─────────────────────────────────────────────────
+      - name: ifInErrors
+        oid: 1.3.6.1.2.1.2.2.1.14
+        type: counter
+        help: Inbound packets that contained errors preventing delivery - 1.3.6.1.2.1.2.2.1.14
+        indexes:
+          - labelname: ifIndex
+            type: gauge
+        lookups: *iflookups
+      - name: ifOutErrors
+        oid: 1.3.6.1.2.1.2.2.1.20
+        type: counter
+        help: Outbound packets that could not be transmitted because of errors - 1.3.6.1.2.1.2.2.1.20
+        indexes:
+          - labelname: ifIndex
+            type: gauge
+        lookups: *iflookups
+      - name: ifInDiscards
+        oid: 1.3.6.1.2.1.2.2.1.13
+        type: counter
+        help: Inbound packets discarded even though no errors (e.g. buffer full) - 1.3.6.1.2.1.2.2.1.13
+        indexes:
+          - labelname: ifIndex
+            type: gauge
+        lookups: *iflookups
+      - name: ifOutDiscards
+        oid: 1.3.6.1.2.1.2.2.1.19
+        type: counter
+        help: Outbound packets discarded even though no errors - 1.3.6.1.2.1.2.2.1.19
+        indexes:
+          - labelname: ifIndex
+            type: gauge
+        lookups: *iflookups

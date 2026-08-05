@@ -1,0 +1,50 @@
+# mktxp device inventory — copy to mktxp.conf and fill the password.
+#
+#   cp core/mktxp/mktxp.conf.example core/mktxp/mktxp.conf
+#
+# mktxp.conf is gitignored (it holds the RouterOS API password). Create a
+# read-only API user on the router first (see core/network/README.md):
+#   /user group add name=mktxp policy=api,read,test,winbox,!write,!policy,!sensitive
+#   /user add name=mktxp group=mktxp password=<pick-one>
+#   /ip service enable api
+#
+# The section name ([RB750Gr3]) becomes the `routerboard_name` label in Grafana.
+
+[RB750Gr3]
+    hostname = 192.168.1.2
+    port = 8728
+    username = mktxp
+    password = CHANGE_ME
+    # Plain API on the LAN. Flip to True + port 8729 to use API-SSL instead
+    # (then `/ip service enable api-ssl` on the router).
+    use_ssl = False
+    no_ssl_certificate = False
+    ssl_certificate_verify = False
+
+    enabled = True
+
+    # ── Collectors ────────────────────────────────────────────────
+    installed_packages = True
+    dhcp = True
+    dhcp_lease = True
+    pool = True
+    interface = True
+    monitor = True            # link rates / interface monitor
+    route = True
+    connections = True
+    connection_stats = False
+    firewall = True
+    ipv6_firewall = False
+    poe = False               # hEX has no PoE-out
+    public_ip = True
+    netwatch = True
+    # The hEX RB750Gr3 has NO wireless, so these stay off (they would just export
+    # nothing). It DOES have a temperature/voltage sensor — covered by `monitor`.
+    wireless = False
+    wireless_clients = False
+    capsman = False
+    capsman_clients = False
+
+    # Prefer interface /comments over names in labels when a comment is set.
+    use_comments_over_names = True
+    check_for_updates = False
