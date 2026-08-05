@@ -15,7 +15,7 @@
             "type": "stat",
             "title": "App up",
             "datasource": { "type": "prometheus", "uid": "prometheus-proxy-control" },
-            "gridPos": { "h": 6, "w": 6, "x": 0, "y": 0 },
+            "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
             "fieldConfig": {
                 "defaults": {
                     "mappings": [
@@ -36,6 +36,11 @@
                     }
                 }
             },
+            "options": {
+                "colorMode": "background",
+                "graphMode": "none",
+                "reduceOptions": { "calcs": ["lastNotNull"] }
+            },
             "targets": [{ "expr": "up{job=\"proxy-control\"}", "refId": "A" }]
         },
         {
@@ -43,15 +48,76 @@
             "type": "stat",
             "title": "Dominios totales",
             "datasource": { "type": "prometheus", "uid": "prometheus-proxy-control" },
-            "gridPos": { "h": 6, "w": 6, "x": 6, "y": 0 },
+            "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 },
+            "fieldConfig": { "defaults": { "color": { "mode": "fixed", "fixedColor": "blue" } } },
+            "options": { "colorMode": "value", "graphMode": "area", "reduceOptions": { "calcs": ["lastNotNull"] } },
             "targets": [{ "expr": "sum(proxy_control_domains)", "refId": "A" }]
+        },
+        {
+            "id": 6,
+            "type": "stat",
+            "title": "Dominios en error",
+            "datasource": { "type": "prometheus", "uid": "prometheus-proxy-control" },
+            "gridPos": { "h": 4, "w": 6, "x": 12, "y": 0 },
+            "fieldConfig": {
+                "defaults": {
+                    "color": { "mode": "thresholds" },
+                    "thresholds": {
+                        "steps": [
+                            { "color": "green", "value": null },
+                            { "color": "red", "value": 1 }
+                        ]
+                    }
+                }
+            },
+            "options": {
+                "colorMode": "background",
+                "graphMode": "none",
+                "reduceOptions": { "calcs": ["lastNotNull"] }
+            },
+            "targets": [{ "expr": "sum(proxy_control_domains{state=\"error\"}) or vector(0)", "refId": "A" }]
+        },
+        {
+            "id": 7,
+            "type": "stat",
+            "title": "Errores de reconciliación (1h)",
+            "datasource": { "type": "prometheus", "uid": "prometheus-proxy-control" },
+            "gridPos": { "h": 4, "w": 6, "x": 18, "y": 0 },
+            "fieldConfig": {
+                "defaults": {
+                    "color": { "mode": "thresholds" },
+                    "thresholds": {
+                        "steps": [
+                            { "color": "green", "value": null },
+                            { "color": "red", "value": 1 }
+                        ]
+                    }
+                }
+            },
+            "options": {
+                "colorMode": "background",
+                "graphMode": "none",
+                "reduceOptions": { "calcs": ["lastNotNull"] }
+            },
+            "targets": [
+                {
+                    "expr": "sum(increase(proxy_control_reconcile_total{result=\"error\"}[1h])) or vector(0)",
+                    "refId": "A"
+                }
+            ]
         },
         {
             "id": 3,
             "type": "timeseries",
             "title": "Dominios por estado",
             "datasource": { "type": "prometheus", "uid": "prometheus-proxy-control" },
-            "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+            "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+            "fieldConfig": {
+                "defaults": {
+                    "custom": { "drawStyle": "line", "fillOpacity": 15, "stacking": { "mode": "normal" } }
+                }
+            },
+            "options": { "legend": { "displayMode": "table", "placement": "right", "calcs": ["lastNotNull"] } },
             "targets": [{ "expr": "proxy_control_domains", "legendFormat": "{{state}}", "refId": "A" }]
         },
         {
@@ -59,9 +125,90 @@
             "type": "timeseries",
             "title": "Reconciliaciones (rate 5m)",
             "datasource": { "type": "prometheus", "uid": "prometheus-proxy-control" },
-            "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+            "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
+            "fieldConfig": { "defaults": { "custom": { "drawStyle": "line", "fillOpacity": 15 } } },
+            "options": { "legend": { "displayMode": "table", "placement": "right", "calcs": ["lastNotNull"] } },
             "targets": [
                 { "expr": "rate(proxy_control_reconcile_total[5m])", "legendFormat": "{{result}}", "refId": "A" }
+            ]
+        },
+        {
+            "id": 8,
+            "type": "table",
+            "title": "Estado por dominio",
+            "datasource": { "type": "prometheus", "uid": "prometheus-proxy-control" },
+            "gridPos": { "h": 8, "w": 12, "x": 0, "y": 12 },
+            "targets": [
+                {
+                    "expr": "proxy_control_domain_reconcile_state == 1",
+                    "instant": true,
+                    "format": "table",
+                    "refId": "A"
+                }
+            ],
+            "transformations": [
+                {
+                    "id": "organize",
+                    "options": {
+                        "excludeByName": {
+                            "Time": true,
+                            "Value": true,
+                            "instance": true,
+                            "job": true,
+                            "__name__": true
+                        },
+                        "renameByName": { "hostname": "Dominio", "state": "Estado" }
+                    }
+                },
+                { "id": "sortBy", "options": { "fields": "", "sort": [{ "field": "Estado" }] } }
+            ],
+            "fieldConfig": {
+                "defaults": {},
+                "overrides": [
+                    {
+                        "matcher": { "id": "byName", "options": "Estado" },
+                        "properties": [
+                            { "id": "custom.cellOptions", "value": { "type": "color-background" } },
+                            {
+                                "id": "mappings",
+                                "value": [
+                                    {
+                                        "type": "value",
+                                        "options": {
+                                            "synced": { "text": "synced", "color": "green", "index": 0 },
+                                            "drift": { "text": "drift", "color": "orange", "index": 1 },
+                                            "missing": { "text": "missing", "color": "red", "index": 2 },
+                                            "error": { "text": "error", "color": "red", "index": 3 },
+                                            "unclassified": { "text": "unclassified", "color": "text", "index": 4 }
+                                        }
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                ]
+            }
+        },
+        {
+            "id": 9,
+            "type": "timeseries",
+            "title": "Memoria del proceso",
+            "datasource": { "type": "prometheus", "uid": "prometheus-proxy-control" },
+            "gridPos": { "h": 8, "w": 12, "x": 12, "y": 12 },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "bytes",
+                    "custom": { "drawStyle": "line", "fillOpacity": 10 }
+                }
+            },
+            "options": { "legend": { "displayMode": "table", "placement": "right", "calcs": ["lastNotNull", "max"] } },
+            "targets": [
+                { "expr": "process_resident_memory_bytes{job=\"proxy-control\"}", "legendFormat": "RSS", "refId": "A" },
+                {
+                    "expr": "nodejs_heap_size_used_bytes{job=\"proxy-control\"}",
+                    "legendFormat": "Heap usado",
+                    "refId": "B"
+                }
             ]
         },
         {
@@ -69,8 +216,15 @@
             "type": "logs",
             "title": "Logs",
             "datasource": { "type": "loki", "uid": "loki-proxy-control" },
-            "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
-            "options": { "showTime": true, "wrapLogMessage": true, "sortOrder": "Descending" },
+            "gridPos": { "h": 11, "w": 24, "x": 0, "y": 20 },
+            "options": {
+                "showTime": true,
+                "wrapLogMessage": true,
+                "prettifyLogMessage": true,
+                "enableLogDetails": true,
+                "dedupStrategy": "none",
+                "sortOrder": "Descending"
+            },
             "targets": [{ "expr": "{app=\"proxy-control\"}", "refId": "A" }]
         }
     ]

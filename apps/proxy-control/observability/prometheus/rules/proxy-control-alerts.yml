@@ -11,13 +11,13 @@ groups:
                 description: El endpoint /metrics de proxy-control lleva 2m sin responder.
 
           - alert: ProxyControlDomainsInError
-            expr: proxy_control_domains{state="error"} > 0
+            expr: proxy_control_domain_reconcile_state{state="error"} == 1
             for: 10m
             labels:
                 severity: warning
             annotations:
-                summary: Dominios en estado error
-                description: "{{ $value }} dominio(s) llevan 10m en estado 'error' (revisa la reconciliación)."
+                summary: Dominio en estado error
+                description: "El dominio {{ $labels.hostname }} lleva 10m en estado 'error' (revisa la reconciliación)."
 
           - alert: ProxyControlReconcileErrors
             expr: increase(proxy_control_reconcile_total{result="error"}[15m]) > 3
