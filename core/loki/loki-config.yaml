@@ -34,6 +34,19 @@ schema_config:
 limits_config:
   allow_structured_metadata: true
   retention_period: 168h
+  # Headroom for the one-time backfill when a new log source is enabled: Alloy's
+  # loki.source.docker replays each container's on-disk history (bounded to ~7d
+  # by reject_old_samples_max_age below), and chatty containers (pgbouncer) burst
+  # well past Loki's 4 MB/s default and get 429'd. These lift the per-tenant and
+  # per-stream ceilings so the catch-up drains; steady-state volume is tiny.
+  ingestion_rate_mb: 16
+  ingestion_burst_size_mb: 32
+  per_stream_rate_limit: 8MB
+  per_stream_rate_limit_burst: 16MB
+  # Older-than-7d entries (matching retention) are still rejected 400 and dropped
+  # by Alloy — that's intended, not an error to chase.
+  reject_old_samples: true
+  reject_old_samples_max_age: 168h
 
 query_range:
   results_cache:
