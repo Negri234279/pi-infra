@@ -94,7 +94,13 @@ services:
   # degradation early. Least-privilege access: the device + SYS_RAWIO/SYS_ADMIN
   # (not full privileged); runs as root so those caps stay effective.
   smartctl-exporter:
-    image: prometheuscommunity/smartctl-exporter:v0.13.0
+    # No arm64 image upstream (amd64-only since v0.7.0), so build a small image
+    # from the official release binary — see core/smartctl-exporter/Dockerfile.
+    build:
+      context: ./smartctl-exporter
+      args:
+        SMARTCTL_EXPORTER_VERSION: "0.13.0"
+    image: pi-infra/smartctl-exporter:0.13.0
     container_name: smartctl-exporter
     restart: unless-stopped
     user: root

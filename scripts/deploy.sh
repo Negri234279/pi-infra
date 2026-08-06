@@ -39,7 +39,9 @@ changed() { grep -q "$1" <<<"$CHANGED"; }
 # kept fresh independently by watchtower, so skipping them here is safe.
 if changed '\(^\|/\)docker-compose\.yml$'; then
   log "root/core compose changed -> pulling all images"
-  docker compose pull --quiet
+  # --ignore-buildable: locally-built services (e.g. smartctl-exporter) have no
+  # registry image to pull; `up --build` below (re)builds them instead.
+  docker compose pull --quiet --ignore-buildable
 else
   PULL_SERVICES=()
   for app_compose in apps/wake-lan-app/compose.yml apps/powerlog/prod/compose.yml; do
@@ -57,8 +59,10 @@ else
 fi
 
 # Recreate any service whose *definition* changed (image, ports, env, mounts list).
+# --build (re)builds locally-built services (e.g. smartctl-exporter) when their
+# Dockerfile/context changed; it's a no-op (cached) otherwise.
 log "applying compose"
-docker compose up -d --remove-orphans
+docker compose up -d --remove-orphans --build
 
 # Mounted-config changes that don't alter the container definition: reload/restart.
 if changed '^core/prometheus/'; then
