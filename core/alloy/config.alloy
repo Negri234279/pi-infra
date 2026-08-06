@@ -1,9 +1,61 @@
-// Core Alloy — receives the MikroTik router's REMOTE SYSLOG and ships it to the
-// core Loki. RouterOS sends BSD-syslog (RFC3164) to the Pi on udp/tcp 514 (see
-// core/network/README.md for the router-side `/system logging` commands). SwOS
-// switches can't do this — they have no remote logging — so this only carries
-// the router for now.
+// Core Alloy — ships logs to the core Loki from three sources:
+//   1. the Pi's own systemd journal (host logs),
+//   2. every Docker container on the Pi,
+//   3. the MikroTik router's REMOTE SYSLOG (RFC3164 on udp/tcp 514).
+// RouterOS sends BSD-syslog to the Pi on 514 (see core/network/README.md for the
+// router-side `/system logging` commands). SwOS switches can't do remote logging,
+// so the switch is not represented here.
 
+// ── Host journald ──────────────────────────────────────────────────────────
+// Reads the persistent journal at /var/log/journal (enabled 2026-08-06). After a
+// hang + reboot, the previous boot's last lines get shipped here and become
+// queryable in Grafana, and the host-log alert rules (core/loki/rules) can fire
+// on kernel/NVMe errors. Only bounded labels are promoted to keep cardinality low.
+loki.source.journal "host" {
+	path          = "/var/log/journal"
+	max_age       = "24h"
+	labels        = { job = "systemd-journal", host = "rpi5" }
+	relabel_rules = loki.relabel.journal.rules
+	forward_to    = [loki.write.default.receiver]
+}
+
+loki.relabel "journal" {
+	forward_to = [] // consumed only for its exported `.rules`
+	rule {
+		source_labels = ["__journal__systemd_unit"]
+		target_label  = "unit"
+	}
+	rule {
+		source_labels = ["__journal_priority_keyword"]
+		target_label  = "severity"
+	}
+}
+
+// ── Docker container logs ──────────────────────────────────────────────────
+// Discovers every container over the socket and tails its stdout/stderr. The
+// container name (minus the leading slash) becomes the `container` label.
+discovery.docker "containers" {
+	host = "unix:///var/run/docker.sock"
+}
+
+loki.source.docker "containers" {
+	host          = "unix:///var/run/docker.sock"
+	targets       = discovery.docker.containers.targets
+	labels        = { job = "docker", host = "rpi5" }
+	relabel_rules = loki.relabel.docker.rules
+	forward_to    = [loki.write.default.receiver]
+}
+
+loki.relabel "docker" {
+	forward_to = [] // consumed only for its exported `.rules`
+	rule {
+		source_labels = ["__meta_docker_container_name"]
+		regex         = "/(.*)"
+		target_label  = "container"
+	}
+}
+
+// ── MikroTik router remote syslog ──────────────────────────────────────────
 loki.source.syslog "network" {
 	// UDP is what RouterOS `remote` logging uses by default.
 	listener {

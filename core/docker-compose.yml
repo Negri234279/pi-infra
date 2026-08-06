@@ -470,6 +470,13 @@ services:
     volumes:
       - ./alloy/config.alloy:/etc/alloy/config.alloy:ro
       - alloy-data:/var/lib/alloy/data
+      # Host journald (persistent + current-boot runtime) so the Pi's own logs
+      # reach Loki. machine-id lets the journal reader identify the host.
+      - /var/log/journal:/var/log/journal:ro
+      - /run/log/journal:/run/log/journal:ro
+      - /etc/machine-id:/etc/machine-id:ro
+      # Docker socket: discover containers and tail their logs into Loki.
+      - /var/run/docker.sock:/var/run/docker.sock:ro
     depends_on:
       - loki
     networks:
