@@ -221,9 +221,10 @@ services:
     command:
       - "sh"
       - "-c"
-      - 'printf "%s" "$$DISCORD_WEBHOOK_URL" > /secrets/discord_webhook_url && echo "wrote discord webhook secret"'
+      - 'printf "%s" "$$DISCORD_WEBHOOK_URL" > /secrets/discord_webhook_url && printf "%s" "$$HEARTBEAT_URL" > /secrets/heartbeat_url && echo "wrote alertmanager secrets"'
     environment:
       - DISCORD_WEBHOOK_URL=${DISCORD_WEBHOOK_URL:-}
+      - HEARTBEAT_URL=${HEARTBEAT_URL:-}
     volumes:
       - alertmanager-secrets:/secrets
     restart: "no"

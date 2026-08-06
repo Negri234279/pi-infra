@@ -11,6 +11,18 @@ route:
   group_interval: 5m
   repeat_interval: 4h
   routes:
+    # Dead-man's switch: the always-firing Watchdog alert is relayed to an
+    # EXTERNAL heartbeat (healthchecks.io) and never to Discord. A short
+    # repeat_interval keeps the ping steady; if it stops (Pi/stack frozen), the
+    # external service alarms. `continue: false` (the default) stops it here so
+    # it doesn't fall through to Discord.
+    - matchers:
+        - alertname = "Watchdog"
+      receiver: heartbeat
+      group_wait: 0s
+      group_interval: 5m
+      repeat_interval: 5m
+
     # Critical alerts re-notify more often.
     - matchers:
         - severity = "critical"
@@ -27,6 +39,16 @@ receivers:
           {{ .Annotations.summary }}
           {{ .Annotations.description }}
           {{ end }}
+
+  # External heartbeat for the dead-man's switch. Each Watchdog notification is a
+  # POST to a healthchecks.io ping URL; if the pings stop (Pi/stack down), that
+  # service alarms you by email/etc. The URL is a secret written by
+  # alertmanager-init from $HEARTBEAT_URL (see core/docker-compose.yml + .env).
+  # send_resolved is off — a heartbeat has nothing to "resolve".
+  - name: heartbeat
+    webhook_configs:
+      - url_file: /etc/alertmanager/secrets/heartbeat_url
+        send_resolved: false
 
 # A critical alert silences the matching warning for the same alert/instance.
 inhibit_rules:

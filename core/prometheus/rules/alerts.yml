@@ -128,6 +128,38 @@ groups:
           summary: "wg-easy VPN metrics unreachable"
           description: "No WireGuard metrics for >15m. If you just deployed, enable Prometheus in wg-easy (Admin → General → Prometheus). Otherwise the VPN container may be down — remote access is affected."
 
+  # ── Dead-man's switch ───────────────────────────────────────────────────
+  # The alerts above only fire while Prometheus + Alertmanager are ALIVE. When
+  # the whole Pi freezes (as on 2026-08-06: kernel answered ping but userspace
+  # was dead), the stack dies with it and can notify nothing. These two rules
+  # cover that blind spot.
+  - name: deadman
+    rules:
+      # Fires the instant node-exporter's series vanishes entirely — catches the
+      # exporter being removed/renamed/misconfigured while Prometheus still runs
+      # (a plain `up == 0` needs the series to exist to evaluate).
+      - alert: NodeExporterAbsent
+        expr: absent(up{job="node"})
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "node-exporter series is absent"
+          description: "No `up{job=\"node\"}` series at all for >2m — the host exporter target has gone missing."
+
+      # ALWAYS firing. It exists only to be relayed out to an EXTERNAL heartbeat
+      # (healthchecks.io) by Alertmanager — see the `heartbeat` route/receiver in
+      # alertmanager.yml. The external service alarms when the pings STOP, which
+      # is how a full-host freeze (Prometheus + Alertmanager both dead) gets
+      # noticed. Do NOT route this to Discord.
+      - alert: Watchdog
+        expr: vector(1)
+        labels:
+          severity: none
+        annotations:
+          summary: "Dead-man's switch heartbeat"
+          description: "This alert is always firing. If it stops reaching the external heartbeat, the Pi (or the monitoring stack) is down."
+
   # ── Shared database (postgres-exporter) ─────────────────────────────────
   - name: database
     rules:
