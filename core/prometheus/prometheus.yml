@@ -35,6 +35,16 @@ scrape_configs:
     static_configs:
       - targets: ["node-exporter:9100"]
 
+  # Second host: the rpi3 (192.168.1.6), scraped over the LAN. It runs only
+  # node-exporter, deployed from this repo's hosts/rpi3/ stack. Kept a SEPARATE
+  # job (not extra targets under `node`) so the single-host pi-overview dashboard
+  # and the rpi5 host alerts stay unaffected; rpi3 has its own alert group.
+  - job_name: node-rpi3
+    static_configs:
+      - targets: ["192.168.1.6:9100"]
+        labels:
+          host: rpi3
+
   # All containers on the Pi (reached by service DNS on the monitoring network).
   - job_name: cadvisor
     static_configs:

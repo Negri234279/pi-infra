@@ -218,6 +218,51 @@ groups:
           summary: "NVMe wear high ({{ $labels.device }})"
           description: "percentage_used={{ $value }}% of rated endurance. Plan a replacement as it approaches 100%."
 
+  # ── Second host: rpi3 (job=node-rpi3) ───────────────────────────────────
+  # The rpi3 runs only node-exporter (metrics-only; no logs, to spare its ~1 GB
+  # RAM). Its own group so thresholds/labels stay separate from the rpi5 `host`
+  # group. The generic TargetDown also warns if the scrape fails; Rpi3Down is the
+  # louder, faster critical. Memory is the one to watch on this box.
+  - name: host-rpi3
+    rules:
+      - alert: Rpi3Down
+        expr: up{job="node-rpi3"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "rpi3 node-exporter is down"
+          description: "No metrics from the rpi3 (192.168.1.6) for >2m — the host or its exporter is unreachable."
+
+      - alert: Rpi3HighMemory
+        expr: (1 - (node_memory_MemAvailable_bytes{job="node-rpi3"} / node_memory_MemTotal_bytes{job="node-rpi3"})) * 100 > 90
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High memory usage on rpi3"
+          description: "rpi3 memory used {{ printf \"%.0f\" $value }}% for >10m — this box is RAM-constrained."
+
+      - alert: Rpi3HighCpu
+        expr: 100 - (avg(irate(node_cpu_seconds_total{job="node-rpi3",mode="idle"}[5m])) * 100) > 85
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High CPU on rpi3"
+          description: "rpi3 CPU busy {{ printf \"%.0f\" $value }}% for >10m."
+
+      - alert: Rpi3DiskSpaceLow
+        expr: |
+          (1 - (node_filesystem_avail_bytes{job="node-rpi3",mountpoint="/",fstype!~"tmpfs|overlay"}
+              / node_filesystem_size_bytes{job="node-rpi3",mountpoint="/",fstype!~"tmpfs|overlay"})) * 100 > 85
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Disk filling up on rpi3"
+          description: "rpi3 root filesystem {{ printf \"%.0f\" $value }}% full."
+
   # ── Shared database (postgres-exporter) ─────────────────────────────────
   - name: database
     rules:

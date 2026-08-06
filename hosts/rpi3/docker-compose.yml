@@ -1,0 +1,26 @@
+# Agent stack for the rpi3 (192.168.1.6). Deployed FROM this same repo but ONLY
+# on the rpi3, scoped to this file via `scripts/deploy-host.sh rpi3` — the rpi5
+# root docker-compose.yml does NOT include hosts/, so the hub never runs this.
+#
+# The rpi5 hub reaches the rpi3 over the LAN: Prometheus scrapes node-exporter on
+# :9100, and (once Phase 5 lands) Blackbox probes :22 for liveness. Nothing here
+# joins the rpi5 `monitoring` network.
+#
+# Deliberately METRICS-ONLY: the rpi3 has ~0.89 GB RAM free with its apps, so no
+# log shipper (Alloy ~150 MB) runs here. node-exporter is ~20 MB. See README.md
+# for the (optional, lightweight) way to add logs later if RAM allows.
+services:
+  node-exporter:
+    image: quay.io/prometheus/node-exporter:v1.11.1
+    container_name: node-exporter
+    restart: unless-stopped
+    command:
+      - "--path.rootfs=/host"
+      - "--path.procfs=/host/proc"
+      - "--path.sysfs=/host/sys"
+      - "--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)"
+    pid: host
+    ports:
+      - "9100:9100" # scraped by the rpi5 Prometheus over the LAN
+    volumes:
+      - /:/host:ro,rslave

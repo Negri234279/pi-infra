@@ -428,35 +428,36 @@ Revertir el JSON (Grafana recarga por provisioning) y quitar el flag.
 
 ---
 
-## Fase 7 — Onboarding de la rpi3
+## Fase 7 — Onboarding de la rpi3 (✅ scaffold hecho)
 
-### Decisión
-- **Elegido**: tratar la rpi3 como segundo host de primera clase — node-exporter +
-  scrape con label `host`, logs a tu Loki central, y sonda Blackbox TCP:22.
-- **Reutiliza** Fases 1 y 5.
+### Decisión (revisada por RAM)
+- **IaC multi-host, un solo repo**: carpeta **`hosts/rpi3/`** con su propio
+  compose, desplegada **solo en la rpi3** vía `scripts/deploy-host.sh rpi3`
+  (proyecto compose `rpi3`). El `docker-compose.yml` raíz de la rpi5 **no**
+  incluye `hosts/`, así que el hub nunca levanta estos servicios.
+- **Metrics-only**: la rpi3 tiene ~0.89 GB RAM libres con sus apps, así que corre
+  **solo node-exporter** (~20 MB). **Sin Alloy/logs** (≈150 MB sería demasiado).
+- **Blackbox vive en la rpi5**, no en la rpi3 (sondea hacia fuera) — Fase 5.
+- **Job separado `node-rpi3`** (no targets extra bajo `node`) para no alterar el
+  dashboard single-host `pi-overview` ni las alertas de la rpi5; la rpi3 tiene su
+  propio grupo de alertas `host-rpi3`.
 
-### Pasos
-1. **node-exporter en la rpi3** (compose propio en la rpi3, o binario+systemd).
-2. **Scrape job** en `core/prometheus/prometheus.yml`:
-   ```yaml
-     - job_name: node-rpi3
-       static_configs:
-         - targets: ["192.168.1.y:9100"]
-           labels: { host: rpi3 }
-   ```
-   Y añadir `labels: { host: rpi5 }` al job `node` existente para poder distinguir.
-3. **Alertas por host**: las reglas de host (`up{job="node"}`, temp, disco…) ya
-   matchean ambos; actualizar las `description` para usar `{{ $labels.host }}` y,
-   si hace falta, separar umbrales. Revisar que `HostNodeExporterDown` cubra los
-   dos jobs (`up{job=~"node.*"} == 0`).
-4. **Logs de la rpi3 → Loki central**: opción A (mínima) remote-syslog al puerto
-   514 de Alloy que ya está abierto; opción B (mejor) Alloy/promtail ligero en la
-   rpi3 empujando su journald con label `host=rpi3`.
-5. **Blackbox TCP:22** rpi5→rpi3 (ya en Fase 5).
-6. **Dead-man propio** si la rpi3 hace algo crítico; si no, basta la sonda Blackbox.
+### Implementado
+- `hosts/rpi3/docker-compose.yml` — node-exporter, publica `:9100` en la LAN.
+- `hosts/rpi3/README.md` — despliegue + logs opcionales (vía ligera).
+- `scripts/deploy-host.sh` — deploy genérico por host (git-pull aware, `-p <host>`).
+- `core/prometheus/prometheus.yml` — job `node-rpi3` → `192.168.1.6:9100` (`host=rpi3`).
+- `core/prometheus/rules/alerts.yml` — grupo `host-rpi3` (Down/HighMemory/HighCpu/DiskLow).
+
+### Pendiente (fuera de este scaffold)
+- **Blackbox TCP:22 rpi5→rpi3**: se añade en la **Fase 5** (target `192.168.1.6:22`).
+- **Logs de la rpi3** (opcional, si sobra RAM): remote-syslog nativo al `:514` del
+  Alloy de la rpi5 (ligero, recomendado) o un Alloy propio (pesado). Ver README.
 
 ### Verificación
-- Target `node-rpi3` UP; `{host="rpi3"}` en Loki; `probe_success` de rpi3:22 = 1.
+- En la rpi3: `./scripts/deploy-host.sh rpi3`, luego desde la rpi5
+  `up{job="node-rpi3"}` == 1. Métricas visibles en `node-exporter-full` filtrando
+  por `instance="192.168.1.6:9100"`.
 
 ### Rollback
 Quitar job/labels/sonda; parar el node-exporter de la rpi3.
