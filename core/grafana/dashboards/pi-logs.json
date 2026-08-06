@@ -1,0 +1,176 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "graphTooltip": 1,
+  "schemaVersion": 39,
+  "tags": ["loki", "host", "logs"],
+  "links": [
+    { "asDropdown": false, "icon": "external link", "includeVars": false, "keepTime": true, "tags": ["pi"], "targetBlank": false, "title": "Pi", "tooltip": "", "type": "dashboards", "url": "" }
+  ],
+  "title": "Pi · logs",
+  "uid": "pi-logs-core",
+  "time": { "from": "now-6h", "to": "now" },
+  "timezone": "browser",
+  "refresh": "30s",
+  "templating": {
+    "list": [
+      {
+        "name": "unit",
+        "label": "Unit (host)",
+        "type": "query",
+        "datasource": { "type": "loki", "uid": "loki-infra" },
+        "query": { "label": "unit", "stream": "{job=\"systemd-journal\"}", "type": 1, "refId": "LokiVariableQueryEditor-VariableQuery" },
+        "definition": "",
+        "refresh": 2,
+        "includeAll": true,
+        "allValue": ".*",
+        "multi": true,
+        "current": { "text": ["All"], "value": ["$__all"] },
+        "options": [],
+        "sort": 1
+      },
+      {
+        "name": "severity",
+        "label": "Severity (host)",
+        "type": "query",
+        "datasource": { "type": "loki", "uid": "loki-infra" },
+        "query": { "label": "severity", "stream": "{job=\"systemd-journal\"}", "type": 1, "refId": "LokiVariableQueryEditor-VariableQuery" },
+        "definition": "",
+        "refresh": 2,
+        "includeAll": true,
+        "allValue": ".*",
+        "multi": true,
+        "current": { "text": ["All"], "value": ["$__all"] },
+        "options": [],
+        "sort": 1
+      },
+      {
+        "name": "container",
+        "label": "Container",
+        "type": "query",
+        "datasource": { "type": "loki", "uid": "loki-infra" },
+        "query": { "label": "container", "stream": "{job=\"docker\"}", "type": 1, "refId": "LokiVariableQueryEditor-VariableQuery" },
+        "definition": "",
+        "refresh": 2,
+        "includeAll": true,
+        "allValue": ".*",
+        "multi": true,
+        "current": { "text": ["All"], "value": ["$__all"] },
+        "options": [],
+        "sort": 1
+      },
+      {
+        "name": "search",
+        "label": "Search (regex, case-insensitive)",
+        "type": "textbox",
+        "query": "",
+        "current": { "text": "", "value": "" },
+        "options": [ { "selected": true, "text": "", "value": "" } ]
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 100,
+      "type": "row",
+      "title": "Host — journald",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "collapsed": false
+    },
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Líneas (rango)",
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 1 },
+      "datasource": { "type": "loki", "uid": "loki-infra" },
+      "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "thresholds": { "steps": [ { "color": "blue", "value": null } ] } }, "overrides": [] },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "value", "graphMode": "area" },
+      "targets": [
+        { "refId": "A", "datasource": { "type": "loki", "uid": "loki-infra" }, "queryType": "instant", "expr": "sum(count_over_time({job=\"systemd-journal\", host=\"rpi5\", unit=~\"$unit\", severity=~\"$severity\"} |~ `(?i)$search` [$__range]))" }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Errores / críticos (rango)",
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 1 },
+      "datasource": { "type": "loki", "uid": "loki-infra" },
+      "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "thresholds": { "steps": [ { "color": "green", "value": null }, { "color": "red", "value": 1 } ] } }, "overrides": [] },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "none" },
+      "targets": [
+        { "refId": "A", "datasource": { "type": "loki", "uid": "loki-infra" }, "queryType": "instant", "expr": "sum(count_over_time({job=\"systemd-journal\", host=\"rpi5\", severity=~\"emerg|alert|crit|err|error\"} [$__range]))" }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "Líneas por severidad",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 1 },
+      "datasource": { "type": "loki", "uid": "loki-infra" },
+      "fieldConfig": { "defaults": { "custom": { "drawStyle": "bars", "fillOpacity": 60, "stacking": { "mode": "normal" } } }, "overrides": [] },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "refId": "A", "datasource": { "type": "loki", "uid": "loki-infra" }, "legendFormat": "{{severity}}", "expr": "sum by (severity) (count_over_time({job=\"systemd-journal\", host=\"rpi5\", unit=~\"$unit\"} |~ `(?i)$search` [$__interval]))" }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "logs",
+      "title": "Logs del host (journald)",
+      "gridPos": { "h": 14, "w": 24, "x": 0, "y": 9 },
+      "datasource": { "type": "loki", "uid": "loki-infra" },
+      "options": {
+        "showTime": true,
+        "showLabels": false,
+        "showCommonLabels": false,
+        "wrapLogMessage": true,
+        "prettifyLogMessage": false,
+        "enableLogDetails": true,
+        "dedupStrategy": "none",
+        "sortOrder": "Descending"
+      },
+      "targets": [
+        { "refId": "A", "datasource": { "type": "loki", "uid": "loki-infra" }, "expr": "{job=\"systemd-journal\", host=\"rpi5\", unit=~\"$unit\", severity=~\"$severity\"} |~ `(?i)$search`" }
+      ]
+    },
+    {
+      "id": 101,
+      "type": "row",
+      "title": "Contenedores — docker",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 23 },
+      "collapsed": false
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "Líneas por contenedor",
+      "gridPos": { "h": 6, "w": 24, "x": 0, "y": 24 },
+      "datasource": { "type": "loki", "uid": "loki-infra" },
+      "fieldConfig": { "defaults": { "custom": { "drawStyle": "bars", "fillOpacity": 60, "stacking": { "mode": "normal" } } }, "overrides": [] },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "refId": "A", "datasource": { "type": "loki", "uid": "loki-infra" }, "legendFormat": "{{container}}", "expr": "sum by (container) (count_over_time({job=\"docker\", container=~\"$container\"} |~ `(?i)$search` [$__interval]))" }
+      ]
+    },
+    {
+      "id": 6,
+      "type": "logs",
+      "title": "Logs de contenedores",
+      "gridPos": { "h": 14, "w": 24, "x": 0, "y": 30 },
+      "datasource": { "type": "loki", "uid": "loki-infra" },
+      "options": {
+        "showTime": true,
+        "showLabels": true,
+        "showCommonLabels": false,
+        "wrapLogMessage": true,
+        "prettifyLogMessage": false,
+        "enableLogDetails": true,
+        "dedupStrategy": "none",
+        "sortOrder": "Descending"
+      },
+      "targets": [
+        { "refId": "A", "datasource": { "type": "loki", "uid": "loki-infra" }, "expr": "{job=\"docker\", container=~\"$container\"} |~ `(?i)$search`" }
+      ]
+    }
+  ]
+}
