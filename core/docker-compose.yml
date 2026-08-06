@@ -110,7 +110,10 @@ services:
       - SYS_RAWIO
       - SYS_ADMIN
     command:
-      - "--smartctl.device-include=/dev/nvme0"
+      # device-include is a regex matched against the scanned device NAME
+      # ("nvme0"), not the /dev path — "/dev/nvme0" never matches and the disk
+      # gets ignored (count=0). Match the bare name instead.
+      - "--smartctl.device-include=nvme0"
     networks:
       - monitoring
 
