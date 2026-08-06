@@ -88,6 +88,26 @@ services:
     networks:
       - monitoring
 
+  # NVMe SMART health (media errors, available spare, wear, unsafe shutdowns,
+  # critical-warning flags) — what node-exporter's hwmon temperature can't see.
+  # Added after the 2026-08-06 freeze (NVMe power-state dropout) to catch disk
+  # degradation early. Least-privilege access: the device + SYS_RAWIO/SYS_ADMIN
+  # (not full privileged); runs as root so those caps stay effective.
+  smartctl-exporter:
+    image: prometheuscommunity/smartctl-exporter:v0.13.0
+    container_name: smartctl-exporter
+    restart: unless-stopped
+    user: root
+    devices:
+      - /dev/nvme0
+    cap_add:
+      - SYS_RAWIO
+      - SYS_ADMIN
+    command:
+      - "--smartctl.device-include=/dev/nvme0"
+    networks:
+      - monitoring
+
   # Per-container metrics for EVERY container on the Pi. Tuned for ARM/low-power:
   # docker-only, slower housekeeping, and noisy/expensive collectors disabled.
   cadvisor:

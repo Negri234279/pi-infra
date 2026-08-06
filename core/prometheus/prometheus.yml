@@ -40,6 +40,12 @@ scrape_configs:
     static_configs:
       - targets: ["cadvisor:8080"]
 
+  # NVMe SMART health via smartctl-exporter (see core/docker-compose.yml). Polls
+  # the drive itself; internal-only on the monitoring network.
+  - job_name: smartctl
+    static_configs:
+      - targets: ["smartctl-exporter:9633"]
+
   # nginx-proxy-manager metrics via the nginxlog-exporter. Both NPM and the
   # exporter now run in the CORE stack (see core/docker-compose.yml and
   # core/nginx-proxy-manager/); the exporter tails NPM's combined access log.
