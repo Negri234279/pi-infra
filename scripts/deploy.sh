@@ -83,5 +83,9 @@ if changed '^core/nginx-proxy-manager/'; then
   log "NPM config changed -> restart npm-exporter"
   docker compose restart npm-exporter
 fi
+if changed '^core/blackbox/'; then
+  log "blackbox config changed -> restart blackbox-exporter"
+  docker compose restart blackbox-exporter
+fi
 
 log "done ($NEW)"

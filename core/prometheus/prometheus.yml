@@ -112,3 +112,42 @@ scrape_configs:
         target_label: instance
       - target_label: __address__
         replacement: "snmp-exporter:9116"
+
+  # Blackbox liveness probes. Prometheus passes the TARGET as ?target=; relabeling
+  # rewrites __address__ to the exporter and keeps the target as `instance`. The
+  # per-target `name` label makes alerts readable.
+  # TCP:22 on the Linux hosts = REAL userspace liveness (unlike ICMP).
+  - job_name: blackbox-ssh
+    metrics_path: /probe
+    params:
+      module: [tcp_connect]
+    static_configs:
+      - targets: ["192.168.1.7:22"]
+        labels: { name: rpi5-ssh }
+      - targets: ["192.168.1.6:22"]
+        labels: { name: rpi3-ssh }
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: "blackbox-exporter:9115"
+
+  # ICMP reachability for the network appliances (no userspace to freeze).
+  - job_name: blackbox-icmp
+    metrics_path: /probe
+    params:
+      module: [icmp]
+    static_configs:
+      - targets: ["192.168.1.2"]
+        labels: { name: router }
+      - targets: ["192.168.1.5"]
+        labels: { name: switch }
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: "blackbox-exporter:9115"

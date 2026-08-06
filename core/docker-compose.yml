@@ -117,6 +117,22 @@ services:
     networks:
       - monitoring
 
+  # Blackbox: liveness probes issued OUTWARD to other hosts/appliances. TCP:22
+  # for the Linux hosts (userspace liveness — ICMP false-greens during a freeze),
+  # ICMP for the network gear. NET_RAW is needed for the ICMP prober.
+  blackbox-exporter:
+    image: prom/blackbox-exporter:v0.25.0
+    container_name: blackbox-exporter
+    restart: unless-stopped
+    command:
+      - "--config.file=/etc/blackbox_exporter/config.yml"
+    cap_add:
+      - NET_RAW
+    volumes:
+      - ./blackbox/blackbox.yml:/etc/blackbox_exporter/config.yml:ro
+    networks:
+      - monitoring
+
   # Per-container metrics for EVERY container on the Pi. Tuned for ARM/low-power:
   # docker-only, slower housekeeping, and noisy/expensive collectors disabled.
   cadvisor:

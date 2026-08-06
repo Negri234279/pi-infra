@@ -16,8 +16,10 @@
 > - ✅ **Dashboard "Pi · logs"** en Grafana (host journald + contenedores).
 > - ✅ **Fase 7** — rpi3 (192.168.1.6) onboarded metrics-only vía `hosts/rpi3/` +
 >   `deploy-host.sh`; `up{job="node-rpi3"}==1`, grupo de alertas `host-rpi3`.
-> - ⬜ Pendientes: **Fase 5** (Blackbox TCP:22, incluye probe rpi3:22),
->   **Fase 6** (dashboards/systemd), **Fase 3** (throttle textfile).
+> - ✅ **Fase 5** — Blackbox exporter: TCP:22 a rpi5/rpi3 (liveness real) + ICMP a
+>   router (192.168.1.2)/switch (192.168.1.5); alerta `ProbeDown`. Pendiente
+>   manual: cambiar el check de Uptime Kuma de ICMP a TCP:22.
+> - ⬜ Pendientes: **Fase 6** (dashboards/systemd), **Fase 3** (throttle textfile).
 > - 🔀 **Pendiente de merge**: la rama `observability-improvements` a `main` (la Pi
 >   está desplegando desde esa rama vía deploy.sh).
 

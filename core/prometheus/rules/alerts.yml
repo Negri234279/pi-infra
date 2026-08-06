@@ -263,6 +263,22 @@ groups:
           summary: "Disk filling up on rpi3"
           description: "rpi3 root filesystem {{ printf \"%.0f\" $value }}% full."
 
+  # ── Blackbox liveness probes ────────────────────────────────────────────
+  # `probe_success` is the actual reachability result (a down TARGET keeps the
+  # scrape `up`, since the exporter itself answers — so this, not TargetDown, is
+  # what catches an unreachable host/appliance). TCP:22 probes would have caught
+  # the 2026-08-06 freeze that the ICMP ping missed.
+  - name: probes
+    rules:
+      - alert: ProbeDown
+        expr: probe_success == 0
+        for: 3m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Probe down: {{ $labels.name }}"
+          description: "Blackbox probe to {{ $labels.name }} ({{ $labels.instance }}) has failed for >3m — host/appliance unreachable."
+
   # ── Shared database (postgres-exporter) ─────────────────────────────────
   - name: database
     rules:
