@@ -1,0 +1,37 @@
+# LogQL alert rules evaluated by Loki's ruler (core/loki/loki-config.yaml) and
+# pushed to the core Alertmanager → Discord. Tenant is `fake` (auth disabled).
+#
+# These fire on the CONTENT of the Pi's own systemd journal, shipped to Loki by
+# Alloy (loki.source.journal, job="systemd-journal"). They exist to catch the
+# low-level failure class behind the 2026-08-06 freeze — an NVMe/PCIe dropout or
+# kernel hang — the moment its fingerprint appears in the log, since the metrics
+# pipeline goes dark when the host does.
+groups:
+  - name: host-logs
+    rules:
+      # Kernel/hardware distress: NVMe I/O timeouts or resets, PCIe link loss,
+      # the hung-task detector, OOM kills, or an outright panic/BUG. Any single
+      # matching line in 5m fires critical.
+      - alert: HostKernelErrors
+        expr: |
+          sum(count_over_time({job="systemd-journal", host="rpi5"}
+              |~ `(?i)(nvme[0-9].*(timeout|reset|i/?o error|not ready)|pcie.*(link down|link is down)|hung task|blocked for more than [0-9]+ seconds|out of memory|oom[-_]kill|kernel panic|BUG:|general protection fault)` [5m])) > 0
+        for: 0m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Kernel/NVMe distress in the host log"
+          description: "{{ $value }} matching kernel/hardware error line(s) in the rpi5 journal over the last 5m — possible NVMe/PCIe dropout or kernel hang. Check Grafana → Logs (host)."
+
+      # Filesystem turned read-only mid-run (ext4 remounts ro on serious I/O
+      # errors) — a strong signal the rootfs/NVMe is failing under the OS.
+      - alert: HostFilesystemReadOnly
+        expr: |
+          sum(count_over_time({job="systemd-journal", host="rpi5"}
+              |~ `(?i)(EXT4-fs.*(error|remounting filesystem read-only)|Remounting filesystem read-only)` [5m])) > 0
+        for: 0m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Filesystem error / read-only remount on the Pi"
+          description: "{{ $value }} ext4 error/read-only line(s) in 5m — the root filesystem hit I/O errors. Storage may be failing."
