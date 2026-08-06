@@ -24,14 +24,16 @@ log() { echo "[deploy-host:$HOST $(date '+%Y-%m-%dT%H:%M:%S%z')] $*"; }
 git fetch --quiet origin
 OLD="$(git rev-parse HEAD)"
 REMOTE="$(git rev-parse '@{u}')"
-if [ "$OLD" = "$REMOTE" ]; then
-  log "already up to date ($OLD)"
-  exit 0
+if [ "$OLD" != "$REMOTE" ]; then
+  log "updating $OLD -> $REMOTE"
+  git pull --ff-only
+else
+  log "repo already up to date ($OLD)"
 fi
 
-log "updating $OLD -> $REMOTE"
-git pull --ff-only
-
+# ALWAYS converge the stack, even when git had nothing new — otherwise the first
+# deploy on a fresh clone (HEAD already == upstream) would never start anything.
+# compose up is idempotent: a fast no-op when the stack already matches.
 # Project name = host, so this stack is isolated from anything else on the box.
 log "applying $COMPOSE (project=$HOST)"
 docker compose -f "$COMPOSE" -p "$HOST" pull --quiet --ignore-buildable
