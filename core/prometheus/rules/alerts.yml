@@ -160,6 +160,64 @@ groups:
           summary: "Dead-man's switch heartbeat"
           description: "This alert is always firing. If it stops reaching the external heartbeat, the Pi (or the monitoring stack) is down."
 
+  # ── NVMe SMART health (smartctl-exporter) ───────────────────────────────
+  # Early warning of disk degradation, added after the 2026-08-06 NVMe-related
+  # freeze. Metric names verified against the live exporter. NVMe temperature is
+  # already covered by HostHighTemperature (hwmon), and a down exporter by the
+  # generic TargetDown, so neither is repeated here.
+  - name: storage
+    rules:
+      - alert: NvmeSmartFailing
+        # Overall SMART self-assessment: 1 = passed, 0 = FAILING.
+        expr: smartctl_device_smart_status == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "NVMe SMART status FAILING ({{ $labels.device }})"
+          description: "smart_status=0 — the drive predicts imminent failure. Back up and replace."
+
+      - alert: NvmeCriticalWarning
+        # NVMe critical-warning bitmask (spare<threshold, temp, reliability, RO…).
+        expr: smartctl_device_critical_warning > 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "NVMe critical warning ({{ $labels.device }})"
+          description: "critical_warning={{ $value }} — the drive raised a critical flag. Check smartctl -a."
+
+      - alert: NvmeMediaErrors
+        # Cumulative uncorrected media/data-integrity errors. 0 on a healthy drive.
+        expr: smartctl_device_media_errors > 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "NVMe media errors ({{ $labels.device }})"
+          description: "media_errors={{ $value }} — uncorrected errors reported by the drive."
+
+      - alert: NvmeSpareLow
+        # Warn well before the drive's own threshold (available_spare is a 0-100%;
+        # the drive flags critical_warning once it drops below its threshold).
+        expr: smartctl_device_available_spare < 20
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "NVMe available spare low ({{ $labels.device }})"
+          description: "available_spare={{ $value }}% — approaching the drive's failure threshold. Check smartctl -a and plan a replacement."
+
+      - alert: NvmeWearHigh
+        # Percentage of rated write endurance consumed (0-100+, can exceed 100).
+        expr: smartctl_device_percentage_used > 80
+        for: 1h
+        labels:
+          severity: warning
+        annotations:
+          summary: "NVMe wear high ({{ $labels.device }})"
+          description: "percentage_used={{ $value }}% of rated endurance. Plan a replacement as it approaches 100%."
+
   # ── Shared database (postgres-exporter) ─────────────────────────────────
   - name: database
     rules:
