@@ -1,9 +1,22 @@
 # Plan de mejora de observabilidad — pi-infra
 
-> Estado: **propuesta**, pendiente de aprobación antes de implementar.
+> Estado: **en progreso** (rama `observability-improvements`).
 > Origen: incidente del **2026-08-06**, la rpi5 (`192.168.1.7`) se congeló ~4h
 > estando ociosa (kernel vivo respondiendo ICMP, userspace muerto). Firma
 > compatible con un **dropout del NVMe por gestión de energía (APST) en reposo**.
+>
+> **Progreso (2026-08-06):**
+> - ✅ **Fase 1** — journald + logs de contenedores → Loki (Alloy). Requirió subir
+>   los límites de ingesta de Loki para el backfill inicial.
+> - ✅ **Fase 2** — smartctl-exporter (imagen arm64 propia, sin manifest upstream) +
+>   grupo de alertas `storage`.
+> - ✅ **Fase 4** — alertas Loki de kernel/NVMe (`HostKernelErrors`,
+>   `HostFilesystemReadOnly`), verificadas end-to-end.
+> - ✅ **Dead-man** activado (healthchecks.io + `HEARTBEAT_URL`).
+> - ⬜ Pendientes: **Fase 5** (Blackbox TCP:22), **Fase 6** (dashboards/systemd),
+>   **Fase 3** (throttle textfile), **Fase 7** (rpi3).
+> - 🔀 **Pendiente de merge**: la rama `observability-improvements` a `main` (la Pi
+>   está desplegando desde esa rama vía deploy.sh).
 
 Este documento recoge, para cada mejora: la **decisión** (opción elegida,
 alternativas descartadas y por qué), los **pasos de implementación**, los
