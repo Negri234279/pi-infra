@@ -151,3 +151,23 @@ scrape_configs:
         target_label: instance
       - target_label: __address__
         replacement: "blackbox-exporter:9115"
+
+  # HTTP health of services WITHOUT their own `up` metric (Grafana and Loki aren't
+  # scraped by Prometheus), so this adds real coverage. Reached by service DNS on
+  # the monitoring network. Full path (scheme included) is the probe target.
+  - job_name: blackbox-http
+    metrics_path: /probe
+    params:
+      module: [http_2xx]
+    static_configs:
+      - targets: ["http://grafana:3000/api/health"]
+        labels: { name: grafana }
+      - targets: ["http://loki:3100/ready"]
+        labels: { name: loki }
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: "blackbox-exporter:9115"
