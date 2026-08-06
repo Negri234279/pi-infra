@@ -24,3 +24,18 @@ services:
       - "9100:9100" # scraped by the rpi5 Prometheus over the LAN
     volumes:
       - /:/host:ro,rslave
+
+  # Independent external watcher of the rpi5. Runs HERE (off the rpi5), so it sees
+  # the rpi5 from outside and alerts via healthchecks.io — a path that survives a
+  # full rpi5 freeze (which kills the rpi5's own Prometheus/Alertmanager). Checks
+  # TCP:22 (userspace liveness) and pings HC_URL / HC_URL/fail. See README.md.
+  rpi5-watcher:
+    build:
+      context: ./rpi5-watcher
+    image: pi-infra/rpi5-watcher:1
+    container_name: rpi5-watcher
+    restart: unless-stopped
+    environment:
+      - HC_URL=${RPI5_WATCH_HC_URL:-}
+      - TARGET_HOST=192.168.1.7
+      - INTERVAL=60

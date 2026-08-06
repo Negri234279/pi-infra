@@ -34,9 +34,15 @@ fi
 # ALWAYS converge the stack, even when git had nothing new — otherwise the first
 # deploy on a fresh clone (HEAD already == upstream) would never start anything.
 # compose up is idempotent: a fast no-op when the stack already matches.
+# Per-host secrets, if present (e.g. hosts/rpi3/.env for the rpi5 watcher). Not
+# committed; compose reads it via --env-file.
+ENV_ARGS=""
+[ -f "hosts/${HOST}/.env" ] && ENV_ARGS="--env-file hosts/${HOST}/.env"
+
 # Project name = host, so this stack is isolated from anything else on the box.
+# --build (re)builds locally-built services (e.g. the watcher); cached no-op otherwise.
 log "applying $COMPOSE (project=$HOST)"
-docker compose -f "$COMPOSE" -p "$HOST" pull --quiet --ignore-buildable
-docker compose -f "$COMPOSE" -p "$HOST" up -d --remove-orphans
+docker compose -f "$COMPOSE" -p "$HOST" $ENV_ARGS pull --quiet --ignore-buildable
+docker compose -f "$COMPOSE" -p "$HOST" $ENV_ARGS up -d --remove-orphans --build
 
 log "done ($(git rev-parse HEAD))"

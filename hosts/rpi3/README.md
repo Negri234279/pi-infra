@@ -3,7 +3,7 @@
 Metrics-only agent for the **rpi3 (192.168.1.6)**, deployed from this repo but
 run **only on the rpi3**. The rpi5 hub scrapes/probes it over the LAN.
 
-- **Runs here:** `node-exporter` (:9100, ~20 MB).
+- **Runs here:** `node-exporter` (:9100, ~20 MB) and `rpi5-watcher` (~10 MB).
 - **Runs on the rpi5 (already in `core/`):** the `node-rpi3` Prometheus scrape
   job, the `host-rpi3` alert group, and (Phase 5) a Blackbox TCP:22 probe.
 - **Deliberately no logs.** The rpi3 has ~0.89 GB RAM free with its apps; a log
@@ -27,6 +27,23 @@ Verify from the rpi5:
 docker compose exec -T prometheus wget -qO- \
   'http://localhost:9090/api/v1/query?query=up%7Bjob=%22node-rpi3%22%7D'   # -> "1"
 ```
+
+## rpi5 watcher (independent external monitor)
+
+`rpi5-watcher` checks the rpi5 **from here** (TCP:22, userspace liveness) every
+minute and pings a healthchecks.io check — an observer that survives a full rpi5
+freeze (which kills the rpi5's own Prometheus/Alertmanager). It complements the
+rpi5's own dead-man: two independent paths, and healthchecks also alarms if the
+rpi3/watcher itself dies (missed pings).
+
+Enable it:
+1. Create a **new** healthchecks.io check (period 2m, grace 5m) — separate from the
+   rpi5 dead-man. Copy its ping URL (`https://hc-ping.com/<uuid>`).
+2. `cp hosts/rpi3/.env.example hosts/rpi3/.env` and set `RPI5_WATCH_HC_URL=<url>`.
+3. `./scripts/deploy-host.sh rpi3` (builds + starts the watcher; loads the .env).
+
+Verify: `docker logs -f rpi5-watcher`, and the healthchecks check turns green.
+Leave `RPI5_WATCH_HC_URL` empty to disable (the container idles).
 
 ## Optional: logs (only if RAM allows)
 
