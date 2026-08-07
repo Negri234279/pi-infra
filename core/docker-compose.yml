@@ -112,9 +112,13 @@ services:
       - "--path.procfs=/host/proc"
       - "--path.sysfs=/host/sys"
       - "--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)"
+      # systemd unit states (running/failed) via the host D-Bus. A failing
+      # collector only drops its own metrics — it never crashes node-exporter.
+      - "--collector.systemd"
     pid: host
     volumes:
       - /:/host:ro,rslave
+      - /run/dbus/system_bus_socket:/run/dbus/system_bus_socket:ro
     networks:
       - monitoring
 

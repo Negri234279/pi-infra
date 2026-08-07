@@ -209,6 +209,79 @@
           "legendFormat": "{{name}}"
         }
       ]
+    },
+    {
+      "type": "row",
+      "title": "Sistema · arranque / disco",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 22 }
+    },
+    {
+      "title": "Uptime",
+      "type": "stat",
+      "gridPos": { "h": 5, "w": 6, "x": 0, "y": 23 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "fieldConfig": { "defaults": { "unit": "s", "color": { "mode": "fixed", "fixedColor": "blue" } } },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "value", "graphMode": "none", "textMode": "value" },
+      "targets": [ { "refId": "A", "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "node_time_seconds - node_boot_time_seconds" } ]
+    },
+    {
+      "title": "Swap used",
+      "type": "gauge",
+      "gridPos": { "h": 5, "w": 6, "x": 6, "y": 23 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "fieldConfig": { "defaults": { "unit": "percent", "min": 0, "max": 100, "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "yellow", "value": 25 }, { "color": "red", "value": 50 } ] } } },
+      "targets": [ { "refId": "A", "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "(node_memory_SwapTotal_bytes - node_memory_SwapFree_bytes) / clamp_min(node_memory_SwapTotal_bytes, 1) * 100" } ]
+    },
+    {
+      "title": "Disk I/O",
+      "type": "timeseries",
+      "gridPos": { "h": 5, "w": 12, "x": 12, "y": 23 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "fieldConfig": { "defaults": { "unit": "Bps" } },
+      "targets": [
+        { "refId": "A", "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "sum by (device) (rate(node_disk_read_bytes_total{device=~\"nvme.*|mmcblk.*|sd.*\"}[5m]))", "legendFormat": "{{device}} read" },
+        { "refId": "B", "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "sum by (device) (rate(node_disk_written_bytes_total{device=~\"nvme.*|mmcblk.*|sd.*\"}[5m]))", "legendFormat": "{{device}} write" }
+      ]
+    },
+    {
+      "type": "row",
+      "title": "NVMe · temperatura y salud (SMART)",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 28 }
+    },
+    {
+      "title": "Temperaturas (SoC / NVMe)",
+      "type": "timeseries",
+      "gridPos": { "h": 6, "w": 12, "x": 0, "y": 29 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "fieldConfig": { "defaults": { "unit": "celsius" } },
+      "targets": [ { "refId": "A", "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "node_hwmon_temp_celsius", "legendFormat": "{{chip}}" } ]
+    },
+    {
+      "title": "NVMe desgaste",
+      "type": "stat",
+      "gridPos": { "h": 6, "w": 4, "x": 12, "y": 29 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "fieldConfig": { "defaults": { "unit": "percent", "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "yellow", "value": 70 }, { "color": "red", "value": 90 } ] } } },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "value" },
+      "targets": [ { "refId": "A", "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "smartctl_device_percentage_used" } ]
+    },
+    {
+      "title": "NVMe spare",
+      "type": "stat",
+      "gridPos": { "h": 6, "w": 4, "x": 16, "y": 29 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "fieldConfig": { "defaults": { "unit": "percent", "thresholds": { "mode": "absolute", "steps": [ { "color": "red", "value": null }, { "color": "yellow", "value": 20 }, { "color": "green", "value": 50 } ] } } },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "value" },
+      "targets": [ { "refId": "A", "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "smartctl_device_available_spare" } ]
+    },
+    {
+      "title": "NVMe media errors",
+      "type": "stat",
+      "gridPos": { "h": 6, "w": 4, "x": 20, "y": 29 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "fieldConfig": { "defaults": { "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "red", "value": 1 } ] } } },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background" },
+      "targets": [ { "refId": "A", "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "smartctl_device_media_errors" } ]
     }
   ]
 }

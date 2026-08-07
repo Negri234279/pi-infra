@@ -19,7 +19,11 @@
 > - ✅ **Fase 5** — Blackbox exporter: TCP:22 a rpi5/rpi3 (liveness real) + ICMP a
 >   router (192.168.1.2)/switch (192.168.1.5); alerta `ProbeDown`. Pendiente
 >   manual: cambiar el check de Uptime Kuma de ICMP a TCP:22.
-> - ⬜ Pendientes: **Fase 6** (dashboards/systemd), **Fase 3** (throttle textfile).
+> - ✅ **healthchecks.io → Grafana** (dashboard "Pi · heartbeats", vía Bearer).
+> - ✅ **watcher rpi3→rpi5** (sidecar `rpi5-watcher` + healthchecks).
+> - ✅ **Fase 6** — pi-overview enriquecido (uptime/boot, swap, disco I/O, temps
+>   SoC/NVMe, fila SMART) + node-exporter `--collector.systemd`.
+> - ⬜ Pendientes: **Fase 3** (throttle textfile) + merge a `main`.
 > - 🔀 **Pendiente de merge**: la rama `observability-improvements` a `main` (la Pi
 >   está desplegando desde esa rama vía deploy.sh).
 
