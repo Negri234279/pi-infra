@@ -19,7 +19,7 @@ fi
 
 while true; do
   if [ -n "$HC_URL" ]; then
-    if nc -z -w3 "$TARGET_HOST" 22; then
+    if nc -z -w3 "$TARGET_HOST" 22 2>/dev/null; then
       curl -fsS -m10 "$HC_URL" >/dev/null 2>&1 || true
     else
       echo "rpi5-watcher: $TARGET_HOST:22 unreachable -> signalling failure"
