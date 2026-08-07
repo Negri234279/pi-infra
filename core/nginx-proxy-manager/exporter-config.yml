@@ -30,5 +30,12 @@ namespaces:
         from: request
         split: 2
         matches:
+          # Collapse vuln-scanner paths (secrets/VCS/WordPress/backups/.php — all
+          # 444-blocked at the proxy) into ONE bucket, so bots probing thousands of
+          # unique paths don't each create a series. Aggregated here in the exporter
+          # (Prometheus metric_relabel can't collapse many series into one without
+          # duplicate-sample errors). Must be anchored so the WHOLE uri is replaced.
+          - regexp: '(?i)^.*(\.env|\.git|\.aws|\.ssh|\.svn|\.hg|wp-login|wp-admin|wp-includes|wp-content|wp-config|xmlrpc|wlwmanifest|\.php|\.sql|\.bak|\.old|\.zip|\.tar|\.gz|\.tgz|\.rar|\.7z).*$'
+            replacement: '<scanner>'
           - regexp: '^([^?]*).*$'
             replacement: '$1'
