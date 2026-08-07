@@ -15,6 +15,11 @@ global:
 rule_files:
   - /etc/prometheus/rules/*.yml
 
+# Dynamic scrape jobs written by prometheus-init (kept out of git). Currently the
+# healthchecks.io endpoint, whose URL embeds a secret key — see core/docker-compose.yml.
+scrape_config_files:
+  - /etc/prometheus/dynamic/*.yml
+
 alerting:
   alertmanagers:
     - static_configs:
