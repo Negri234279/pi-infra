@@ -80,10 +80,11 @@ if changed '^core/grafana/provisioning/'; then
   docker compose restart grafana
 fi
 if changed '^core/nginx-proxy-manager/npm-custom/'; then
-  log "NPM custom nginx config changed -> reload nginx"
-  docker compose exec -T nginx-proxy-manager nginx -t \
-    && docker compose exec -T nginx-proxy-manager nginx -s reload \
-    || log "WARN: nginx reload failed (kept old config)"
+  # These are single-FILE bind mounts, so git replacing the file leaves the
+  # container bound to the old inode — a reload wouldn't see the change. Recreate
+  # the container so it re-binds the new file, then nginx starts with it.
+  log "NPM custom nginx config changed -> recreate nginx-proxy-manager"
+  docker compose up -d --force-recreate nginx-proxy-manager
 fi
 if changed '^core/nginx-proxy-manager/exporter-config'; then
   log "npm-exporter config changed -> restart npm-exporter"
