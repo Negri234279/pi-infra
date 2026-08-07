@@ -87,8 +87,9 @@ services:
     volumes:
       # Whole dir so rule files under prometheus/rules/ are mounted too.
       - ./prometheus:/etc/prometheus:ro
-      # Dynamic scrape files written by prometheus-init (e.g. healthchecks).
-      - prometheus-dynamic:/etc/prometheus/dynamic:ro
+      # Dynamic scrape files written by prometheus-init (e.g. healthchecks). Mounted
+      # OUTSIDE the read-only ./prometheus bind (can't create a subdir inside it).
+      - prometheus-dynamic:/etc/prometheus-dynamic:ro
       - prometheus-data:/prometheus
     depends_on:
       prometheus-init:
