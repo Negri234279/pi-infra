@@ -79,8 +79,14 @@ if changed '^core/grafana/provisioning/'; then
   log "grafana provisioning changed -> restart"
   docker compose restart grafana
 fi
-if changed '^core/nginx-proxy-manager/'; then
-  log "NPM config changed -> restart npm-exporter"
+if changed '^core/nginx-proxy-manager/npm-custom/'; then
+  log "NPM custom nginx config changed -> reload nginx"
+  docker compose exec -T nginx-proxy-manager nginx -t \
+    && docker compose exec -T nginx-proxy-manager nginx -s reload \
+    || log "WARN: nginx reload failed (kept old config)"
+fi
+if changed '^core/nginx-proxy-manager/exporter-config'; then
+  log "npm-exporter config changed -> restart npm-exporter"
   docker compose restart npm-exporter
 fi
 if changed '^core/blackbox/'; then
