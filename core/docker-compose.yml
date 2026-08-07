@@ -59,7 +59,7 @@ services:
       - "-c"
       - |
         if [ -n "$$HEALTHCHECKS_PROJECT_UUID" ] && [ -n "$$HEALTHCHECKS_RO_KEY" ]; then
-          printf 'scrape_configs:\n  - job_name: healthchecks\n    scheme: https\n    scrape_interval: 60s\n    metrics_path: /projects/%s/metrics/%s\n    static_configs:\n      - targets: ["healthchecks.io"]\n' "$$HEALTHCHECKS_PROJECT_UUID" "$$HEALTHCHECKS_RO_KEY" > /dynamic/healthchecks.yml
+          printf 'scrape_configs:\n  - job_name: healthchecks\n    scheme: https\n    scrape_interval: 60s\n    metrics_path: /projects/%s/metrics/\n    authorization:\n      credentials: %s\n    static_configs:\n      - targets: ["healthchecks.io"]\n' "$$HEALTHCHECKS_PROJECT_UUID" "$$HEALTHCHECKS_RO_KEY" > /dynamic/healthchecks.yml
           echo "wrote healthchecks scrape config"
         else
           printf 'scrape_configs: []\n' > /dynamic/healthchecks.yml
