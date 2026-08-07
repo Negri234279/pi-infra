@@ -35,10 +35,13 @@ scrape_configs:
     static_configs:
       - targets: ["alertmanager:9093"]
 
-  # Host: CPU, RAM, swap, disk, network, RPi5 temperature (hwmon).
+  # Host: CPU, RAM, swap, disk, network, RPi5 temperature (hwmon). The `host`
+  # label lets the Pi overview dashboard switch between rpi5 and rpi3.
   - job_name: node
     static_configs:
       - targets: ["node-exporter:9100"]
+        labels:
+          host: rpi5
 
   # Second host: the rpi3 (192.168.1.6), scraped over the LAN. It runs only
   # node-exporter, deployed from this repo's hosts/rpi3/ stack. Kept a SEPARATE
