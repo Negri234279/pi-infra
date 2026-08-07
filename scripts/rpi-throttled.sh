@@ -13,6 +13,7 @@ set -eu
 DIR=/var/lib/node_exporter/textfile
 OUT="$DIR/rpi_throttled.prom"
 mkdir -p "$DIR"
+chmod 0755 "$DIR"
 
 # e.g. "throttled=0x50005" -> 0x50005 -> decimal
 raw=$(vcgencmd get_throttled 2>/dev/null | sed 's/^throttled=//')
@@ -42,4 +43,7 @@ tmp=$(mktemp "$OUT.XXXXXX")
   echo "# TYPE node_rpi_throttled_occurred gauge"
   echo "node_rpi_throttled_occurred $thr_occ"
 } > "$tmp"
+# node-exporter runs as `nobody` and reads this over a read-only mount, so it must
+# be world-readable (mktemp makes it 0600).
+chmod 0644 "$tmp"
 mv "$tmp" "$OUT"
