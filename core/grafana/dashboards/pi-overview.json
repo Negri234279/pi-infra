@@ -295,6 +295,32 @@
       "fieldConfig": { "defaults": { "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "red", "value": 1 } ] } } },
       "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background" },
       "targets": [ { "refId": "A", "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "smartctl_device_media_errors" } ]
+    },
+    {
+      "type": "row",
+      "title": "Alimentación (throttle / undervoltage)",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 35 }
+    },
+    {
+      "title": "Estado de alimentación",
+      "type": "stat",
+      "gridPos": { "h": 5, "w": 24, "x": 0, "y": 36 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "red", "value": 1 } ] },
+          "mappings": [ { "type": "value", "options": { "0": { "text": "OK" }, "1": { "text": "⚠" } } } ]
+        },
+        "overrides": []
+      },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "none", "textMode": "value_and_name" },
+      "targets": [
+        { "refId": "A", "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "node_rpi_under_voltage_now{host=\"$host\"}", "legendFormat": "Undervolt (ahora)" },
+        { "refId": "B", "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "node_rpi_throttled_now{host=\"$host\"}", "legendFormat": "Throttled (ahora)" },
+        { "refId": "C", "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "node_rpi_under_voltage_occurred{host=\"$host\"}", "legendFormat": "Undervolt (desde boot)" },
+        { "refId": "D", "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "node_rpi_throttled_occurred{host=\"$host\"}", "legendFormat": "Throttle (desde boot)" }
+      ]
     }
   ]
 }
