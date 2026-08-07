@@ -118,7 +118,9 @@ services:
     pid: host
     volumes:
       - /:/host:ro,rslave
-      - /run/dbus/system_bus_socket:/run/dbus/system_bus_socket:ro
+      # node-exporter's systemd collector dials /var/run/dbus/... inside the
+      # container (where /var/run is NOT a symlink to /run), so mount there.
+      - /run/dbus/system_bus_socket:/var/run/dbus/system_bus_socket:ro
     networks:
       - monitoring
 
