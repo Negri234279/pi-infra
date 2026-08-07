@@ -1,0 +1,10 @@
+# Writes the Pi throttle/undervoltage textfile metric once. Triggered by
+# rpi-throttled.timer. Runs as root (vcgencmd + write to /var/lib/node_exporter).
+# Adjust the ExecStart path to where you cloned the repo on the Pi.
+[Unit]
+Description=Export Raspberry Pi throttled/undervoltage state for node-exporter
+After=multi-user.target
+
+[Service]
+Type=oneshot
+ExecStart=/home/negri/pi-infra/scripts/rpi-throttled.sh

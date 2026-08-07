@@ -1,0 +1,78 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "graphTooltip": 1,
+  "schemaVersion": 39,
+  "tags": ["security", "nginx", "npm"],
+  "links": [
+    { "asDropdown": false, "icon": "external link", "includeVars": false, "keepTime": true, "tags": ["pi"], "targetBlank": false, "title": "Pi", "tooltip": "", "type": "dashboards", "url": "" }
+  ],
+  "title": "Pi · seguridad (NPM)",
+  "uid": "pi-security-core",
+  "description": "Escaneos bloqueados (444) y sondas (404) en el borde NPM, más errores 4xx de app. Las rutas de escáner se agrupan en uri=<scanner> (cardinalidad acotada en el exporter); el detalle por ruta está en el access log de NPM.",
+  "time": { "from": "now-24h", "to": "now" },
+  "timezone": "browser",
+  "refresh": "1m",
+  "templating": { "list": [] },
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Escaneos bloqueados (444) · total",
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus-infra" },
+      "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [ { "color": "blue", "value": null }, { "color": "orange", "value": 1 } ] } }, "overrides": [] },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "value", "graphMode": "area", "textMode": "value" },
+      "targets": [ { "refId": "A", "datasource": { "type": "prometheus", "uid": "prometheus-infra" }, "expr": "sum(nginx_http_response_count_total{status=\"444\"})" } ]
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Sondas 404 · total",
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 4 },
+      "datasource": { "type": "prometheus", "uid": "prometheus-infra" },
+      "fieldConfig": { "defaults": { "color": { "mode": "fixed", "fixedColor": "yellow" } }, "overrides": [] },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "value", "graphMode": "area", "textMode": "value" },
+      "targets": [ { "refId": "A", "datasource": { "type": "prometheus", "uid": "prometheus-infra" }, "expr": "sum(nginx_http_response_count_total{status=\"404\"})" } ]
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "Bloqueos (444) y sondas (404) · rate",
+      "gridPos": { "h": 8, "w": 18, "x": 6, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus-infra" },
+      "fieldConfig": { "defaults": { "unit": "reqps", "custom": { "drawStyle": "bars", "fillOpacity": 60, "stacking": { "mode": "normal" } } }, "overrides": [] },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "refId": "A", "datasource": { "type": "prometheus", "uid": "prometheus-infra" }, "expr": "sum by (status) (rate(nginx_http_response_count_total{status=~\"404|444\"}[5m]))", "legendFormat": "{{status}}" }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "Respuestas por status · rate",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus-infra" },
+      "fieldConfig": { "defaults": { "unit": "reqps", "custom": { "drawStyle": "line", "fillOpacity": 15, "showPoints": "never" } }, "overrides": [] },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "desc" } },
+      "targets": [
+        { "refId": "A", "datasource": { "type": "prometheus", "uid": "prometheus-infra" }, "expr": "sum by (status) (rate(nginx_http_response_count_total[5m]))", "legendFormat": "{{status}}" }
+      ]
+    },
+    {
+      "id": 5,
+      "type": "table",
+      "title": "Top 4xx NO bloqueados (posibles errores de app)",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 16 },
+      "datasource": { "type": "prometheus", "uid": "prometheus-infra" },
+      "fieldConfig": { "defaults": {}, "overrides": [] },
+      "options": { "showHeader": true, "sortBy": [ { "displayName": "Value", "desc": true } ] },
+      "targets": [
+        { "refId": "A", "datasource": { "type": "prometheus", "uid": "prometheus-infra" }, "expr": "topk(20, sum by (uri, status, method) (nginx_http_response_count_total{status=~\"4..\", status!~\"404|444\"}))", "format": "table", "instant": true }
+      ],
+      "transformations": [
+        { "id": "organize", "options": { "excludeByName": { "Time": true, "job": true, "instance": true, "service": true, "__name__": true }, "renameByName": { "Value": "count" } } }
+      ]
+    }
+  ]
+}

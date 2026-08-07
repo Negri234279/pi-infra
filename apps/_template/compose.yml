@@ -38,6 +38,7 @@ services:
       - "--storage.tsdb.retention.size=1GB"
     volumes:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./scrape.d:/etc/prometheus/scrape.d:ro   # extra jobs (e.g. Blackbox probes)
       - myapp-prometheus-data:/prometheus
     networks:
       - myapp-net     # to reach the app's /metrics privately

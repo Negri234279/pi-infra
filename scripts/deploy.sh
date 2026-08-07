@@ -39,7 +39,9 @@ changed() { grep -q "$1" <<<"$CHANGED"; }
 # kept fresh independently by watchtower, so skipping them here is safe.
 if changed '\(^\|/\)docker-compose\.yml$'; then
   log "root/core compose changed -> pulling all images"
-  docker compose pull --quiet
+  # --ignore-buildable: locally-built services (e.g. smartctl-exporter) have no
+  # registry image to pull; `up --build` below (re)builds them instead.
+  docker compose pull --quiet --ignore-buildable
 else
   PULL_SERVICES=()
   for app_compose in apps/wake-lan-app/compose.yml apps/powerlog/prod/compose.yml; do
@@ -57,8 +59,10 @@ else
 fi
 
 # Recreate any service whose *definition* changed (image, ports, env, mounts list).
+# --build (re)builds locally-built services (e.g. smartctl-exporter) when their
+# Dockerfile/context changed; it's a no-op (cached) otherwise.
 log "applying compose"
-docker compose up -d --remove-orphans
+docker compose up -d --remove-orphans --build
 
 # Mounted-config changes that don't alter the container definition: reload/restart.
 if changed '^core/prometheus/'; then
@@ -75,9 +79,20 @@ if changed '^core/grafana/provisioning/'; then
   log "grafana provisioning changed -> restart"
   docker compose restart grafana
 fi
-if changed '^core/nginx-proxy-manager/'; then
-  log "NPM config changed -> restart npm-exporter"
+if changed '^core/nginx-proxy-manager/npm-custom/'; then
+  # These are single-FILE bind mounts, so git replacing the file leaves the
+  # container bound to the old inode — a reload wouldn't see the change. Recreate
+  # the container so it re-binds the new file, then nginx starts with it.
+  log "NPM custom nginx config changed -> recreate nginx-proxy-manager"
+  docker compose up -d --force-recreate nginx-proxy-manager
+fi
+if changed '^core/nginx-proxy-manager/exporter-config'; then
+  log "npm-exporter config changed -> restart npm-exporter"
   docker compose restart npm-exporter
+fi
+if changed '^core/blackbox/'; then
+  log "blackbox config changed -> restart blackbox-exporter"
+  docker compose restart blackbox-exporter
 fi
 
 log "done ($NEW)"

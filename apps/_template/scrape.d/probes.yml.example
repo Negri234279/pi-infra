@@ -1,0 +1,40 @@
+# Blackbox liveness probes for THIS app. Copy to `probes.yml` (drop the .example)
+# and edit the targets. Scraped by the app's OWN Prometheus, reusing the SHARED
+# core blackbox-exporter on the `monitoring` network — no per-app exporter needed.
+#
+# Full guide: docs/app-blackbox-probes.md
+#
+# NOTE: a scrape_config_files file is a MAPPING with a `scrape_configs` key, not a
+# bare list (a bare `- job_name:` crash-loops Prometheus).
+scrape_configs:
+  # HTTP health of the app's public/internal endpoints.
+  - job_name: blackbox-app-http
+    metrics_path: /probe
+    params:
+      module: [http_2xx]
+    static_configs:
+      - targets: ["https://myapp.negri.es/health"]
+        labels: { name: myapp }
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: "blackbox-exporter:9115"
+
+  # OPTIONAL: raw TCP reachability (drop if you only need HTTP).
+  # - job_name: blackbox-app-tcp
+  #   metrics_path: /probe
+  #   params:
+  #     module: [tcp_connect]
+  #   static_configs:
+  #     - targets: ["myapp:8080"]
+  #       labels: { name: myapp-tcp }
+  #   relabel_configs:
+  #     - source_labels: [__address__]
+  #       target_label: __param_target
+  #     - source_labels: [__param_target]
+  #       target_label: instance
+  #     - target_label: __address__
+  #       replacement: "blackbox-exporter:9115"

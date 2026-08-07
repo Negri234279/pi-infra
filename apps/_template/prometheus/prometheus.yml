@@ -10,6 +10,12 @@ global:
   external_labels:
     app: myapp
 
+# Extra jobs dropped in scrape.d/ (e.g. Blackbox liveness probes for this app —
+# see docs/app-blackbox-probes.md). Each file is a mapping with a `scrape_configs`
+# key, NOT a bare list. The dir is mounted in compose; an empty dir is fine.
+scrape_config_files:
+  - /etc/prometheus/scrape.d/*.yml
+
 scrape_configs:
   - job_name: myapp
     static_configs:

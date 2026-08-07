@@ -45,3 +45,23 @@ Change the cadence by editing `OnUnitActiveSec=` in the timer, then
   does exactly that: on every push to `main` it connects through the wg-easy VPN and
   runs this same `./scripts/deploy.sh` over SSH — push-based. You can run both (the
   script is idempotent) or disable this timer once the Action is working.
+
+## Also here: Pi throttle/undervoltage exporter
+
+`rpi-throttled.timer` runs [`../rpi-throttled.sh`](../rpi-throttled.sh) every minute
+to publish `vcgencmd get_throttled` as node-exporter textfile metrics
+(`node_rpi_under_voltage_now`, `node_rpi_throttled_now`, plus the since-boot
+"occurred" flags) — node-exporter doesn't expose these itself. It writes to
+`/var/lib/node_exporter/textfile/`, which node-exporter reads via its
+`--collector.textfile.directory` mount.
+
+```bash
+# adjust the ExecStart path in rpi-throttled.service to your clone, then:
+sudo cp scripts/systemd/rpi-throttled.service /etc/systemd/system/
+sudo cp scripts/systemd/rpi-throttled.timer   /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now rpi-throttled.timer
+```
+
+Alerts `HostUnderVoltage` / `HostThrottled` fire on the live bits. Runs as root
+(needs `vcgencmd` and write access under `/var/lib/node_exporter`).

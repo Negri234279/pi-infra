@@ -1,0 +1,12 @@
+# Refreshes the Pi throttle/undervoltage metric every minute (and 1 min after boot).
+[Unit]
+Description=Periodically export Pi throttled state
+
+[Timer]
+OnBootSec=1min
+OnUnitActiveSec=1min
+Persistent=true
+Unit=rpi-throttled.service
+
+[Install]
+WantedBy=timers.target
