@@ -23,7 +23,10 @@
 > - ✅ **watcher rpi3→rpi5** (sidecar `rpi5-watcher` + healthchecks).
 > - ✅ **Fase 6** — pi-overview enriquecido (uptime/boot, swap, disco I/O, temps
 >   SoC/NVMe, fila SMART) + node-exporter `--collector.systemd`.
-> - ⬜ Pendientes: **Fase 3** (throttle textfile) + merge a `main`.
+> - ✅ **Fase 3** — throttle/undervoltage: `scripts/rpi-throttled.sh` + timer systemd →
+>   textfile collector; métricas `node_rpi_*` + alertas `HostUnderVoltage`/`HostThrottled`.
+> - ✅ Selector `$host` (rpi5/rpi3) en pi-overview.
+> - ⬜ Pendiente: **merge a `main`** (+ instalar el timer de throttle en la Pi).
 > - 🔀 **Pendiente de merge**: la rama `observability-improvements` a `main` (la Pi
 >   está desplegando desde esa rama vía deploy.sh).
 

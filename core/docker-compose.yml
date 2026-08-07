@@ -115,6 +115,9 @@ services:
       # systemd unit states (running/failed) via the host D-Bus. A failing
       # collector only drops its own metrics — it never crashes node-exporter.
       - "--collector.systemd"
+      # Custom host metrics dropped as .prom files (e.g. rpi_throttled from the
+      # rpi-throttled.timer). Read from the host mount below (read-only is fine).
+      - "--collector.textfile.directory=/host/var/lib/node_exporter/textfile"
     pid: host
     volumes:
       - /:/host:ro,rslave

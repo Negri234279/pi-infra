@@ -40,6 +40,25 @@ groups:
           summary: "Swap heavily used on the Pi"
           description: "Swap used {{ printf \"%.0f\" $value }}% for >10m — memory pressure."
 
+      - alert: HostUnderVoltage
+        # From the rpi-throttled textfile metric (bit 0 of vcgencmd get_throttled).
+        expr: node_rpi_under_voltage_now == 1
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Raspberry Pi under-voltage"
+          description: "The Pi is reporting under-voltage right now — check the PSU/cable (needs the 27W USB-C PD supply)."
+
+      - alert: HostThrottled
+        expr: node_rpi_throttled_now == 1
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Raspberry Pi CPU throttled"
+          description: "The Pi is throttling the CPU right now (under-voltage or thermal). Check power and cooling."
+
       - alert: HostHighTemperature
         expr: max(node_hwmon_temp_celsius) > 75
         for: 5m
