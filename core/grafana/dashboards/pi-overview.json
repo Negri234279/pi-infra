@@ -44,7 +44,7 @@
         {
           "refId": "A",
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
-          "expr": "max(node_hwmon_temp_celsius)"
+          "expr": "max(node_hwmon_temp_celsius{job=\"node\"})"
         }
       ]
     },
@@ -72,7 +72,7 @@
         {
           "refId": "A",
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
-          "expr": "100 - (avg(irate(node_cpu_seconds_total{mode=\"idle\"}[5m])) * 100)"
+          "expr": "100 - (avg(irate(node_cpu_seconds_total{mode=\"idle\",job=\"node\"}[5m])) * 100)"
         }
       ]
     },
@@ -100,7 +100,7 @@
         {
           "refId": "A",
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
-          "expr": "(1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100"
+          "expr": "(1 - (node_memory_MemAvailable_bytes{job=\"node\"} / node_memory_MemTotal_bytes{job=\"node\"})) * 100"
         }
       ]
     },
@@ -128,7 +128,7 @@
         {
           "refId": "A",
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
-          "expr": "(1 - (node_filesystem_avail_bytes{mountpoint=\"/\",fstype!~\"tmpfs|overlay\"} / node_filesystem_size_bytes{mountpoint=\"/\",fstype!~\"tmpfs|overlay\"})) * 100"
+          "expr": "(1 - (node_filesystem_avail_bytes{mountpoint=\"/\",fstype!~\"tmpfs|overlay\",job=\"node\"} / node_filesystem_size_bytes{mountpoint=\"/\",fstype!~\"tmpfs|overlay\",job=\"node\"})) * 100"
         }
       ]
     },
@@ -142,19 +142,19 @@
         {
           "refId": "A",
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
-          "expr": "100 - (avg(irate(node_cpu_seconds_total{mode=\"idle\"}[5m])) * 100)",
+          "expr": "100 - (avg(irate(node_cpu_seconds_total{mode=\"idle\",job=\"node\"}[5m])) * 100)",
           "legendFormat": "CPU %"
         },
         {
           "refId": "B",
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
-          "expr": "(1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100",
+          "expr": "(1 - (node_memory_MemAvailable_bytes{job=\"node\"} / node_memory_MemTotal_bytes{job=\"node\"})) * 100",
           "legendFormat": "Memory %"
         },
         {
           "refId": "C",
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
-          "expr": "(node_memory_SwapTotal_bytes - node_memory_SwapFree_bytes) / node_memory_SwapTotal_bytes * 100",
+          "expr": "(node_memory_SwapTotal_bytes{job=\"node\"} - node_memory_SwapFree_bytes{job=\"node\"}) / clamp_min(node_memory_SwapTotal_bytes{job=\"node\"}, 1) * 100",
           "legendFormat": "Swap %"
         }
       ]
@@ -169,13 +169,13 @@
         {
           "refId": "A",
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
-          "expr": "sum(rate(node_network_receive_bytes_total{device!~\"lo|veth.*|docker.*|br-.*\"}[5m]))",
+          "expr": "sum(rate(node_network_receive_bytes_total{device!~\"lo|veth.*|docker.*|br-.*\",job=\"node\"}[5m]))",
           "legendFormat": "rx"
         },
         {
           "refId": "B",
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
-          "expr": "sum(rate(node_network_transmit_bytes_total{device!~\"lo|veth.*|docker.*|br-.*\"}[5m]))",
+          "expr": "sum(rate(node_network_transmit_bytes_total{device!~\"lo|veth.*|docker.*|br-.*\",job=\"node\"}[5m]))",
           "legendFormat": "tx"
         }
       ]
@@ -222,7 +222,7 @@
       "datasource": { "type": "prometheus", "uid": "${datasource}" },
       "fieldConfig": { "defaults": { "unit": "s", "color": { "mode": "fixed", "fixedColor": "blue" } } },
       "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "value", "graphMode": "none", "textMode": "value" },
-      "targets": [ { "refId": "A", "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "node_time_seconds - node_boot_time_seconds" } ]
+      "targets": [ { "refId": "A", "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "node_time_seconds{job=\"node\"} - node_boot_time_seconds{job=\"node\"}" } ]
     },
     {
       "title": "Swap used",
@@ -230,7 +230,7 @@
       "gridPos": { "h": 5, "w": 6, "x": 6, "y": 23 },
       "datasource": { "type": "prometheus", "uid": "${datasource}" },
       "fieldConfig": { "defaults": { "unit": "percent", "min": 0, "max": 100, "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "yellow", "value": 25 }, { "color": "red", "value": 50 } ] } } },
-      "targets": [ { "refId": "A", "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "(node_memory_SwapTotal_bytes - node_memory_SwapFree_bytes) / clamp_min(node_memory_SwapTotal_bytes, 1) * 100" } ]
+      "targets": [ { "refId": "A", "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "(node_memory_SwapTotal_bytes{job=\"node\"} - node_memory_SwapFree_bytes{job=\"node\"}) / clamp_min(node_memory_SwapTotal_bytes{job=\"node\"}, 1) * 100" } ]
     },
     {
       "title": "Disk I/O",
@@ -239,8 +239,8 @@
       "datasource": { "type": "prometheus", "uid": "${datasource}" },
       "fieldConfig": { "defaults": { "unit": "Bps" } },
       "targets": [
-        { "refId": "A", "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "sum by (device) (rate(node_disk_read_bytes_total{device=~\"nvme.*|mmcblk.*|sd.*\"}[5m]))", "legendFormat": "{{device}} read" },
-        { "refId": "B", "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "sum by (device) (rate(node_disk_written_bytes_total{device=~\"nvme.*|mmcblk.*|sd.*\"}[5m]))", "legendFormat": "{{device}} write" }
+        { "refId": "A", "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "sum by (device) (rate(node_disk_read_bytes_total{device=~\"nvme.*|mmcblk.*|sd.*\",job=\"node\"}[5m]))", "legendFormat": "{{device}} read" },
+        { "refId": "B", "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "sum by (device) (rate(node_disk_written_bytes_total{device=~\"nvme.*|mmcblk.*|sd.*\",job=\"node\"}[5m]))", "legendFormat": "{{device}} write" }
       ]
     },
     {
@@ -254,7 +254,7 @@
       "gridPos": { "h": 6, "w": 12, "x": 0, "y": 29 },
       "datasource": { "type": "prometheus", "uid": "${datasource}" },
       "fieldConfig": { "defaults": { "unit": "celsius" } },
-      "targets": [ { "refId": "A", "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "node_hwmon_temp_celsius", "legendFormat": "{{chip}}" } ]
+      "targets": [ { "refId": "A", "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "node_hwmon_temp_celsius{job=\"node\"}", "legendFormat": "{{chip}}" } ]
     },
     {
       "title": "NVMe desgaste",
