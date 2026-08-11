@@ -48,7 +48,7 @@
               format: size # longitud del array de alertas
 
     - Loki:
-        icon: grafana-loki.png
+        icon: loki.png
         href: https://grafana.negri.es/explore
         description: Logs (vía Grafana)
         siteMonitor: http://loki:3100/ready
@@ -82,6 +82,12 @@
         href: http://192.168.1.2
         description: Router RB750Gr3
         ping: 192.168.1.2
+    
+    - MikroTik SW:
+        icon: mikrotik.png
+        href: http://192.168.1.5
+        description: Switch CSS326-24G-2S+RM
+        ping: 192.168.1.5
 
 - Datos:
     - Postgres:

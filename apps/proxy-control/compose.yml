@@ -67,7 +67,7 @@ services:
             - homepage.description=Gestión de proxy hosts
             - homepage.docker.container=proxy-control
             - homepage.widget.type=customapi
-            - homepage.widget.url=http://proxy-control:4321/health
+            - homepage.widget.url=http://proxy-control:4321
 
     proxy-control-prometheus:
         image: prom/prometheus:v3.1.0
