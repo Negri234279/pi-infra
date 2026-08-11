@@ -94,5 +94,10 @@ if changed '^core/blackbox/'; then
   log "blackbox config changed -> restart blackbox-exporter"
   docker compose restart blackbox-exporter
 fi
+if changed '^core/homepage/'; then
+  # homepage vigila config/ en caliente, pero un restart es determinista y barato.
+  log "homepage config changed -> restart homepage"
+  docker compose restart homepage
+fi
 
 log "done ($NEW)"

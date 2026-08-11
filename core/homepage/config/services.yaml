@@ -1,0 +1,103 @@
+# homepage — servicios del CORE. See https://gethomepage.dev/configs/services/
+#
+# SOLO servicios del core van aquí. Las APPS (apps/<app>/) NO se listan en este
+# fichero: se auto-registran con docker labels homepage.* en su propio compose.yml
+# (ver core/homepage/README.md). homepage las agrupa bajo "Apps" automáticamente.
+#
+# Regla de URLs:
+#   href        -> subdominio PÚBLICO por NPM (https://<svc>.negri.es)
+#   siteMonitor -> URL INTERNA del contenedor (red monitoring), NO el subdominio,
+#   widget.url  /  para no pasar por TLS/proxy ni bucles de auth.
+#
+# Los widgets con credenciales leen {{HOMEPAGE_VAR_*}} (inyectadas por el compose
+# desde .env). Si la variable está vacía el widget no puebla, pero la tarjeta sigue
+# funcionando con href + siteMonitor.
+
+- Observabilidad:
+    - Grafana:
+        icon: grafana.png
+        href: https://grafana.negri.es
+        description: Dashboards & alertas
+        siteMonitor: http://grafana:3000/api/health
+        widget:
+          type: grafana
+          version: 2 # Grafana >= 10.4
+          url: http://grafana:3000
+          username: "{{HOMEPAGE_VAR_GRAFANA_USER}}"
+          password: "{{HOMEPAGE_VAR_GRAFANA_PASSWORD}}"
+
+    - Prometheus:
+        icon: prometheus.png
+        href: https://prom.negri.es
+        description: Métricas infra (targets)
+        siteMonitor: http://prometheus:9090/-/healthy
+        widget:
+          type: prometheus
+          url: http://prometheus:9090
+
+    - Alertmanager:
+        icon: alertmanager.png
+        href: https://alertmanager.negri.es
+        description: Alertas activas
+        siteMonitor: http://alertmanager:9093/-/healthy
+        widget:
+          type: customapi
+          url: http://alertmanager:9093/api/v2/alerts
+          mappings:
+            - label: Activas
+              format: size # longitud del array de alertas
+
+    - Loki:
+        icon: grafana-loki.png
+        href: https://grafana.negri.es/explore
+        description: Logs (vía Grafana)
+        siteMonitor: http://loki:3100/ready
+
+- Red & Proxy:
+    - NGINX Proxy Manager:
+        icon: nginx-proxy-manager.png
+        href: https://npm.negri.es
+        description: Reverse proxy + TLS
+        siteMonitor: http://nginx-proxy-manager:81
+        widget:
+          type: npm
+          url: http://nginx-proxy-manager:81
+          username: "{{HOMEPAGE_VAR_NPM_USER}}"
+          password: "{{HOMEPAGE_VAR_NPM_PASSWORD}}"
+
+    - wg-easy:
+        icon: wireguard.png
+        href: https://wg.negri.es
+        description: VPN WireGuard
+        siteMonitor: http://wg-easy:51821
+        widget:
+          type: wgeasy
+          version: 2 # wg-easy >= v15
+          url: http://wg-easy:51821
+          username: "{{HOMEPAGE_VAR_WG_USER}}"
+          password: "{{HOMEPAGE_VAR_WG_PASSWORD}}"
+
+    - MikroTik:
+        icon: mikrotik.png
+        href: http://192.168.1.2
+        description: Router RB750Gr3
+        ping: 192.168.1.2
+
+- Datos:
+    - Postgres:
+        icon: postgres.png
+        description: Base de datos compartida
+        server: my-docker
+        container: postgres
+
+    - PgBouncer:
+        icon: postgres.png
+        description: Connection pooler
+        server: my-docker
+        container: pgbouncer
+
+    - Postgres exporter:
+        icon: prometheus.png
+        description: Métricas de la BD
+        server: my-docker
+        container: postgres-exporter

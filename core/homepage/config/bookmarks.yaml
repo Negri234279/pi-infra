@@ -1,0 +1,14 @@
+# homepage — bookmarks (enlaces externos). See https://gethomepage.dev/configs/bookmarks/
+
+- Infra:
+    - pi-infra (repo):
+        - abbr: GH
+          href: https://github.com/Negri234279/pi-infra
+
+- Externos:
+    - Cloudflare:
+        - abbr: CF
+          href: https://dash.cloudflare.com
+    - healthchecks.io:
+        - abbr: HC
+          href: https://healthchecks.io

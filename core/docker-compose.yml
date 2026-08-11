@@ -48,6 +48,37 @@ services:
     networks:
       - monitoring
 
+  # Portal único del stack: un dashboard con enlace + estado + widget de cada servicio.
+  # El CORE se declara en core/homepage/config/services.yaml; las APPS se AUTO-DESCUBREN
+  # por docker labels homepage.* (lee el socket :ro, igual patrón que alloy/cadvisor) y
+  # caen en el grupo "Apps" sin tocar config. En `monitoring` para resolver grafana:3000,
+  # prometheus:9090, etc. por nombre en los widgets (URL interna, no el subdominio). UI en
+  # :3001 (Grafana ya usa 3000); publícalo como home.negri.es por NPM → homepage:3000.
+  # Ver core/homepage/README.md (contrato de labels + prerequisitos NPM/DNS + seguridad).
+  homepage:
+    image: ghcr.io/gethomepage/homepage:v1.13.2
+    container_name: homepage
+    restart: unless-stopped
+    ports:
+      - "3001:3000"
+    environment:
+      # Sin esto homepage v1 rechaza las peticiones (Host header allowlist).
+      - HOMEPAGE_ALLOWED_HOSTS=home.negri.es,192.168.1.7:3001,localhost:3001
+      # Credenciales de widgets (referenciadas como {{HOMEPAGE_VAR_*}} en services.yaml).
+      # Vacías → el widget no puebla, la tarjeta sigue con href + siteMonitor.
+      - HOMEPAGE_VAR_GRAFANA_USER=${GF_ADMIN_USER:-admin}
+      - HOMEPAGE_VAR_GRAFANA_PASSWORD=${GF_ADMIN_PASSWORD:-admin}
+      - HOMEPAGE_VAR_NPM_USER=${NPM_ADMIN_EMAIL:-}
+      - HOMEPAGE_VAR_NPM_PASSWORD=${NPM_ADMIN_PASSWORD:-}
+      - HOMEPAGE_VAR_WG_USER=${WG_ADMIN_USERNAME:-admin}
+      - HOMEPAGE_VAR_WG_PASSWORD=${WG_ADMIN_PASSWORD:-}
+    volumes:
+      - ./homepage/config:/app/config
+      # Auto-descubrimiento de apps por labels + estado de contenedores. RO basta.
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - monitoring
+
   # Writes a dynamic scrape file (kept OUT of git) for the healthchecks.io metrics
   # endpoint, whose URL embeds a read-only API key. From $HEALTHCHECKS_* in .env;
   # if unset, writes an empty scrape list (healthchecks scraping disabled).
