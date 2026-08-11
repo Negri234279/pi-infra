@@ -13,6 +13,15 @@ services:
       - DATA_FILE=/data/devices.json
     labels:
       - com.centurylinklabs.watchtower.enable=true
+      # Auto-registro en homepage (grupo "Apps"). homepage lee estas labels por el
+      # socket Docker; ver core/homepage/README.md. Sin widget: la app usa host-network,
+      # así que solo enlace + estado de contenedor (homepage.docker.container).
+      - homepage.group=Apps
+      - homepage.name=Wake-on-LAN
+      - homepage.icon=mdi-lan-connect
+      - homepage.href=https://wol.negri.es
+      - homepage.description=Encender equipos por WoL
+      - homepage.docker.container=wake-lan-app
     network_mode: host
     pull_policy: always
 

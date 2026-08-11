@@ -145,6 +145,15 @@ services:
     restart: unless-stopped
     labels:
       - com.centurylinklabs.watchtower.enable=true
+      # Auto-registro en el portal homepage (grupo "Apps"). Ver core/homepage/README.md.
+      # href = subdominio público (NPM); widget.url = URL INTERNA (ya en `monitoring`).
+      - homepage.group=Apps
+      - homepage.name=Powerlog
+      - homepage.icon=mdi-flash
+      - homepage.href=https://powerlog.negri.es
+      - homepage.docker.container=powerlog-web
+      - homepage.widget.type=customapi
+      - homepage.widget.url=http://powerlog-api:4000/health
 
   # ── Observability (metrics / logs / traces) ──────────────────
   powerlog-prometheus:

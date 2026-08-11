@@ -58,6 +58,16 @@ services:
         restart: unless-stopped
         labels:
             - com.centurylinklabs.watchtower.enable=true
+            # Auto-registro en el portal homepage (grupo "Apps"). Ver core/homepage/README.md.
+            # href = subdominio público (NPM); widget.url = URL INTERNA (ya en `monitoring`).
+            - homepage.group=Apps
+            - homepage.name=Proxy Control
+            - homepage.icon=nginx.png
+            - homepage.href=https://proxy.negri.es
+            - homepage.description=Gestión de proxy hosts
+            - homepage.docker.container=proxy-control
+            - homepage.widget.type=customapi
+            - homepage.widget.url=http://proxy-control:4321/health
 
     proxy-control-prometheus:
         image: prom/prometheus:v3.1.0
