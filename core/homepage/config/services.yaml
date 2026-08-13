@@ -53,6 +53,21 @@
         description: Logs (vía Grafana)
         siteMonitor: http://loki:3100/ready
 
+    # Corre en el rpi3 (192.168.1.6), NO en el hub rpi5: cross-host, así que se
+    # declara a mano aquí (no auto-registro por labels) y el siteMonitor usa la IP
+    # LAN del rpi3, no una URL interna de contenedor. Definido en hosts/rpi3/.
+    - Uptime Kuma:
+        icon: uptime-kuma.png
+        href: https://uptime.negri.es
+        description: Monitor de disponibilidad (rpi3)
+        siteMonitor: http://192.168.1.6:3001
+        # Widget nativo OPCIONAL: requiere una status page publicada en Kuma; pon su
+        # slug y descomenta para ver el recuento de monitores up/down en la tarjeta.
+        # widget:
+        #   type: uptimekuma
+        #   url: http://192.168.1.6:3001
+        #   slug: <status-page-slug>
+
 - Red & Proxy:
     - NGINX Proxy Manager:
         icon: nginx-proxy-manager.png
