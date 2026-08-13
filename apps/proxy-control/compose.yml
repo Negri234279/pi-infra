@@ -58,6 +58,23 @@ services:
         restart: unless-stopped
         labels:
             - com.centurylinklabs.watchtower.enable=true
+            - homepage.group=Apps
+            - homepage.name=Proxy Control
+            - homepage.icon=nginx.png
+            - homepage.href=https://proxy.negri.es
+            - homepage.description=Gestión de proxy hosts
+            - homepage.docker.container=proxy-control
+            - homepage.widget.type=customapi
+            - homepage.widget.url=http://proxy-control:4321/api/widget
+            - homepage.widget.refreshInterval=30000
+            - homepage.widget.mappings[0].label=Estado
+            - homepage.widget.mappings[0].field=status
+            - homepage.widget.mappings[1].label=Dominios
+            - homepage.widget.mappings[1].field=total
+            - homepage.widget.mappings[2].label=Synced
+            - homepage.widget.mappings[2].field=synced
+            - homepage.widget.mappings[3].label=Drift
+            - homepage.widget.mappings[3].field=drift
 
     proxy-control-prometheus:
         image: prom/prometheus:v3.1.0
