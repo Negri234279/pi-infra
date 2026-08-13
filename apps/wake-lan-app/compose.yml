@@ -19,7 +19,7 @@ services:
       - homepage.group=Apps
       - homepage.name=Wake-on-LAN
       - homepage.icon=mdi-lan-connect
-      - homepage.href=https://wol.negri.es
+      - homepage.href=https://wake-lan.negri.es/
       - homepage.description=Encender equipos por WoL
       - homepage.docker.container=wake-lan-app
     network_mode: host
