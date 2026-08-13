@@ -61,12 +61,14 @@
         href: https://uptime.negri.es
         description: Monitor de disponibilidad (rpi3)
         siteMonitor: http://192.168.1.6:3001
-        # Widget nativo OPCIONAL: requiere una status page publicada en Kuma; pon su
-        # slug y descomenta para ver el recuento de monitores up/down en la tarjeta.
-        # widget:
-        #   type: uptimekuma
-        #   url: http://192.168.1.6:3001
-        #   slug: <status-page-slug>
+        # Widget nativo: lee la status page pública "rpis" de Kuma (grupo con los
+        # monitores TCP de las 2 RPis). url pública porque la status page se sirve por
+        # NPM; debe estar SIN contraseña para que el widget la lea.
+        widget:
+          type: uptimekuma
+          url: https://uptime.negri.es
+          slug: rpis
+          fields: ["up", "down", "uptime", "incident"]
 
 - Red & Proxy:
     - NGINX Proxy Manager:
