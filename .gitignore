@@ -23,5 +23,7 @@ secrets/
 # local; only mktxp.conf.example (and the secret-free _mktxp.conf) are committed.
 core/mktxp/mktxp.conf
 # Local-only compose override (e.g. skip node-exporter on Docker Desktop).
+core/homepage/config
+!core/homepage/config/*.yaml
 
 .mcp.json
