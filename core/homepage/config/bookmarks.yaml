@@ -4,6 +4,9 @@
     - pi-infra (repo):
         - abbr: GH
           href: https://github.com/Negri234279/pi-infra
+    - Estado RPis:
+        - abbr: ST
+          href: https://uptime.negri.es/status/rpis
 
 - Externos:
     - Cloudflare:
