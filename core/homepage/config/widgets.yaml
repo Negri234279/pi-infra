@@ -1,0 +1,18 @@
+# homepage — widgets de la barra superior. See https://gethomepage.dev/configs/info-widgets/
+
+- resources:
+    label: Pi
+    cpu: true
+    memory: true
+    disk: /
+    expanded: true
+
+- search:
+    provider: duckduckgo
+    target: _blank
+
+- datetime:
+    text_size: xl
+    format:
+      timeStyle: short
+      dateStyle: short

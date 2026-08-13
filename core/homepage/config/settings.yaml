@@ -1,0 +1,29 @@
+# homepage — global settings. See https://gethomepage.dev/configs/settings/
+#
+# Portal único del stack de la Pi. Los servicios del CORE se declaran a mano en
+# services.yaml; las APPS se auto-descubren por docker labels (homepage.*) y caen en
+# el grupo "Apps" — no hace falta tocar este fichero para añadir una app.
+
+title: Pi · negri.es
+startUrl: https://home.negri.es
+
+# Aspecto
+theme: dark
+color: slate
+headerStyle: clean
+hideVersion: true
+
+# Orden y disposición de los grupos. "Apps" existe aunque venga solo de labels.
+layout:
+  Observabilidad:
+    style: row
+    columns: 4
+  Red & Proxy:
+    style: row
+    columns: 3
+  Datos:
+    style: row
+    columns: 3
+  Apps:
+    style: row
+    columns: 4

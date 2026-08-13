@@ -6,9 +6,10 @@
 # :9100, and (once Phase 5 lands) Blackbox probes :22 for liveness. Nothing here
 # joins the rpi5 `monitoring` network.
 #
-# Deliberately METRICS-ONLY: the rpi3 has ~0.89 GB RAM free with its apps, so no
-# log shipper (Alloy ~150 MB) runs here. node-exporter is ~20 MB. See README.md
-# for the (optional, lightweight) way to add logs later if RAM allows.
+# METRICS-ONLY for the observability path: the rpi3 has ~0.89 GB RAM free with its
+# apps, so no log shipper (Alloy ~150 MB) runs here. node-exporter is ~20 MB. See
+# README.md for the (optional, lightweight) way to add logs later if RAM allows.
+# Uptime Kuma (~120 MB) is the one user-facing app kept here (see its note below).
 services:
   node-exporter:
     image: quay.io/prometheus/node-exporter:v1.11.1
@@ -24,6 +25,24 @@ services:
       - "9100:9100" # scraped by the rpi5 Prometheus over the LAN
     volumes:
       - /:/host:ro,rslave
+
+  # Uptime Kuma — status/uptime dashboard. Runs on the rpi3 (off the rpi5 hub) so it
+  # keeps watching from outside a full rpi5 freeze. Published on the LAN at
+  # 192.168.1.6:3001; the rpi5 homepage links it via https://uptime.negri.es (NPM)
+  # and its status card monitors 192.168.1.6:3001 directly (declared by hand in
+  # core/homepage/config/services.yaml — cross-host, so it can't auto-register by
+  # docker labels the way rpi5 apps do). Data persists in ./data (gitignored).
+  uptime-kuma:
+    image: louislam/uptime-kuma:2
+    container_name: uptime-kuma
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    volumes:
+      - ./data:/app/data
+      - /var/run/docker.sock:/var/run/docker.sock:ro # optional: monitor local containers
+    environment:
+      - TZ=Europe/Madrid
 
   # Independent external watcher of the rpi5. Runs HERE (off the rpi5), so it sees
   # the rpi5 from outside and alerts via healthchecks.io — a path that survives a

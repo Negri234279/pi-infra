@@ -61,7 +61,7 @@ services:
             - homepage.group=Apps
             - homepage.name=Proxy Control
             - homepage.icon=nginx.png
-            - homepage.href=https://proxy.negri.es
+            - homepage.href=https://proxy-control.negri.es
             - homepage.description=Gestión de proxy hosts
             - homepage.docker.container=proxy-control
             - homepage.widget.type=customapi

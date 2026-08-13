@@ -23,6 +23,21 @@ services:
     # not a pinned digest.
     # labels:
     #   - com.centurylinklabs.watchtower.enable=true
+    #
+    # --- Auto-registro en el portal homepage (grupo "Apps") ---
+    # El homepage del core lee estas labels por el socket Docker y muestra la app SIN
+    # tocar su config. href = subdominio público (NPM); widget.url = URL INTERNA del
+    # contenedor (esta app ya está en `monitoring`). Ver core/homepage/README.md.
+    #   labels:
+    #     - homepage.group=Apps
+    #     - homepage.name=My App
+    #     - homepage.icon=mdi-application            # Dashboard Icons / mdi-… / si-…
+    #     - homepage.href=https://myapp.negri.es
+    #     - homepage.description=Qué hace la app
+    #     - homepage.docker.container=myapp          # estado del contenedor (opcional)
+    #     # Widget OPCIONAL (interno). Ej. healthcheck propio con customapi:
+    #     - homepage.widget.type=customapi
+    #     - homepage.widget.url=http://myapp:8080/health
     networks:
       - myapp-net
 

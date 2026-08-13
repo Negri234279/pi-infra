@@ -1,0 +1,7 @@
+# homepage — instancia Docker. See https://gethomepage.dev/configs/docker/
+#
+# Da a homepage acceso al socket (montado :ro en el compose) para:
+#   1. mostrar estado de contenedores (services.yaml -> server: my-docker)
+#   2. AUTO-DESCUBRIR apps por labels homepage.* (ver README).
+my-docker:
+  socket: /var/run/docker.sock
