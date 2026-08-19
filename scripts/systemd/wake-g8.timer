@@ -1,0 +1,13 @@
+# Fires the daily G8 wake-up. 03:00 Europe/Madrid — low-traffic, and it leaves the
+# whole early morning for the backup + the guard poweroff. Persistent=true catches
+# up if the rpi5 was down at 03:00 (runs on next boot).
+[Unit]
+Description=Daily G8 cold-storage wake-up
+
+[Timer]
+OnCalendar=*-*-* 03:00:00
+Persistent=true
+Unit=wake-g8.service
+
+[Install]
+WantedBy=timers.target

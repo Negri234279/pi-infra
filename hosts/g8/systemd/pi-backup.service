@@ -1,0 +1,21 @@
+# Runs the cold-storage backup at boot, ON the G8. The rpi5 powers the box on
+# (scripts/wake-g8.sh); this fires once the OS is up, does the backup, and powers
+# off at the end (backup.sh calls systemctl poweroff).
+#
+# Install on the G8:  systemctl enable pi-backup.service
+# Adjust the ExecStart path to where you cloned the repo on the G8.
+[Unit]
+Description=Cold-storage pull backup of the Pi Docker prod volumes
+After=network-online.target docker.service
+Wants=network-online.target
+Requires=docker.service
+
+[Service]
+Type=oneshot
+# Guard against a hung SSH/rsync leaving the box on: hard cap the run. The
+# separate guard timer is the backstop if the whole unit wedges.
+TimeoutStartSec=90min
+ExecStart=/home/backup/pi-infra/hosts/g8/backup.sh
+
+[Install]
+WantedBy=multi-user.target

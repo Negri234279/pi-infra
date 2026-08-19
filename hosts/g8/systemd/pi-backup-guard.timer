@@ -1,0 +1,13 @@
+# Safety net poweroff at 05:00. The daily wake is 03:00 and a healthy backup of
+# the Pi volumes finishes in minutes, so by 05:00 the box should already be off.
+# If it isn't, the backup hung — force the poweroff so it doesn't run all day.
+# No Persistent=true: this must only fire during today's window, never "catch up".
+[Unit]
+Description=Force-poweroff the G8 at 05:00 if the backup is still running
+
+[Timer]
+OnCalendar=*-*-* 05:00:00
+Unit=pi-backup-guard.service
+
+[Install]
+WantedBy=timers.target

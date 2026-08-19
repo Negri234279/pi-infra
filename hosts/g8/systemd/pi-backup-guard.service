@@ -1,0 +1,10 @@
+# Backstop: unconditionally power the G8 off. Triggered by pi-backup-guard.timer
+# late in the morning so a hung or crashed backup NEVER leaves the box burning
+# ~120 W all day. Harmless if the backup already powered off (this simply never
+# fires because the box is gone).
+[Unit]
+Description=Force-poweroff the G8 if the backup did not
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/systemctl poweroff

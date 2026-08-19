@@ -1,0 +1,12 @@
+# Wakes the G8 cold-storage box once a day. Runs on the RPI5 (the always-on
+# scheduler), triggered by wake-g8.timer. Adjust the ExecStart path to where you
+# cloned the repo on the rpi5.
+[Unit]
+Description=Wake the G8 cold-storage server for the daily backup
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+# Reads /etc/pi-backup/wake.env (iLO password etc.) itself.
+ExecStart=/home/negri/pi-infra/scripts/wake-g8.sh
