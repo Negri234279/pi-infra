@@ -79,6 +79,11 @@ services:
             - homepage.widget.mappings[2].field=synced
             - homepage.widget.mappings[3].label=Drift
             - homepage.widget.mappings[3].field=drift
+            - proxy-control.enable=true
+            - proxy-control.hostname=proxy-control.negri.es
+            - proxy-control.visibility=private
+            - proxy-control.forward.host=proxy-control
+            - proxy-control.forward.port=4321
 
     proxy-control-prometheus:
         image: prom/prometheus:v3.1.0
