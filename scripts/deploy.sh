@@ -16,18 +16,34 @@ cd "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 log() { echo "[deploy $(date '+%Y-%m-%dT%H:%M:%S%z')] $*"; }
 
-git fetch --quiet origin
+# First pass fetches/pulls, then re-execs the (possibly rewritten) script so the
+# deploy logic below always runs from the NEW code. The re-exec pass skips this
+# block and takes OLD/NEW from the env the first pass exported.
+#
+# Without the re-exec, bash would keep running the version of this script it loaded
+# at start against the freshly pulled tree — e.g. an old `pull` without
+# --ignore-buildable choking on a locally-built service (smartctl-exporter) whose
+# build guard only exists in the new script.
+if [ -z "${DEPLOY_REEXEC:-}" ]; then
+  git fetch --quiet origin
 
-OLD="$(git rev-parse HEAD)"
-REMOTE="$(git rev-parse '@{u}')"
-if [ "$OLD" = "$REMOTE" ]; then
-  log "already up to date ($OLD)"
-  exit 0
+  OLD="$(git rev-parse HEAD)"
+  REMOTE="$(git rev-parse '@{u}')"
+  if [ "$OLD" = "$REMOTE" ]; then
+    log "already up to date ($OLD)"
+    exit 0
+  fi
+
+  log "updating $OLD -> $REMOTE"
+  git pull --ff-only
+  NEW="$(git rev-parse HEAD)"
+
+  DEPLOY_REEXEC=1 DEPLOY_OLD="$OLD" DEPLOY_NEW="$NEW" exec "$0" "$@"
 fi
 
-log "updating $OLD -> $REMOTE"
-git pull --ff-only
-NEW="$(git rev-parse HEAD)"
+# Re-exec pass: the diff range was decided by the first pass, before the pull.
+OLD="$DEPLOY_OLD"
+NEW="$DEPLOY_NEW"
 
 # Files that changed between the old and new commit.
 CHANGED="$(git diff --name-only "$OLD" "$NEW")"
