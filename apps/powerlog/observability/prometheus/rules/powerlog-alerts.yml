@@ -18,6 +18,61 @@ groups:
           summary: "powerlog API target down"
           description: "powerlog-api is not being scraped (up == 0) for >1m."
 
+      # Web tier has NO scrape job (it exposes no /metrics), so the blackbox probe
+      # in scrape.d/probes.yml is its ONLY app-level liveness signal. Without this
+      # alert a dead web container is invisible until a user complains.
+      - alert: PowerlogWebDown
+        expr: probe_success{name="powerlog-web"} == 0
+        for: 2m
+        labels: { app: powerlog, severity: critical }
+        annotations:
+          summary: "powerlog web unreachable"
+          description: "Blackbox probe of powerlog-web failing (probe_success == 0) for >2m — the web container is down or not serving."
+
+      # End-to-end public probe: catches what internal `up`/probes cannot — nginx-
+      # proxy-manager, Cloudflare and the TLS cert. App can be perfectly up inside
+      # while the public site is 502/expired-cert.
+      - alert: PowerlogPublicDown
+        expr: probe_success{name="powerlog-public"} == 0
+        for: 3m
+        labels: { app: powerlog, severity: critical }
+        annotations:
+          summary: "powerlog public site down"
+          description: "https://powerlog.negri.es probe failing (probe_success == 0) for >3m — check nginx-proxy-manager, Cloudflare and the TLS cert."
+
+      # /health checks REAL health (migrations done, deps ok), not just that
+      # /metrics answers — so it can fire while PowerlogApiDown stays green.
+      - alert: PowerlogApiUnhealthy
+        expr: probe_success{name="powerlog-api"} == 0 and on() up{job="powerlog-api"} == 1
+        for: 2m
+        labels: { app: powerlog, severity: warning }
+        annotations:
+          summary: "powerlog API scraped but unhealthy"
+          description: "powerlog-api /health failing while /metrics is still up — degraded (migrations pending, dependency down)."
+
+      # BullMQ jobs and cache live in powerlog's own Redis. redis_up comes from the
+      # redis-exporter (which has its own `up` via the powerlog-redis job); this
+      # catches Redis itself dying while the exporter stays up.
+      - alert: PowerlogRedisDown
+        expr: redis_up == 0
+        for: 2m
+        labels: { app: powerlog, severity: critical }
+        annotations:
+          summary: "powerlog Redis down"
+          description: "redis_up == 0 for >2m — BullMQ queues and cache unavailable; the exporter can't reach Redis."
+
+      # Catch-all for the observability/alerting stack (loki, tempo, alloy,
+      # prometheus, alertmanager, redis-exporter). Warning, not critical: these
+      # degrade telemetry, not the product. api is excluded — it has its own
+      # critical alert above.
+      - alert: PowerlogServiceDown
+        expr: up{job=~"powerlog-.+", job!="powerlog-api"} == 0
+        for: 5m
+        labels: { app: powerlog, severity: warning }
+        annotations:
+          summary: "powerlog obs/alerting target down"
+          description: "{{ $labels.job }} not scraped (up == 0) for >5m — telemetry or alerting degraded."
+
       # NOTE: Postgres-down alerting lives in the CORE (shared DB) — see
       # pi-infra core/prometheus/rules/alerts.yml (PostgresDown). powerlog's DB
       # health is covered there, routed to the core's Discord channel.

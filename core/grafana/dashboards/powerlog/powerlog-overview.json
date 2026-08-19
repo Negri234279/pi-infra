@@ -1411,6 +1411,417 @@
                     "queryType": "range"
                 }
             ]
+        },
+        {
+            "id": 140,
+            "type": "row",
+            "title": "Liveness · probes (blackbox)",
+            "gridPos": {
+                "h": 1,
+                "w": 24,
+                "x": 0,
+                "y": 223
+            }
+        },
+        {
+            "id": 141,
+            "type": "stat",
+            "title": "Web up",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus-powerlog"
+            },
+            "gridPos": {
+                "h": 4,
+                "w": 4,
+                "x": 0,
+                "y": 224
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "none",
+                    "mappings": [
+                        {
+                            "type": "value",
+                            "options": {
+                                "0": {
+                                    "text": "DOWN",
+                                    "color": "red"
+                                },
+                                "1": {
+                                    "text": "UP",
+                                    "color": "green"
+                                }
+                            }
+                        }
+                    ],
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "red",
+                                "value": null
+                            },
+                            {
+                                "color": "green",
+                                "value": 1
+                            }
+                        ]
+                    }
+                },
+                "overrides": []
+            },
+            "options": {
+                "reduceOptions": {
+                    "calcs": [
+                        "lastNotNull"
+                    ]
+                },
+                "textMode": "value",
+                "colorMode": "background",
+                "graphMode": "none"
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "probe_success{name=\"powerlog-web\"}",
+                    "instant": true
+                }
+            ]
+        },
+        {
+            "id": 142,
+            "type": "stat",
+            "title": "Public up",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus-powerlog"
+            },
+            "gridPos": {
+                "h": 4,
+                "w": 4,
+                "x": 4,
+                "y": 224
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "none",
+                    "mappings": [
+                        {
+                            "type": "value",
+                            "options": {
+                                "0": {
+                                    "text": "DOWN",
+                                    "color": "red"
+                                },
+                                "1": {
+                                    "text": "UP",
+                                    "color": "green"
+                                }
+                            }
+                        }
+                    ],
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "red",
+                                "value": null
+                            },
+                            {
+                                "color": "green",
+                                "value": 1
+                            }
+                        ]
+                    }
+                },
+                "overrides": []
+            },
+            "options": {
+                "reduceOptions": {
+                    "calcs": [
+                        "lastNotNull"
+                    ]
+                },
+                "textMode": "value",
+                "colorMode": "background",
+                "graphMode": "none"
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "probe_success{name=\"powerlog-public\"}",
+                    "instant": true
+                }
+            ]
+        },
+        {
+            "id": 143,
+            "type": "stat",
+            "title": "API /health",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus-powerlog"
+            },
+            "gridPos": {
+                "h": 4,
+                "w": 4,
+                "x": 8,
+                "y": 224
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "none",
+                    "mappings": [
+                        {
+                            "type": "value",
+                            "options": {
+                                "0": {
+                                    "text": "DOWN",
+                                    "color": "red"
+                                },
+                                "1": {
+                                    "text": "UP",
+                                    "color": "green"
+                                }
+                            }
+                        }
+                    ],
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "red",
+                                "value": null
+                            },
+                            {
+                                "color": "green",
+                                "value": 1
+                            }
+                        ]
+                    }
+                },
+                "overrides": []
+            },
+            "options": {
+                "reduceOptions": {
+                    "calcs": [
+                        "lastNotNull"
+                    ]
+                },
+                "textMode": "value",
+                "colorMode": "background",
+                "graphMode": "none"
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "probe_success{name=\"powerlog-api\"}",
+                    "instant": true
+                }
+            ]
+        },
+        {
+            "id": 144,
+            "type": "stat",
+            "title": "Public TLS cert expiry",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus-powerlog"
+            },
+            "gridPos": {
+                "h": 4,
+                "w": 6,
+                "x": 12,
+                "y": 224
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "s",
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "red",
+                                "value": null
+                            },
+                            {
+                                "color": "yellow",
+                                "value": 604800
+                            },
+                            {
+                                "color": "green",
+                                "value": 1209600
+                            }
+                        ]
+                    }
+                },
+                "overrides": []
+            },
+            "options": {
+                "reduceOptions": {
+                    "calcs": [
+                        "lastNotNull"
+                    ]
+                },
+                "textMode": "value",
+                "colorMode": "background",
+                "graphMode": "none"
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "probe_ssl_earliest_cert_expiry{name=\"powerlog-public\"} - time()",
+                    "instant": true
+                }
+            ]
+        },
+        {
+            "id": 145,
+            "type": "stat",
+            "title": "Public HTTP status",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus-powerlog"
+            },
+            "gridPos": {
+                "h": 4,
+                "w": 6,
+                "x": 18,
+                "y": 224
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "none",
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "red",
+                                "value": null
+                            },
+                            {
+                                "color": "green",
+                                "value": 200
+                            },
+                            {
+                                "color": "red",
+                                "value": 400
+                            }
+                        ]
+                    }
+                },
+                "overrides": []
+            },
+            "options": {
+                "reduceOptions": {
+                    "calcs": [
+                        "lastNotNull"
+                    ]
+                },
+                "textMode": "value",
+                "colorMode": "background",
+                "graphMode": "none"
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "probe_http_status_code{name=\"powerlog-public\"}",
+                    "instant": true
+                }
+            ]
+        },
+        {
+            "id": 146,
+            "type": "timeseries",
+            "title": "Probe latency (s)",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus-powerlog"
+            },
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 0,
+                "y": 228
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "s",
+                    "custom": {
+                        "drawStyle": "line",
+                        "lineInterpolation": "linear",
+                        "fillOpacity": 10,
+                        "showPoints": "never"
+                    }
+                },
+                "overrides": []
+            },
+            "options": {
+                "legend": {
+                    "displayMode": "list",
+                    "placement": "bottom",
+                    "calcs": []
+                },
+                "tooltip": {
+                    "mode": "multi",
+                    "sort": "none"
+                }
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "probe_duration_seconds{name=~\"powerlog.*\"}",
+                    "legendFormat": "{{name}}"
+                }
+            ]
+        },
+        {
+            "id": 147,
+            "type": "timeseries",
+            "title": "Probe success (0/1)",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus-powerlog"
+            },
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 12,
+                "y": 228
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "none",
+                    "custom": {
+                        "drawStyle": "line",
+                        "lineInterpolation": "linear",
+                        "fillOpacity": 10,
+                        "showPoints": "never"
+                    },
+                    "min": 0,
+                    "max": 1
+                },
+                "overrides": []
+            },
+            "options": {
+                "legend": {
+                    "displayMode": "list",
+                    "placement": "bottom",
+                    "calcs": []
+                },
+                "tooltip": {
+                    "mode": "multi",
+                    "sort": "none"
+                }
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "probe_success{name=~\"powerlog.*\"}",
+                    "legendFormat": "{{name}}"
+                }
+            ]
         }
     ]
 }

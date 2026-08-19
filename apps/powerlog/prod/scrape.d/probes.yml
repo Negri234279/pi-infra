@@ -1,0 +1,51 @@
+# Blackbox liveness probes for powerlog (PROD). Scraped by powerlog's OWN
+# Prometheus, reusing the SHARED core blackbox-exporter on the `monitoring`
+# network (no per-app exporter). See docs/app-blackbox-probes.md.
+#
+# Cobertura en capas:
+#   - INTERNO: ¿responden los contenedores del stack? (api /health, web). El
+#     blackbox-exporter del core vive en `monitoring` y ambos servicios están en
+#     esa red, así que los alcanza por DNS.
+#   - PÚBLICO: ¿responde la app end-to-end? (a través de nginx-proxy-manager +
+#     Cloudflare + certificado). Cubre fallos que las sondas internas no ven.
+#
+# NOTE: this file is the source of truth in the powerlog repo (infra/prod/scrape.d/)
+# and is OVERWRITTEN here by the sync-pi-infra action. Editing it here is only for
+# local testing; the lasting change belongs in the powerlog repo.
+#
+# NOTE: a scrape_config_files file is a MAPPING with a `scrape_configs` key, not a
+# bare list (a bare `- job_name:` crash-loops Prometheus).
+scrape_configs:
+  # Liveness interno de los contenedores del stack (por DNS en `monitoring`).
+  - job_name: blackbox-powerlog-internal
+    metrics_path: /probe
+    params:
+      module: [http_2xx]
+    static_configs:
+      - targets: ["http://powerlog-api:4000/health"]
+        labels: { name: powerlog-api }
+      - targets: ["http://powerlog-web:3000"]
+        labels: { name: powerlog-web }
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: "blackbox-exporter:9115"
+
+  # Liveness público end-to-end (NPM + Cloudflare + TLS).
+  - job_name: blackbox-powerlog-public
+    metrics_path: /probe
+    params:
+      module: [http_2xx]
+    static_configs:
+      - targets: ["https://powerlog.negri.es"]
+        labels: { name: powerlog-public }
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: "blackbox-exporter:9115"
