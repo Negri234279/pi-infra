@@ -113,6 +113,7 @@ services:
         networks: [coreforge-net, monitoring]
         restart: unless-stopped
         labels:
+            - com.centurylinklabs.watchtower.enable=true
             - homepage.group=Apps
             - homepage.name=CoreForge
             - homepage.icon=mdi-anvil
