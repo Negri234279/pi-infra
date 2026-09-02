@@ -1,0 +1,1057 @@
+{
+    "title": "coreforge · Overview",
+    "uid": "coreforge-overview",
+    "tags": ["coreforge"],
+    "timezone": "browser",
+    "schemaVersion": 39,
+    "editable": true,
+    "graphTooltip": 1,
+    "time": { "from": "now-6h", "to": "now" },
+    "refresh": "30s",
+    "panels": [
+        {
+            "type": "row",
+            "title": "Overview",
+            "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+            "collapsed": false,
+            "panels": []
+        },
+        {
+            "type": "stat",
+            "title": "Requests / s",
+            "gridPos": { "h": 4, "w": 4, "x": 0, "y": 1 },
+            "datasource": { "type": "prometheus", "uid": "prometheus-coreforge" },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "sum(rate(http_request_duration_seconds_count{job=\"coreforge-app\"}[$__rate_interval]))"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "reqps",
+                    "decimals": 2,
+                    "color": { "mode": "palette-classic" }
+                },
+                "overrides": []
+            },
+            "options": {
+                "graphMode": "area",
+                "colorMode": "value",
+                "reduceOptions": { "calcs": ["lastNotNull"] }
+            }
+        },
+        {
+            "type": "stat",
+            "title": "5xx ratio",
+            "gridPos": { "h": 4, "w": 4, "x": 4, "y": 1 },
+            "datasource": { "type": "prometheus", "uid": "prometheus-coreforge" },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "sum(rate(http_request_duration_seconds_count{job=\"coreforge-app\", status=~\"5..\"}[$__rate_interval])) / clamp_min(sum(rate(http_request_duration_seconds_count{job=\"coreforge-app\"}[$__rate_interval])), 0.001)"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "percentunit",
+                    "decimals": 2,
+                    "color": { "mode": "thresholds" },
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            { "color": "green", "value": null },
+                            { "color": "orange", "value": 0.01 },
+                            { "color": "red", "value": 0.05 }
+                        ]
+                    }
+                },
+                "overrides": []
+            },
+            "options": {
+                "graphMode": "area",
+                "colorMode": "value",
+                "reduceOptions": { "calcs": ["lastNotNull"] }
+            }
+        },
+        {
+            "type": "stat",
+            "title": "p95 latency",
+            "gridPos": { "h": 4, "w": 4, "x": 8, "y": 1 },
+            "datasource": { "type": "prometheus", "uid": "prometheus-coreforge" },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "histogram_quantile(0.95, sum by (le) (rate(http_request_duration_seconds_bucket{job=\"coreforge-app\"}[$__rate_interval])))"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "s",
+                    "decimals": 3,
+                    "color": { "mode": "thresholds" },
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            { "color": "green", "value": null },
+                            { "color": "orange", "value": 0.5 },
+                            { "color": "red", "value": 1 }
+                        ]
+                    }
+                },
+                "overrides": []
+            },
+            "options": {
+                "graphMode": "area",
+                "colorMode": "value",
+                "reduceOptions": { "calcs": ["lastNotNull"] }
+            }
+        },
+        {
+            "type": "stat",
+            "title": "Version",
+            "gridPos": { "h": 4, "w": 4, "x": 12, "y": 1 },
+            "datasource": { "type": "prometheus", "uid": "prometheus-coreforge" },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "coreforge_build_info{job=\"coreforge-app\"}",
+                    "legendFormat": "{{version}}",
+                    "instant": true
+                }
+            ],
+            "fieldConfig": {
+                "defaults": { "unit": "none", "color": { "mode": "fixed", "fixedColor": "text" } },
+                "overrides": []
+            },
+            "options": {
+                "graphMode": "none",
+                "colorMode": "none",
+                "textMode": "name",
+                "reduceOptions": { "calcs": ["lastNotNull"] }
+            }
+        },
+        {
+            "type": "stat",
+            "title": "Users",
+            "gridPos": { "h": 4, "w": 4, "x": 16, "y": 1 },
+            "datasource": { "type": "prometheus", "uid": "prometheus-coreforge" },
+            "targets": [{ "refId": "A", "expr": "coreforge_users_total{job=\"coreforge-app\"}" }],
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "none",
+                    "decimals": 0,
+                    "color": { "mode": "palette-classic" }
+                },
+                "overrides": []
+            },
+            "options": {
+                "graphMode": "area",
+                "colorMode": "value",
+                "reduceOptions": { "calcs": ["lastNotNull"] }
+            }
+        },
+        {
+            "type": "stat",
+            "title": "Filters",
+            "gridPos": { "h": 4, "w": 4, "x": 20, "y": 1 },
+            "datasource": { "type": "prometheus", "uid": "prometheus-coreforge" },
+            "targets": [{ "refId": "A", "expr": "coreforge_filters_total{job=\"coreforge-app\"}" }],
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "none",
+                    "decimals": 0,
+                    "color": { "mode": "palette-classic" }
+                },
+                "overrides": []
+            },
+            "options": {
+                "graphMode": "area",
+                "colorMode": "value",
+                "reduceOptions": { "calcs": ["lastNotNull"] }
+            }
+        },
+        {
+            "type": "row",
+            "title": "HTTP",
+            "gridPos": { "h": 1, "w": 24, "x": 0, "y": 5 },
+            "collapsed": false,
+            "panels": []
+        },
+        {
+            "type": "timeseries",
+            "title": "Request rate by route (top 10)",
+            "gridPos": { "h": 8, "w": 12, "x": 0, "y": 6 },
+            "datasource": { "type": "prometheus", "uid": "prometheus-coreforge" },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "topk(10, sum by (route) (rate(http_request_duration_seconds_count{job=\"coreforge-app\"}[$__rate_interval])))",
+                    "legendFormat": "{{route}}"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "reqps",
+                    "custom": { "fillOpacity": 8, "lineWidth": 1, "showPoints": "never" },
+                    "color": { "mode": "palette-classic" }
+                },
+                "overrides": []
+            },
+            "options": {
+                "legend": {
+                    "displayMode": "table",
+                    "placement": "bottom",
+                    "calcs": ["mean", "max"]
+                },
+                "tooltip": { "mode": "multi", "sort": "desc" }
+            }
+        },
+        {
+            "type": "timeseries",
+            "title": "Latency percentiles",
+            "gridPos": { "h": 8, "w": 6, "x": 12, "y": 6 },
+            "datasource": { "type": "prometheus", "uid": "prometheus-coreforge" },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "histogram_quantile(0.50, sum by (le) (rate(http_request_duration_seconds_bucket{job=\"coreforge-app\"}[$__rate_interval])))",
+                    "legendFormat": "p50"
+                },
+                {
+                    "refId": "B",
+                    "expr": "histogram_quantile(0.95, sum by (le) (rate(http_request_duration_seconds_bucket{job=\"coreforge-app\"}[$__rate_interval])))",
+                    "legendFormat": "p95"
+                },
+                {
+                    "refId": "C",
+                    "expr": "histogram_quantile(0.99, sum by (le) (rate(http_request_duration_seconds_bucket{job=\"coreforge-app\"}[$__rate_interval])))",
+                    "legendFormat": "p99"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "s",
+                    "custom": { "fillOpacity": 8, "lineWidth": 1, "showPoints": "never" },
+                    "color": { "mode": "palette-classic" }
+                },
+                "overrides": []
+            },
+            "options": {
+                "legend": { "displayMode": "list", "placement": "bottom" },
+                "tooltip": { "mode": "multi", "sort": "desc" }
+            }
+        },
+        {
+            "type": "timeseries",
+            "title": "Responses by status",
+            "gridPos": { "h": 8, "w": 6, "x": 18, "y": 6 },
+            "datasource": { "type": "prometheus", "uid": "prometheus-coreforge" },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "sum by (status) (rate(http_request_duration_seconds_count{job=\"coreforge-app\"}[$__rate_interval]))",
+                    "legendFormat": "{{status}}"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "reqps",
+                    "custom": {
+                        "fillOpacity": 25,
+                        "lineWidth": 1,
+                        "showPoints": "never",
+                        "stacking": { "mode": "normal" }
+                    },
+                    "color": { "mode": "palette-classic" }
+                },
+                "overrides": [
+                    {
+                        "matcher": { "id": "byRegexp", "options": "5.." },
+                        "properties": [
+                            { "id": "color", "value": { "mode": "fixed", "fixedColor": "red" } }
+                        ]
+                    }
+                ]
+            },
+            "options": {
+                "legend": { "displayMode": "list", "placement": "bottom" },
+                "tooltip": { "mode": "multi", "sort": "desc" }
+            }
+        },
+        {
+            "type": "row",
+            "title": "Business events",
+            "gridPos": { "h": 1, "w": 24, "x": 0, "y": 14 },
+            "collapsed": false,
+            "panels": []
+        },
+        {
+            "type": "timeseries",
+            "title": "Events by type",
+            "gridPos": { "h": 8, "w": 12, "x": 0, "y": 15 },
+            "datasource": { "type": "prometheus", "uid": "prometheus-coreforge" },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "sum by (type) (increase(coreforge_events_total{job=\"coreforge-app\"}[$__interval]))",
+                    "legendFormat": "{{type}}"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "none",
+                    "custom": {
+                        "fillOpacity": 25,
+                        "lineWidth": 1,
+                        "showPoints": "never",
+                        "stacking": { "mode": "normal" },
+                        "drawStyle": "bars"
+                    },
+                    "color": { "mode": "palette-classic" }
+                },
+                "overrides": []
+            },
+            "options": {
+                "legend": { "displayMode": "table", "placement": "right", "calcs": ["sum"] },
+                "tooltip": { "mode": "multi", "sort": "desc" }
+            }
+        },
+        {
+            "type": "bargauge",
+            "title": "Top events (dashboard range)",
+            "gridPos": { "h": 8, "w": 6, "x": 12, "y": 15 },
+            "datasource": { "type": "prometheus", "uid": "prometheus-coreforge" },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "topk(10, sum by (type) (increase(coreforge_events_total{job=\"coreforge-app\"}[$__range])))",
+                    "legendFormat": "{{type}}",
+                    "instant": true
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "none",
+                    "decimals": 0,
+                    "color": { "mode": "palette-classic" }
+                },
+                "overrides": []
+            },
+            "options": {
+                "orientation": "horizontal",
+                "displayMode": "gradient",
+                "reduceOptions": { "calcs": ["lastNotNull"] }
+            }
+        },
+        {
+            "type": "timeseries",
+            "title": "Content totals",
+            "gridPos": { "h": 8, "w": 6, "x": 18, "y": 15 },
+            "datasource": { "type": "prometheus", "uid": "prometheus-coreforge" },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "coreforge_users_total{job=\"coreforge-app\"}",
+                    "legendFormat": "users"
+                },
+                {
+                    "refId": "B",
+                    "expr": "coreforge_filters_total{job=\"coreforge-app\"}",
+                    "legendFormat": "filters"
+                },
+                {
+                    "refId": "C",
+                    "expr": "coreforge_categories_total{job=\"coreforge-app\"}",
+                    "legendFormat": "categories"
+                },
+                {
+                    "refId": "D",
+                    "expr": "coreforge_orgs_total{job=\"coreforge-app\"}",
+                    "legendFormat": "orgs"
+                },
+                {
+                    "refId": "E",
+                    "expr": "coreforge_subcategories_total{job=\"coreforge-app\"}",
+                    "legendFormat": "subcategories"
+                },
+                {
+                    "refId": "F",
+                    "expr": "coreforge_open_cores_total{job=\"coreforge-app\"}",
+                    "legendFormat": "open cores"
+                },
+                {
+                    "refId": "G",
+                    "expr": "coreforge_opencore_layouts_total{job=\"coreforge-app\"}",
+                    "legendFormat": "layouts"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "none",
+                    "decimals": 0,
+                    "custom": { "fillOpacity": 5, "lineWidth": 2, "showPoints": "never" },
+                    "color": { "mode": "palette-classic" }
+                },
+                "overrides": []
+            },
+            "options": {
+                "legend": { "displayMode": "list", "placement": "bottom" },
+                "tooltip": { "mode": "multi", "sort": "desc" }
+            }
+        },
+        {
+            "type": "row",
+            "title": "Engagement & storage",
+            "gridPos": { "h": 1, "w": 24, "x": 0, "y": 23 },
+            "collapsed": false,
+            "panels": []
+        },
+        {
+            "type": "timeseries",
+            "title": "Active users",
+            "description": "Users whose last_seen_at falls inside the window (middleware updates it, throttled to 60s).",
+            "gridPos": { "h": 7, "w": 9, "x": 0, "y": 24 },
+            "datasource": { "type": "prometheus", "uid": "prometheus-coreforge" },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "coreforge_active_users{job=\"coreforge-app\"}",
+                    "legendFormat": "{{window}}"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "none",
+                    "decimals": 0,
+                    "custom": { "fillOpacity": 8, "lineWidth": 2, "showPoints": "never" },
+                    "color": { "mode": "palette-classic" }
+                },
+                "overrides": []
+            },
+            "options": {
+                "legend": { "displayMode": "list", "placement": "bottom" },
+                "tooltip": { "mode": "multi", "sort": "desc" }
+            }
+        },
+        {
+            "type": "timeseries",
+            "title": "Active sessions",
+            "gridPos": { "h": 7, "w": 5, "x": 9, "y": 24 },
+            "datasource": { "type": "prometheus", "uid": "prometheus-coreforge" },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "coreforge_sessions_active{job=\"coreforge-app\"}",
+                    "legendFormat": "sessions"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "none",
+                    "decimals": 0,
+                    "custom": { "fillOpacity": 8, "lineWidth": 2, "showPoints": "never" },
+                    "color": { "mode": "palette-classic" }
+                },
+                "overrides": []
+            },
+            "options": {
+                "legend": { "displayMode": "hidden", "placement": "bottom" },
+                "tooltip": { "mode": "single" }
+            }
+        },
+        {
+            "type": "timeseries",
+            "title": "Shared with org",
+            "gridPos": { "h": 7, "w": 5, "x": 14, "y": 24 },
+            "datasource": { "type": "prometheus", "uid": "prometheus-coreforge" },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "coreforge_shared_with_org_total{job=\"coreforge-app\"}",
+                    "legendFormat": "{{kind}}"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "none",
+                    "decimals": 0,
+                    "custom": { "fillOpacity": 8, "lineWidth": 2, "showPoints": "never" },
+                    "color": { "mode": "palette-classic" }
+                },
+                "overrides": []
+            },
+            "options": {
+                "legend": { "displayMode": "list", "placement": "bottom" },
+                "tooltip": { "mode": "multi", "sort": "desc" }
+            }
+        },
+        {
+            "type": "timeseries",
+            "title": "SQLite DB size",
+            "gridPos": { "h": 7, "w": 5, "x": 19, "y": 24 },
+            "datasource": { "type": "prometheus", "uid": "prometheus-coreforge" },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "coreforge_db_size_bytes{job=\"coreforge-app\"}",
+                    "legendFormat": "db"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "bytes",
+                    "custom": { "fillOpacity": 8, "lineWidth": 2, "showPoints": "never" },
+                    "color": { "mode": "palette-classic" }
+                },
+                "overrides": []
+            },
+            "options": {
+                "legend": { "displayMode": "hidden", "placement": "bottom" },
+                "tooltip": { "mode": "single" }
+            }
+        },
+        {
+            "type": "row",
+            "title": "Browser RUM",
+            "gridPos": { "h": 1, "w": 24, "x": 0, "y": 31 },
+            "collapsed": false,
+            "panels": []
+        },
+        {
+            "type": "timeseries",
+            "title": "Web vitals (p75)",
+            "description": "Grafana Faro measurements from real browser sessions.",
+            "gridPos": { "h": 7, "w": 9, "x": 0, "y": 32 },
+            "datasource": { "type": "loki", "uid": "loki-coreforge" },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "quantile_over_time(0.75, {job=\"faro\", kind=\"measurement\"} | logfmt type, value_lcp | type=\"web-vitals\" | unwrap value_lcp | __error__=\"\" [$__auto]) by ()",
+                    "legendFormat": "LCP"
+                },
+                {
+                    "refId": "B",
+                    "expr": "quantile_over_time(0.75, {job=\"faro\", kind=\"measurement\"} | logfmt type, value_fcp | type=\"web-vitals\" | unwrap value_fcp | __error__=\"\" [$__auto]) by ()",
+                    "legendFormat": "FCP"
+                },
+                {
+                    "refId": "C",
+                    "expr": "quantile_over_time(0.75, {job=\"faro\", kind=\"measurement\"} | logfmt type, value_ttfb | type=\"web-vitals\" | unwrap value_ttfb | __error__=\"\" [$__auto]) by ()",
+                    "legendFormat": "TTFB"
+                },
+                {
+                    "refId": "D",
+                    "expr": "quantile_over_time(0.75, {job=\"faro\", kind=\"measurement\"} | logfmt type, value_inp | type=\"web-vitals\" | unwrap value_inp | __error__=\"\" [$__auto]) by ()",
+                    "legendFormat": "INP"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "ms",
+                    "custom": { "fillOpacity": 8, "lineWidth": 2, "showPoints": "never" },
+                    "color": { "mode": "palette-classic" }
+                },
+                "overrides": []
+            },
+            "options": {
+                "legend": { "displayMode": "list", "placement": "bottom" },
+                "tooltip": { "mode": "multi", "sort": "desc" }
+            }
+        },
+        {
+            "type": "timeseries",
+            "title": "CLS (p75)",
+            "gridPos": { "h": 7, "w": 3, "x": 9, "y": 32 },
+            "datasource": { "type": "loki", "uid": "loki-coreforge" },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "quantile_over_time(0.75, {job=\"faro\", kind=\"measurement\"} | logfmt type, value_cls | type=\"web-vitals\" | unwrap value_cls | __error__=\"\" [$__auto]) by ()",
+                    "legendFormat": "CLS"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "none",
+                    "decimals": 3,
+                    "custom": { "fillOpacity": 8, "lineWidth": 2, "showPoints": "never" },
+                    "color": { "mode": "thresholds" },
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            { "color": "green", "value": null },
+                            { "color": "orange", "value": 0.1 },
+                            { "color": "red", "value": 0.25 }
+                        ]
+                    }
+                },
+                "overrides": []
+            },
+            "options": {
+                "legend": { "displayMode": "hidden", "placement": "bottom" },
+                "tooltip": { "mode": "single" }
+            }
+        },
+        {
+            "type": "timeseries",
+            "title": "RUM events by name",
+            "description": "Faro pushEvent — client-side business events tied to a session.",
+            "gridPos": { "h": 7, "w": 6, "x": 12, "y": 32 },
+            "datasource": { "type": "loki", "uid": "loki-coreforge" },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "sum by (event_name) (count_over_time({job=\"faro\", kind=\"event\"} | logfmt event_name [$__auto]))",
+                    "legendFormat": "{{event_name}}"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "none",
+                    "custom": {
+                        "fillOpacity": 25,
+                        "lineWidth": 1,
+                        "showPoints": "never",
+                        "stacking": { "mode": "normal" },
+                        "drawStyle": "bars"
+                    },
+                    "color": { "mode": "palette-classic" }
+                },
+                "overrides": []
+            },
+            "options": {
+                "legend": { "displayMode": "list", "placement": "bottom" },
+                "tooltip": { "mode": "multi", "sort": "desc" }
+            }
+        },
+        {
+            "type": "timeseries",
+            "title": "Frontend errors",
+            "description": "Unhandled errors and rejections captured by Faro in the browser.",
+            "gridPos": { "h": 7, "w": 6, "x": 18, "y": 32 },
+            "datasource": { "type": "loki", "uid": "loki-coreforge" },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "sum(count_over_time({job=\"faro\", kind=\"exception\"} [$__auto]))",
+                    "legendFormat": "exceptions"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "none",
+                    "custom": {
+                        "fillOpacity": 25,
+                        "lineWidth": 1,
+                        "showPoints": "never",
+                        "drawStyle": "bars"
+                    },
+                    "color": { "mode": "fixed", "fixedColor": "red" }
+                },
+                "overrides": []
+            },
+            "options": {
+                "legend": { "displayMode": "hidden", "placement": "bottom" },
+                "tooltip": { "mode": "single" }
+            }
+        },
+        {
+            "type": "timeseries",
+            "title": "RUM activity by span type",
+            "gridPos": { "h": 7, "w": 12, "x": 0, "y": 39 },
+            "datasource": { "type": "prometheus", "uid": "prometheus-coreforge" },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "sum by (span_name) (rate(traces_spanmetrics_calls_total{service=~\"coreforge-web.*\"}[$__rate_interval]))",
+                    "legendFormat": "{{span_name}}"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "ops",
+                    "custom": {
+                        "fillOpacity": 25,
+                        "lineWidth": 1,
+                        "showPoints": "never",
+                        "stacking": { "mode": "normal" }
+                    },
+                    "color": { "mode": "palette-classic" }
+                },
+                "overrides": []
+            },
+            "options": {
+                "legend": {
+                    "displayMode": "table",
+                    "placement": "right",
+                    "calcs": ["mean"]
+                },
+                "tooltip": { "mode": "multi", "sort": "desc" }
+            }
+        },
+        {
+            "type": "timeseries",
+            "title": "Frontend error spans",
+            "gridPos": { "h": 7, "w": 12, "x": 12, "y": 39 },
+            "datasource": { "type": "prometheus", "uid": "prometheus-coreforge" },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "sum by (span_name) (increase(traces_spanmetrics_calls_total{service=~\"coreforge-web.*\", status_code=\"STATUS_CODE_ERROR\"}[$__interval]))",
+                    "legendFormat": "{{span_name}}"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "none",
+                    "custom": {
+                        "fillOpacity": 25,
+                        "lineWidth": 1,
+                        "showPoints": "never",
+                        "drawStyle": "bars"
+                    },
+                    "color": { "mode": "fixed", "fixedColor": "red" }
+                },
+                "overrides": []
+            },
+            "options": {
+                "legend": { "displayMode": "list", "placement": "bottom" },
+                "tooltip": { "mode": "multi", "sort": "desc" }
+            }
+        },
+        {
+            "type": "row",
+            "title": "Node.js runtime",
+            "gridPos": { "h": 1, "w": 24, "x": 0, "y": 46 },
+            "collapsed": false,
+            "panels": []
+        },
+        {
+            "type": "timeseries",
+            "title": "CPU",
+            "gridPos": { "h": 7, "w": 6, "x": 0, "y": 47 },
+            "datasource": { "type": "prometheus", "uid": "prometheus-coreforge" },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "rate(process_cpu_seconds_total{job=\"coreforge-app\"}[$__rate_interval])",
+                    "legendFormat": "cpu"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "percentunit",
+                    "custom": { "fillOpacity": 8, "lineWidth": 1, "showPoints": "never" },
+                    "color": { "mode": "palette-classic" }
+                },
+                "overrides": []
+            },
+            "options": {
+                "legend": { "displayMode": "hidden", "placement": "bottom" },
+                "tooltip": { "mode": "single" }
+            }
+        },
+        {
+            "type": "timeseries",
+            "title": "Memory (RSS / heap)",
+            "gridPos": { "h": 7, "w": 6, "x": 6, "y": 47 },
+            "datasource": { "type": "prometheus", "uid": "prometheus-coreforge" },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "process_resident_memory_bytes{job=\"coreforge-app\"}",
+                    "legendFormat": "rss"
+                },
+                {
+                    "refId": "B",
+                    "expr": "nodejs_heap_size_used_bytes{job=\"coreforge-app\"}",
+                    "legendFormat": "heap used"
+                },
+                {
+                    "refId": "C",
+                    "expr": "nodejs_heap_size_total_bytes{job=\"coreforge-app\"}",
+                    "legendFormat": "heap total"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "bytes",
+                    "custom": { "fillOpacity": 8, "lineWidth": 1, "showPoints": "never" },
+                    "color": { "mode": "palette-classic" }
+                },
+                "overrides": []
+            },
+            "options": {
+                "legend": { "displayMode": "list", "placement": "bottom" },
+                "tooltip": { "mode": "multi", "sort": "desc" }
+            }
+        },
+        {
+            "type": "timeseries",
+            "title": "Event loop lag",
+            "gridPos": { "h": 7, "w": 6, "x": 12, "y": 47 },
+            "datasource": { "type": "prometheus", "uid": "prometheus-coreforge" },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "nodejs_eventloop_lag_p50_seconds{job=\"coreforge-app\"}",
+                    "legendFormat": "p50"
+                },
+                {
+                    "refId": "B",
+                    "expr": "nodejs_eventloop_lag_p99_seconds{job=\"coreforge-app\"}",
+                    "legendFormat": "p99"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "s",
+                    "custom": { "fillOpacity": 8, "lineWidth": 1, "showPoints": "never" },
+                    "color": { "mode": "palette-classic" }
+                },
+                "overrides": []
+            },
+            "options": {
+                "legend": { "displayMode": "list", "placement": "bottom" },
+                "tooltip": { "mode": "multi", "sort": "desc" }
+            }
+        },
+        {
+            "type": "timeseries",
+            "title": "Event persist failures",
+            "gridPos": { "h": 7, "w": 6, "x": 18, "y": 47 },
+            "datasource": { "type": "prometheus", "uid": "prometheus-coreforge" },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "increase(coreforge_events_persist_failures_total{job=\"coreforge-app\"}[$__interval])",
+                    "legendFormat": "failures"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "none",
+                    "custom": {
+                        "fillOpacity": 25,
+                        "lineWidth": 1,
+                        "showPoints": "never",
+                        "drawStyle": "bars"
+                    },
+                    "color": { "mode": "fixed", "fixedColor": "red" }
+                },
+                "overrides": []
+            },
+            "options": {
+                "legend": { "displayMode": "hidden", "placement": "bottom" },
+                "tooltip": { "mode": "single" }
+            }
+        },
+        {
+            "type": "row",
+            "title": "Logs",
+            "gridPos": { "h": 1, "w": 24, "x": 0, "y": 54 },
+            "collapsed": false,
+            "panels": []
+        },
+        {
+            "type": "timeseries",
+            "title": "Error log rate",
+            "gridPos": { "h": 8, "w": 6, "x": 0, "y": 55 },
+            "datasource": { "type": "loki", "uid": "loki-coreforge" },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "sum(count_over_time({app=\"coreforge\", service=\"coreforge-app\"} |= `\"severity\":\"ERROR\"` [$__auto]))",
+                    "legendFormat": "errors"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "none",
+                    "custom": {
+                        "fillOpacity": 25,
+                        "lineWidth": 1,
+                        "showPoints": "never",
+                        "drawStyle": "bars"
+                    },
+                    "color": { "mode": "fixed", "fixedColor": "red" }
+                },
+                "overrides": []
+            },
+            "options": {
+                "legend": { "displayMode": "hidden", "placement": "bottom" },
+                "tooltip": { "mode": "single" }
+            }
+        },
+        {
+            "type": "logs",
+            "title": "App logs",
+            "gridPos": { "h": 8, "w": 18, "x": 6, "y": 55 },
+            "datasource": { "type": "loki", "uid": "loki-coreforge" },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "{app=\"coreforge\", service=\"coreforge-app\"}"
+                }
+            ],
+            "options": {
+                "showTime": true,
+                "wrapLogMessage": true,
+                "enableLogDetails": true,
+                "dedupStrategy": "none",
+                "sortOrder": "Descending"
+            }
+        },
+        {
+            "type": "row",
+            "title": "Liveness · probes",
+            "gridPos": { "h": 1, "w": 24, "x": 0, "y": 63 },
+            "collapsed": false,
+            "panels": []
+        },
+        {
+            "type": "stat",
+            "title": "Estado actual",
+            "description": "blackbox probe_success per target (app /api/healthz, obs readiness). UP means the real HTTP path responded 2xx.",
+            "gridPos": { "h": 7, "w": 4, "x": 0, "y": 64 },
+            "datasource": { "type": "prometheus", "uid": "prometheus-coreforge" },
+            "targets": [
+                { "refId": "A", "expr": "probe_success", "legendFormat": "{{name}}" }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "none",
+                    "color": { "mode": "thresholds" },
+                    "mappings": [
+                        {
+                            "type": "value",
+                            "options": {
+                                "0": { "text": "DOWN", "color": "red" },
+                                "1": { "text": "UP", "color": "green" }
+                            }
+                        }
+                    ],
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            { "color": "red", "value": null },
+                            { "color": "green", "value": 1 }
+                        ]
+                    }
+                },
+                "overrides": []
+            },
+            "options": {
+                "graphMode": "none",
+                "colorMode": "background",
+                "textMode": "value_and_name",
+                "reduceOptions": { "calcs": ["lastNotNull"] }
+            }
+        },
+        {
+            "type": "stat",
+            "title": "Disponibilidad (rango)",
+            "description": "avg_over_time(probe_success) over the dashboard range, as a percentage.",
+            "gridPos": { "h": 7, "w": 4, "x": 4, "y": 64 },
+            "datasource": { "type": "prometheus", "uid": "prometheus-coreforge" },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "avg_over_time(probe_success[$__range]) * 100",
+                    "legendFormat": "{{name}}"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "percent",
+                    "decimals": 2,
+                    "min": 0,
+                    "max": 100,
+                    "color": { "mode": "thresholds" },
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            { "color": "red", "value": null },
+                            { "color": "orange", "value": 95 },
+                            { "color": "green", "value": 99.9 }
+                        ]
+                    }
+                },
+                "overrides": []
+            },
+            "options": {
+                "graphMode": "none",
+                "colorMode": "value",
+                "textMode": "value_and_name",
+                "reduceOptions": { "calcs": ["lastNotNull"] }
+            }
+        },
+        {
+            "type": "state-timeline",
+            "title": "Historial (up / down)",
+            "gridPos": { "h": 7, "w": 8, "x": 8, "y": 64 },
+            "datasource": { "type": "prometheus", "uid": "prometheus-coreforge" },
+            "targets": [
+                { "refId": "A", "expr": "probe_success", "legendFormat": "{{name}}" }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "none",
+                    "custom": { "fillOpacity": 80, "lineWidth": 0 },
+                    "color": { "mode": "thresholds" },
+                    "mappings": [
+                        {
+                            "type": "value",
+                            "options": {
+                                "0": { "text": "DOWN", "color": "red" },
+                                "1": { "text": "UP", "color": "green" }
+                            }
+                        }
+                    ],
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            { "color": "red", "value": null },
+                            { "color": "green", "value": 1 }
+                        ]
+                    }
+                },
+                "overrides": []
+            },
+            "options": {
+                "mergeValues": true,
+                "showValue": "never",
+                "alignValue": "center",
+                "rowHeight": 0.9,
+                "legend": { "displayMode": "list", "placement": "bottom" },
+                "tooltip": { "mode": "multi", "sort": "desc" }
+            }
+        },
+        {
+            "type": "timeseries",
+            "title": "Latencia de sonda",
+            "gridPos": { "h": 7, "w": 8, "x": 16, "y": 64 },
+            "datasource": { "type": "prometheus", "uid": "prometheus-coreforge" },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "probe_duration_seconds",
+                    "legendFormat": "{{name}}"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "s",
+                    "custom": { "fillOpacity": 8, "lineWidth": 2, "showPoints": "never" },
+                    "color": { "mode": "palette-classic" }
+                },
+                "overrides": []
+            },
+            "options": {
+                "legend": { "displayMode": "list", "placement": "bottom" },
+                "tooltip": { "mode": "multi", "sort": "desc" }
+            }
+        }
+    ]
+}

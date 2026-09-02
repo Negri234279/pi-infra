@@ -1,0 +1,143 @@
+// CoreForge Alloy — two jobs, shared unchanged by dev / staging / prod:
+//
+//  1. Ship this stack's container stdout/stderr to Loki. The host runs OTHER
+//     apps' containers too, so we KEEP only containers named `coreforge-*` —
+//     this stack must not ingest foreign logs.
+//
+//  2. Terminate browser RUM. The web SDK (src/otel-web/init.ts) POSTs
+//     OTLP/HTTP from the public origin, and Tempo's OTLP receiver has no CORS
+//     support — so Alloy owns the OTLP endpoint (with a strict CORS
+//     allowlist) and fans out: traces → Tempo, logs → Loki's native /otlp.
+//     The app's server-side SDK pushes straight to Tempo and does not pass
+//     through here.
+
+// ── 1. Docker logs → Loki ───────────────────────────────────────────────
+
+discovery.docker "containers" {
+	host = "unix:///var/run/docker.sock"
+}
+
+discovery.relabel "containers" {
+	targets = discovery.docker.containers.targets
+
+	// Keep only this app's containers (container_name is `coreforge-*`).
+	rule {
+		source_labels = ["__meta_docker_container_name"]
+		regex         = "/coreforge-.*"
+		action        = "keep"
+	}
+
+	// Friendly container name (strip the leading "/").
+	rule {
+		source_labels = ["__meta_docker_container_name"]
+		regex         = "/(.*)"
+		target_label  = "container"
+	}
+
+	// Compose service name (coreforge-app, coreforge-tempo, ...).
+	rule {
+		source_labels = ["__meta_docker_container_label_com_docker_compose_service"]
+		target_label  = "service"
+	}
+}
+
+loki.source.docker "containers" {
+	host          = "unix:///var/run/docker.sock"
+	targets       = discovery.relabel.containers.output
+	relabel_rules = discovery.relabel.containers.rules
+	labels        = { job = "docker", app = "coreforge" }
+	forward_to    = [loki.write.default.receiver]
+}
+
+loki.write "default" {
+	endpoint {
+		url = "http://coreforge-loki:3100/loki/api/v1/push"
+	}
+}
+
+// ── 2. Browser RUM (OTLP in, CORS-gated) → Tempo / Loki ────────────────
+
+otelcol.receiver.otlp "rum" {
+	http {
+		endpoint = "0.0.0.0:4318"
+
+		cors {
+			// Prod + staging subdomains and the local dev server. Never "*" —
+			// a permissive OTLP endpoint is an easy DoS / data-poisoning vector.
+			allowed_origins = [
+				"https://*.negri.es",
+				"http://localhost:4300",
+				"http://127.0.0.1:4300",
+			]
+			allowed_headers = ["*"]
+			max_age         = 7200
+		}
+	}
+
+	grpc {
+		endpoint = "0.0.0.0:4317"
+	}
+
+	output {
+		traces = [otelcol.processor.batch.rum.input]
+		logs   = [otelcol.processor.batch.rum.input]
+	}
+}
+
+otelcol.processor.batch "rum" {
+	output {
+		traces = [otelcol.exporter.otlp.tempo.input]
+		logs   = [otelcol.exporter.otlphttp.loki.input]
+	}
+}
+
+otelcol.exporter.otlp "tempo" {
+	client {
+		endpoint = "coreforge-tempo:4317"
+
+		tls {
+			insecure = true
+		}
+	}
+}
+
+otelcol.exporter.otlphttp "loki" {
+	client {
+		endpoint = "http://coreforge-loki:3100/otlp"
+	}
+}
+
+// ── 3. Grafana Faro RUM (web vitals · errors · events · traces) ────────
+// The browser SDK (src/otel-web/init.ts) POSTs Faro payloads to /collect on
+// this port. Logs/events/measurements/exceptions land in Loki as logfmt lines
+// (one stream per kind), traces continue to Tempo like the OTLP path above.
+// Reached via: dev host-published 127.0.0.1:12347, staging host-published
+// 12347 (NPM custom location /collect), prod NPM → coreforge-alloy:12347 over
+// the `monitoring` network.
+
+faro.receiver "rum" {
+	server {
+		listen_address = "0.0.0.0"
+		listen_port    = 12347
+
+		cors_allowed_origins = [
+			"https://*.negri.es",
+			"http://localhost:4300",
+			"http://127.0.0.1:4300",
+		]
+	}
+
+	// The empty `kind` value is filled from each record's type (log | event |
+	// measurement | exception), so dashboards can select streams without
+	// parsing every line. The per-env app name stays in the line body as
+	// `app_name=` (logfmt).
+	extra_log_labels = {
+		job  = "faro",
+		kind = "",
+	}
+
+	output {
+		logs   = [loki.write.default.receiver]
+		traces = [otelcol.exporter.otlp.tempo.input]
+	}
+}

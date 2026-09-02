@@ -1,0 +1,63 @@
+# CoreForge datasources — SINGLE SOURCE for the dev/staging Grafana AND the
+# shared (central) Grafana in pi-infra. Service names are unified to
+# `coreforge-*`, so the SAME URLs resolve in every environment. The
+# sync-pi-infra action copies this verbatim to
+# pi-infra/core/grafana/provisioning/datasources/coreforge.yml.
+apiVersion: 1
+
+datasources:
+    - name: coreforge · Metrics
+      uid: prometheus-coreforge
+      type: prometheus
+      access: proxy
+      url: http://coreforge-prometheus:9090
+      # No isDefault: in pi-infra the central "Infra" datasource is the default;
+      # in dev panels reference datasources by uid, so a default isn't needed.
+      jsonData:
+          timeInterval: 15s
+          httpMethod: POST
+          exemplarTraceIdDestinations:
+              - name: trace_id
+                datasourceUid: tempo-coreforge
+
+    - name: coreforge · Logs
+      uid: loki-coreforge
+      type: loki
+      access: proxy
+      url: http://coreforge-loki:3100
+      jsonData:
+          derivedFields:
+              # src/lib/logger.ts writes one JSON line per record with the
+              # active span's ids: {"trace_id":"...","span_id":"..."}.
+              - name: TraceID
+                matcherType: regex
+                matcherRegex: '"trace_id":"(\w+)"'
+                url: '$${__value.raw}'
+                datasourceUid: tempo-coreforge
+                urlDisplayLabel: View trace
+
+    - name: coreforge · Traces
+      uid: tempo-coreforge
+      type: tempo
+      access: proxy
+      url: http://coreforge-tempo:3200
+      jsonData:
+          tracesToLogsV2:
+              datasourceUid: loki-coreforge
+              filterByTraceID: true
+              spanStartTimeShift: -1h
+              spanEndTimeShift: 1h
+          serviceMap:
+              datasourceUid: prometheus-coreforge
+          nodeGraph:
+              enabled: true
+
+    # Prometheus-native alerts surfaced in Grafana's Alerting UI.
+    - name: coreforge · Alerts
+      uid: alertmanager-coreforge
+      type: alertmanager
+      access: proxy
+      url: http://coreforge-alertmanager:9093
+      jsonData:
+          implementation: prometheus
+          handleGrafanaManagedAlerts: false

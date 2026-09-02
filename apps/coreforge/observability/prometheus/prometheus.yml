@@ -1,0 +1,74 @@
+# CoreForge Prometheus — SINGLE SOURCE shared by dev / staging / prod.
+#
+# Works in every env because all service names are unified to `coreforge-*`.
+# The one thing that differs per env — where the app itself runs — is dropped
+# as a file into scrape.d/ (dev scrapes host.docker.internal:4300 because the
+# Astro dev server runs on the host; staging/prod scrape coreforge-app:4321).
+
+global:
+    scrape_interval: 15s
+    evaluation_interval: 15s
+    external_labels:
+        app: coreforge
+
+rule_files:
+    - /etc/prometheus/rules/*.yml
+
+# Per-environment extra scrape jobs (the app target lives here).
+scrape_config_files:
+    - /etc/prometheus/scrape.d/*.yml
+
+alerting:
+    alertmanagers:
+        - static_configs:
+              - targets: ['coreforge-alertmanager:9093']
+
+scrape_configs:
+    - job_name: coreforge-prometheus
+      static_configs:
+          - targets: ['localhost:9090']
+
+    # Self-health of the observability stack (each service exposes /metrics).
+    - job_name: coreforge-loki
+      static_configs:
+          - targets: ['coreforge-loki:3100']
+
+    - job_name: coreforge-tempo
+      static_configs:
+          - targets: ['coreforge-tempo:3200']
+
+    - job_name: coreforge-alloy
+      static_configs:
+          - targets: ['coreforge-alloy:12345']
+
+    - job_name: coreforge-alertmanager
+      static_configs:
+          - targets: ['coreforge-alertmanager:9093']
+
+    - job_name: coreforge-blackbox
+      static_configs:
+          - targets: ['coreforge-blackbox:9115']
+
+    # Blackbox liveness/readiness probes of the obs stack's HTTP endpoints.
+    # Prometheus passes the TARGET as ?target=; relabeling rewrites __address__
+    # to the exporter and keeps the target URL as `instance`. The per-target
+    # `name` label makes the dashboard/alerts readable. Loki/Tempo readiness
+    # (`/ready`) is a stronger signal than their `up` metric: /metrics can scrape
+    # while the service is still replaying and not yet serving. The APP's own
+    # `/api/healthz` probe lives in scrape.d/ (its address differs per env).
+    - job_name: blackbox-http
+      metrics_path: /probe
+      params:
+          module: [http_2xx]
+      static_configs:
+          - targets: ['http://coreforge-loki:3100/ready']
+            labels: { name: loki }
+          - targets: ['http://coreforge-tempo:3200/ready']
+            labels: { name: tempo }
+      relabel_configs:
+          - source_labels: [__address__]
+            target_label: __param_target
+          - source_labels: [__param_target]
+            target_label: instance
+          - target_label: __address__
+            replacement: 'coreforge-blackbox:9115'

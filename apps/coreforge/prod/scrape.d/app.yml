@@ -1,0 +1,24 @@
+# Prod app target: the app container on the shared coreforge-net network.
+scrape_configs:
+    - job_name: coreforge-app
+      metrics_path: /metrics
+      static_configs:
+          - targets: ['coreforge-app:4321']
+
+    # End-to-end liveness probe of the app's real HTTP handler (blackbox → app).
+    # The target address is per-env (here the prod container), hence it lives in
+    # scrape.d/ rather than the shared prometheus.yml. See blackbox/blackbox.yml.
+    - job_name: blackbox-app
+      metrics_path: /probe
+      params:
+          module: [http_2xx]
+      static_configs:
+          - targets: ['http://coreforge-app:4321/api/healthz']
+            labels: { name: app }
+      relabel_configs:
+          - source_labels: [__address__]
+            target_label: __param_target
+          - source_labels: [__param_target]
+            target_label: instance
+          - target_label: __address__
+            replacement: 'coreforge-blackbox:9115'
