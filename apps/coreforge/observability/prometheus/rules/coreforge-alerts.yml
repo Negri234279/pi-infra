@@ -1,0 +1,95 @@
+# CoreForge alert rules (Prometheus-native; routed to coreforge's own
+# Alertmanager → Discord). Every alert carries `app: coreforge` so routing and
+# the central Grafana can distinguish this app's alerts from other stacks.
+#
+# The `job` label comes from the scrape config: `coreforge-app` is defined per
+# env in scrape.d/ (host in dev, container in staging/prod), so these exprs
+# work unchanged in all three environments.
+
+groups:
+    # ── Health: is the app up ─────────────────────────────────────
+    - name: coreforge-health
+      rules:
+          - alert: CoreforgeAppDown
+            expr: up{job="coreforge-app"} == 0
+            for: 2m
+            labels: { app: coreforge, severity: critical }
+            annotations:
+                summary: 'coreforge app target down'
+                description: 'coreforge-app is not being scraped (up == 0) for >2m.'
+
+          - alert: CoreforgeEventPersistFailures
+            expr: increase(coreforge_events_persist_failures_total[10m]) > 0
+            for: 0m
+            labels: { app: coreforge, severity: warning }
+            annotations:
+                summary: 'coreforge usage events failing to persist'
+                description: 'logEvent could not write to SQLite in the last 10m — check disk / db locks.'
+
+    # ── SLO / runtime ─────────────────────────────────────────────
+    - name: coreforge-slo
+      rules:
+          - alert: CoreforgeHigh5xxRatio
+            expr: >-
+                sum(rate(http_request_duration_seconds_count{job="coreforge-app", status=~"5.."}[5m]))
+                /
+                clamp_min(sum(rate(http_request_duration_seconds_count{job="coreforge-app"}[5m])), 0.001)
+                > 0.05
+            for: 5m
+            labels: { app: coreforge, severity: critical }
+            annotations:
+                summary: 'coreforge high 5xx ratio'
+                description: '>5% of requests are returning 5xx (5m window).'
+
+          - alert: CoreforgeHighLatencyP95
+            expr: >-
+                histogram_quantile(0.95,
+                  sum by (le) (rate(http_request_duration_seconds_bucket{job="coreforge-app"}[5m])))
+                > 1
+            for: 10m
+            labels: { app: coreforge, severity: warning }
+            annotations:
+                summary: 'coreforge p95 latency high'
+                description: 'p95 request duration > 1s for 10m.'
+
+          - alert: CoreforgeEventLoopLagHigh
+            expr: nodejs_eventloop_lag_p99_seconds{job="coreforge-app"} > 0.2
+            for: 5m
+            labels: { app: coreforge, severity: warning }
+            annotations:
+                summary: 'coreforge event loop lag p99 high'
+                description: 'Node.js event loop p99 lag > 200ms (process saturated).'
+
+    # ── Liveness probes (blackbox) ────────────────────────────────
+    # probe_success comes from the blackbox exporter; `name` is the per-target
+    # label set in the scrape config (app / loki / tempo). These probe the REAL
+    # HTTP request path, so they can fire even while `up` stays 1 (process is
+    # scrapeable but the handler is wedged, or the service isn't ready yet).
+    - name: coreforge-probes
+      rules:
+          - alert: CoreforgeProbeDown
+            expr: probe_success == 0
+            for: 2m
+            labels: { app: coreforge, severity: critical }
+            annotations:
+                summary: 'coreforge liveness probe failing ({{ $labels.name }})'
+                description: 'blackbox probe of {{ $labels.instance }} has been failing (probe_success == 0) for >2m.'
+
+          - alert: CoreforgeProbeSlow
+            expr: probe_duration_seconds > 2
+            for: 10m
+            labels: { app: coreforge, severity: warning }
+            annotations:
+                summary: 'coreforge probe slow ({{ $labels.name }})'
+                description: 'blackbox probe of {{ $labels.instance }} took >2s for 10m — the endpoint is degraded.'
+
+    # ── Observability self-health ─────────────────────────────────
+    - name: coreforge-obs
+      rules:
+          - alert: CoreforgeObsComponentDown
+            expr: up{job=~"coreforge-(loki|tempo|alloy|alertmanager|blackbox)"} == 0
+            for: 5m
+            labels: { app: coreforge, severity: warning }
+            annotations:
+                summary: 'coreforge observability component down ({{ $labels.job }})'
+                description: '{{ $labels.job }} has not been scraped for >5m — telemetry may be dropping.'
