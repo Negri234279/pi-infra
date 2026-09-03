@@ -10,7 +10,7 @@ datasources:
     uid: prometheus-infra
     type: prometheus
     access: proxy
-    url: http://prometheus-infra:9090
+    url: http://prometheus:9090
     isDefault: true
     jsonData:
       timeInterval: 15s
