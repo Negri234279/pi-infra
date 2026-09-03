@@ -28,14 +28,20 @@ services:
       - GF_SECURITY_ADMIN_PASSWORD=${GF_ADMIN_PASSWORD:-admin}
       - GF_USERS_ALLOW_SIGN_UP=false
       - GF_ANALYTICS_REPORTING_ENABLED=false
-      # Infinity datasource: lets the Cloudflare dashboard query the CF GraphQL
-      # Analytics API directly for the per-subdomain breakdown (the exporter below
-      # only produces zone-wide totals). Installed on first boot (needs internet).
-      - GF_INSTALL_PLUGINS=yesoreyeram-infinity-datasource
+      # Plugins installed on first boot (needs internet):
+      #  - Infinity: Cloudflare GraphQL panels + the GitHub REST / Docker Hub
+      #    panels on the CI/CD dashboard.
+      #  - GitHub: the official datasource for the CI/CD dashboard's repo-context
+      #    panels (PRs, commits, releases, workflows).
+      - GF_INSTALL_PLUGINS=yesoreyeram-infinity-datasource,grafana-github-datasource
       # Passed through so the provisioned Infinity datasource can authenticate to
       # Cloudflare with the same token the exporter uses. Empty → panel just shows
       # no data; nothing else breaks.
       - CF_API_TOKEN=${CF_API_TOKEN:-}
+      # GitHub read-only PAT for the CI/CD dashboard (official GitHub datasource +
+      # the GitHub REST Infinity datasource). Empty → GitHub panels show no data or
+      # hit the 60 req/h anonymous limit; nothing else breaks. Scopes: see .env.example.
+      - GITHUB_TOKEN=${GITHUB_TOKEN:-}
     volumes:
       - grafana-data:/var/lib/grafana
       - ./grafana/provisioning:/etc/grafana/provisioning:ro

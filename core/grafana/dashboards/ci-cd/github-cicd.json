@@ -1,0 +1,628 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "graphTooltip": 1,
+  "schemaVersion": 39,
+  "version": 1,
+  "tags": ["ci-cd", "github", "docker"],
+  "title": "CI/CD · GitHub + Docker Hub",
+  "uid": "ci-cd-github",
+  "timezone": "browser",
+  "time": { "from": "now-30d", "to": "now" },
+  "refresh": "5m",
+  "templating": {
+    "list": [
+      {
+        "name": "owner",
+        "label": "GitHub owner",
+        "description": "GitHub user/org that owns the repos.",
+        "type": "textbox",
+        "query": "Negri234279",
+        "current": { "text": "Negri234279", "value": "Negri234279" }
+      },
+      {
+        "name": "repo",
+        "label": "Repository",
+        "description": "Repo whose CI/CD is shown. Edit this list to add/remove repos.",
+        "type": "custom",
+        "query": "pi-infra,coreforge,powerlog,proxy-control,wake-lan-app,docker-notifier",
+        "current": { "text": "pi-infra", "value": "pi-infra" },
+        "options": [
+          { "text": "pi-infra", "value": "pi-infra", "selected": true },
+          { "text": "coreforge", "value": "coreforge", "selected": false },
+          { "text": "powerlog", "value": "powerlog", "selected": false },
+          { "text": "proxy-control", "value": "proxy-control", "selected": false },
+          { "text": "wake-lan-app", "value": "wake-lan-app", "selected": false },
+          { "text": "docker-notifier", "value": "docker-notifier", "selected": false }
+        ]
+      },
+      {
+        "name": "dh_namespace",
+        "label": "Docker Hub user",
+        "description": "Docker Hub namespace/user for the image panels.",
+        "type": "textbox",
+        "query": "negrii",
+        "current": { "text": "negrii", "value": "negrii" }
+      },
+      {
+        "name": "dh_image",
+        "label": "Docker Hub image",
+        "description": "Image whose tag/build history is shown.",
+        "type": "custom",
+        "query": "docker-notifier,coreforge-conveyor-filters,powerlog-api,powerlog-web,proxy-control,wake-lan-app",
+        "current": { "text": "docker-notifier", "value": "docker-notifier" },
+        "options": [
+          { "text": "docker-notifier", "value": "docker-notifier", "selected": true },
+          { "text": "coreforge-conveyor-filters", "value": "coreforge-conveyor-filters", "selected": false },
+          { "text": "powerlog-api", "value": "powerlog-api", "selected": false },
+          { "text": "powerlog-web", "value": "powerlog-web", "selected": false },
+          { "text": "proxy-control", "value": "proxy-control", "selected": false },
+          { "text": "wake-lan-app", "value": "wake-lan-app", "selected": false }
+        ]
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "text",
+      "gridPos": { "h": 3, "w": 24, "x": 0, "y": 0 },
+      "options": {
+        "mode": "markdown",
+        "content": "**CI/CD for `$owner/$repo`.** GitHub **Actions** panels (KPIs, latest runs, in-progress, outcome timeline) query the **GitHub REST API** live via Infinity (`/actions/runs` — every workflow in one call). **Repo context** (PRs, commits, releases, workflows) uses the **official GitHub datasource**. **Docker Hub** panels query Docker Hub's public API (image publish times + per-tag build history). GitHub needs a read-only PAT in `$GITHUB_TOKEN`; Docker Hub needs none. KPIs are bound to the dashboard time range (`created >= from`)."
+      }
+    },
+
+    { "id": 2, "type": "row", "title": "GitHub Actions · $repo", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 3 } },
+
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Total runs",
+      "description": "Workflow runs created within the dashboard time range.",
+      "datasource": { "type": "yesoreyeram-infinity-datasource", "uid": "github-rest" },
+      "gridPos": { "h": 4, "w": 4, "x": 0, "y": 4 },
+      "fieldConfig": { "defaults": { "unit": "short", "color": { "mode": "fixed", "fixedColor": "blue" } }, "overrides": [] },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "" }, "colorMode": "value", "graphMode": "none", "textMode": "value" },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "yesoreyeram-infinity-datasource", "uid": "github-rest" },
+          "type": "json", "source": "url", "format": "table", "parser": "backend",
+          "url": "https://api.github.com/repos/$owner/$repo/actions/runs",
+          "url_options": { "method": "GET", "headers": [ { "key": "Accept", "value": "application/vnd.github+json" } ], "params": [ { "key": "per_page", "value": "1" }, { "key": "created", "value": ">=${__from:date:YYYY-MM-DD}" } ] },
+          "root_selector": "",
+          "columns": [ { "selector": "total_count", "text": "Total", "type": "number" } ]
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Success",
+      "description": "Runs that completed successfully in range.",
+      "datasource": { "type": "yesoreyeram-infinity-datasource", "uid": "github-rest" },
+      "gridPos": { "h": 4, "w": 4, "x": 4, "y": 4 },
+      "fieldConfig": { "defaults": { "unit": "short", "color": { "mode": "fixed", "fixedColor": "green" } }, "overrides": [] },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "" }, "colorMode": "value", "graphMode": "none", "textMode": "value" },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "yesoreyeram-infinity-datasource", "uid": "github-rest" },
+          "type": "json", "source": "url", "format": "table", "parser": "backend",
+          "url": "https://api.github.com/repos/$owner/$repo/actions/runs",
+          "url_options": { "method": "GET", "headers": [ { "key": "Accept", "value": "application/vnd.github+json" } ], "params": [ { "key": "per_page", "value": "1" }, { "key": "status", "value": "success" }, { "key": "created", "value": ">=${__from:date:YYYY-MM-DD}" } ] },
+          "root_selector": "",
+          "columns": [ { "selector": "total_count", "text": "Success", "type": "number" } ]
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "type": "stat",
+      "title": "Failed",
+      "description": "Runs that concluded as failure in range.",
+      "datasource": { "type": "yesoreyeram-infinity-datasource", "uid": "github-rest" },
+      "gridPos": { "h": 4, "w": 4, "x": 8, "y": 4 },
+      "fieldConfig": { "defaults": { "unit": "short", "color": { "mode": "fixed", "fixedColor": "red" } }, "overrides": [] },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "" }, "colorMode": "value", "graphMode": "none", "textMode": "value" },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "yesoreyeram-infinity-datasource", "uid": "github-rest" },
+          "type": "json", "source": "url", "format": "table", "parser": "backend",
+          "url": "https://api.github.com/repos/$owner/$repo/actions/runs",
+          "url_options": { "method": "GET", "headers": [ { "key": "Accept", "value": "application/vnd.github+json" } ], "params": [ { "key": "per_page", "value": "1" }, { "key": "status", "value": "failure" }, { "key": "created", "value": ">=${__from:date:YYYY-MM-DD}" } ] },
+          "root_selector": "",
+          "columns": [ { "selector": "total_count", "text": "Failed", "type": "number" } ]
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "type": "stat",
+      "title": "In progress",
+      "description": "Runs currently executing.",
+      "datasource": { "type": "yesoreyeram-infinity-datasource", "uid": "github-rest" },
+      "gridPos": { "h": 4, "w": 4, "x": 12, "y": 4 },
+      "fieldConfig": { "defaults": { "unit": "short", "color": { "mode": "fixed", "fixedColor": "yellow" } }, "overrides": [] },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "" }, "colorMode": "value", "graphMode": "none", "textMode": "value" },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "yesoreyeram-infinity-datasource", "uid": "github-rest" },
+          "type": "json", "source": "url", "format": "table", "parser": "backend",
+          "url": "https://api.github.com/repos/$owner/$repo/actions/runs",
+          "url_options": { "method": "GET", "headers": [ { "key": "Accept", "value": "application/vnd.github+json" } ], "params": [ { "key": "per_page", "value": "1" }, { "key": "status", "value": "in_progress" } ] },
+          "root_selector": "",
+          "columns": [ { "selector": "total_count", "text": "In progress", "type": "number" } ]
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "type": "stat",
+      "title": "Queued",
+      "description": "Runs waiting for a runner.",
+      "datasource": { "type": "yesoreyeram-infinity-datasource", "uid": "github-rest" },
+      "gridPos": { "h": 4, "w": 4, "x": 16, "y": 4 },
+      "fieldConfig": { "defaults": { "unit": "short", "color": { "mode": "fixed", "fixedColor": "orange" } }, "overrides": [] },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "" }, "colorMode": "value", "graphMode": "none", "textMode": "value" },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "yesoreyeram-infinity-datasource", "uid": "github-rest" },
+          "type": "json", "source": "url", "format": "table", "parser": "backend",
+          "url": "https://api.github.com/repos/$owner/$repo/actions/runs",
+          "url_options": { "method": "GET", "headers": [ { "key": "Accept", "value": "application/vnd.github+json" } ], "params": [ { "key": "per_page", "value": "1" }, { "key": "status", "value": "queued" } ] },
+          "root_selector": "",
+          "columns": [ { "selector": "total_count", "text": "Queued", "type": "number" } ]
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "type": "stat",
+      "title": "Cancelled",
+      "description": "Runs cancelled in range.",
+      "datasource": { "type": "yesoreyeram-infinity-datasource", "uid": "github-rest" },
+      "gridPos": { "h": 4, "w": 4, "x": 20, "y": 4 },
+      "fieldConfig": { "defaults": { "unit": "short", "color": { "mode": "fixed", "fixedColor": "text" } }, "overrides": [] },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "" }, "colorMode": "value", "graphMode": "none", "textMode": "value" },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "yesoreyeram-infinity-datasource", "uid": "github-rest" },
+          "type": "json", "source": "url", "format": "table", "parser": "backend",
+          "url": "https://api.github.com/repos/$owner/$repo/actions/runs",
+          "url_options": { "method": "GET", "headers": [ { "key": "Accept", "value": "application/vnd.github+json" } ], "params": [ { "key": "per_page", "value": "1" }, { "key": "status", "value": "cancelled" }, { "key": "created", "value": ">=${__from:date:YYYY-MM-DD}" } ] },
+          "root_selector": "",
+          "columns": [ { "selector": "total_count", "text": "Cancelled", "type": "number" } ]
+        }
+      ]
+    },
+
+    {
+      "id": 9,
+      "type": "table",
+      "title": "Latest runs · $repo",
+      "description": "The 30 most recent workflow runs across ALL workflows. Which workflow, branch, event, actor, live status and final conclusion. Click the title to open the run on GitHub.",
+      "datasource": { "type": "yesoreyeram-infinity-datasource", "uid": "github-rest" },
+      "gridPos": { "h": 11, "w": 24, "x": 0, "y": 8 },
+      "options": { "showHeader": true, "cellHeight": "sm" },
+      "fieldConfig": {
+        "defaults": { "custom": { "align": "auto", "filterable": true } },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Title" },
+            "properties": [
+              { "id": "links", "value": [ { "title": "Open run on GitHub", "url": "${__data.fields.URL}", "targetBlank": true } ] }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Conclusion" },
+            "properties": [
+              { "id": "custom.cellOptions", "value": { "type": "color-text" } },
+              { "id": "mappings", "value": [
+                { "type": "value", "options": { "success": { "color": "green", "index": 0 }, "failure": { "color": "red", "index": 1 }, "cancelled": { "color": "text", "index": 2 }, "skipped": { "color": "text", "index": 3 }, "timed_out": { "color": "red", "index": 4 }, "startup_failure": { "color": "red", "index": 5 }, "action_required": { "color": "orange", "index": 6 } } },
+                { "type": "special", "options": { "match": "null", "result": { "text": "running", "color": "yellow", "index": 7 } } }
+              ] }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Status" },
+            "properties": [
+              { "id": "custom.cellOptions", "value": { "type": "color-text" } },
+              { "id": "mappings", "value": [
+                { "type": "value", "options": { "completed": { "color": "text", "index": 0 }, "in_progress": { "color": "yellow", "index": 1 }, "queued": { "color": "orange", "index": 2 }, "waiting": { "color": "orange", "index": 3 }, "requested": { "color": "orange", "index": 4 } } }
+              ] }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "URL" },
+            "properties": [ { "id": "custom.hidden", "value": true } ]
+          }
+        ]
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "yesoreyeram-infinity-datasource", "uid": "github-rest" },
+          "type": "json", "source": "url", "format": "table", "parser": "backend",
+          "url": "https://api.github.com/repos/$owner/$repo/actions/runs",
+          "url_options": { "method": "GET", "headers": [ { "key": "Accept", "value": "application/vnd.github+json" } ], "params": [ { "key": "per_page", "value": "30" } ] },
+          "root_selector": "workflow_runs",
+          "columns": [
+            { "selector": "run_number", "text": "#", "type": "number" },
+            { "selector": "name", "text": "Workflow", "type": "string" },
+            { "selector": "display_title", "text": "Title", "type": "string" },
+            { "selector": "event", "text": "Event", "type": "string" },
+            { "selector": "head_branch", "text": "Branch", "type": "string" },
+            { "selector": "status", "text": "Status", "type": "string" },
+            { "selector": "conclusion", "text": "Conclusion", "type": "string" },
+            { "selector": "actor.login", "text": "Actor", "type": "string" },
+            { "selector": "run_started_at", "text": "Started", "type": "timestamp" },
+            { "selector": "updated_at", "text": "Updated", "type": "timestamp" },
+            { "selector": "html_url", "text": "URL", "type": "string" }
+          ]
+        }
+      ]
+    },
+
+    {
+      "id": 10,
+      "type": "table",
+      "title": "Running / queued now · $repo",
+      "description": "Runs currently in progress or queued — what is executing right now and since when. GitHub does not expose a percentage; 'Started' shows how long it has been running.",
+      "datasource": { "type": "yesoreyeram-infinity-datasource", "uid": "github-rest" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 19 },
+      "options": { "showHeader": true, "cellHeight": "sm" },
+      "fieldConfig": {
+        "defaults": { "custom": { "align": "auto", "filterable": true } },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Title" },
+            "properties": [ { "id": "links", "value": [ { "title": "Open run on GitHub", "url": "${__data.fields.URL}", "targetBlank": true } ] } ]
+          },
+          { "matcher": { "id": "byName", "options": "URL" }, "properties": [ { "id": "custom.hidden", "value": true } ] }
+        ]
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "yesoreyeram-infinity-datasource", "uid": "github-rest" },
+          "type": "json", "source": "url", "format": "table", "parser": "backend",
+          "url": "https://api.github.com/repos/$owner/$repo/actions/runs",
+          "url_options": { "method": "GET", "headers": [ { "key": "Accept", "value": "application/vnd.github+json" } ], "params": [ { "key": "per_page", "value": "15" }, { "key": "status", "value": "in_progress" } ] },
+          "root_selector": "workflow_runs",
+          "columns": [
+            { "selector": "name", "text": "Workflow", "type": "string" },
+            { "selector": "display_title", "text": "Title", "type": "string" },
+            { "selector": "head_branch", "text": "Branch", "type": "string" },
+            { "selector": "status", "text": "Status", "type": "string" },
+            { "selector": "run_started_at", "text": "Started", "type": "timestamp" },
+            { "selector": "actor.login", "text": "Actor", "type": "string" },
+            { "selector": "html_url", "text": "URL", "type": "string" }
+          ]
+        },
+        {
+          "refId": "B",
+          "datasource": { "type": "yesoreyeram-infinity-datasource", "uid": "github-rest" },
+          "type": "json", "source": "url", "format": "table", "parser": "backend",
+          "url": "https://api.github.com/repos/$owner/$repo/actions/runs",
+          "url_options": { "method": "GET", "headers": [ { "key": "Accept", "value": "application/vnd.github+json" } ], "params": [ { "key": "per_page", "value": "15" }, { "key": "status", "value": "queued" } ] },
+          "root_selector": "workflow_runs",
+          "columns": [
+            { "selector": "name", "text": "Workflow", "type": "string" },
+            { "selector": "display_title", "text": "Title", "type": "string" },
+            { "selector": "head_branch", "text": "Branch", "type": "string" },
+            { "selector": "status", "text": "Status", "type": "string" },
+            { "selector": "run_started_at", "text": "Started", "type": "timestamp" },
+            { "selector": "actor.login", "text": "Actor", "type": "string" },
+            { "selector": "html_url", "text": "URL", "type": "string" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "type": "bargauge",
+      "title": "Runs by outcome (range) · $repo",
+      "description": "Count of runs per outcome within the dashboard time range.",
+      "datasource": { "type": "yesoreyeram-infinity-datasource", "uid": "github-rest" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 19 },
+      "fieldConfig": { "defaults": { "unit": "short", "color": { "mode": "palette-classic" } }, "overrides": [
+        { "matcher": { "id": "byName", "options": "Success" }, "properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "green" } } ] },
+        { "matcher": { "id": "byName", "options": "Failed" }, "properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "red" } } ] },
+        { "matcher": { "id": "byName", "options": "Cancelled" }, "properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "text" } } ] }
+      ] },
+      "options": { "displayMode": "gradient", "orientation": "horizontal", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "" }, "showUnfilled": true },
+      "targets": [
+        {
+          "refId": "A", "datasource": { "type": "yesoreyeram-infinity-datasource", "uid": "github-rest" },
+          "type": "json", "source": "url", "format": "table", "parser": "backend",
+          "url": "https://api.github.com/repos/$owner/$repo/actions/runs",
+          "url_options": { "method": "GET", "headers": [ { "key": "Accept", "value": "application/vnd.github+json" } ], "params": [ { "key": "per_page", "value": "1" }, { "key": "status", "value": "success" }, { "key": "created", "value": ">=${__from:date:YYYY-MM-DD}" } ] },
+          "root_selector": "", "columns": [ { "selector": "total_count", "text": "Success", "type": "number" } ]
+        },
+        {
+          "refId": "B", "datasource": { "type": "yesoreyeram-infinity-datasource", "uid": "github-rest" },
+          "type": "json", "source": "url", "format": "table", "parser": "backend",
+          "url": "https://api.github.com/repos/$owner/$repo/actions/runs",
+          "url_options": { "method": "GET", "headers": [ { "key": "Accept", "value": "application/vnd.github+json" } ], "params": [ { "key": "per_page", "value": "1" }, { "key": "status", "value": "failure" }, { "key": "created", "value": ">=${__from:date:YYYY-MM-DD}" } ] },
+          "root_selector": "", "columns": [ { "selector": "total_count", "text": "Failed", "type": "number" } ]
+        },
+        {
+          "refId": "C", "datasource": { "type": "yesoreyeram-infinity-datasource", "uid": "github-rest" },
+          "type": "json", "source": "url", "format": "table", "parser": "backend",
+          "url": "https://api.github.com/repos/$owner/$repo/actions/runs",
+          "url_options": { "method": "GET", "headers": [ { "key": "Accept", "value": "application/vnd.github+json" } ], "params": [ { "key": "per_page", "value": "1" }, { "key": "status", "value": "cancelled" }, { "key": "created", "value": ">=${__from:date:YYYY-MM-DD}" } ] },
+          "root_selector": "", "columns": [ { "selector": "total_count", "text": "Cancelled", "type": "number" } ]
+        }
+      ]
+    },
+
+    {
+      "id": 12,
+      "type": "state-timeline",
+      "title": "Run outcomes over time (last 100) · $repo",
+      "description": "Each recent run placed on a timeline by start time and coloured by conclusion — the cadence and health of the pipeline at a glance.",
+      "datasource": { "type": "yesoreyeram-infinity-datasource", "uid": "github-rest" },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 27 },
+      "options": { "showValue": "never", "rowHeight": 0.9, "mergeValues": false, "alignValue": "center", "legend": { "displayMode": "list", "placement": "bottom" } },
+      "fieldConfig": {
+        "defaults": {
+          "custom": { "fillOpacity": 80, "lineWidth": 0 },
+          "mappings": [
+            { "type": "value", "options": { "success": { "color": "green", "index": 0 }, "failure": { "color": "red", "index": 1 }, "cancelled": { "color": "dark-yellow", "index": 2 }, "skipped": { "color": "text", "index": 3 }, "timed_out": { "color": "red", "index": 4 }, "startup_failure": { "color": "red", "index": 5 } } },
+            { "type": "special", "options": { "match": "null", "result": { "text": "running", "color": "yellow", "index": 6 } } }
+          ],
+          "color": { "mode": "fixed", "fixedColor": "green" }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A", "datasource": { "type": "yesoreyeram-infinity-datasource", "uid": "github-rest" },
+          "type": "json", "source": "url", "format": "table", "parser": "backend",
+          "url": "https://api.github.com/repos/$owner/$repo/actions/runs",
+          "url_options": { "method": "GET", "headers": [ { "key": "Accept", "value": "application/vnd.github+json" } ], "params": [ { "key": "per_page", "value": "100" } ] },
+          "root_selector": "workflow_runs",
+          "columns": [
+            { "selector": "run_started_at", "text": "Time", "type": "timestamp" },
+            { "selector": "conclusion", "text": "Outcome", "type": "string" }
+          ]
+        }
+      ]
+    },
+
+    { "id": 13, "type": "row", "title": "Repository context · $repo", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 35 } },
+
+    {
+      "id": 14,
+      "type": "table",
+      "title": "Open pull requests",
+      "description": "Currently open PRs (official GitHub datasource).",
+      "datasource": { "type": "grafana-github-datasource", "uid": "github-cicd" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 36 },
+      "options": { "showHeader": true, "cellHeight": "sm" },
+      "fieldConfig": { "defaults": { "custom": { "align": "auto", "filterable": true } }, "overrides": [] },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "grafana-github-datasource", "uid": "github-cicd" },
+          "queryType": "Pull_Requests",
+          "owner": "$owner",
+          "repository": "$repo",
+          "options": { "query": "is:open", "timeField": 4 }
+        }
+      ]
+    },
+    {
+      "id": 15,
+      "type": "table",
+      "title": "Merged pull requests (range)",
+      "description": "PRs merged within the dashboard time range (official GitHub datasource).",
+      "datasource": { "type": "grafana-github-datasource", "uid": "github-cicd" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 36 },
+      "options": { "showHeader": true, "cellHeight": "sm" },
+      "fieldConfig": { "defaults": { "custom": { "align": "auto", "filterable": true } }, "overrides": [] },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "grafana-github-datasource", "uid": "github-cicd" },
+          "queryType": "Pull_Requests",
+          "owner": "$owner",
+          "repository": "$repo",
+          "options": { "query": "is:merged", "timeField": 2 }
+        }
+      ]
+    },
+    {
+      "id": 16,
+      "type": "table",
+      "title": "Recent commits (default branch, range)",
+      "description": "Commits on the default branch within the time range (official GitHub datasource).",
+      "datasource": { "type": "grafana-github-datasource", "uid": "github-cicd" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 44 },
+      "options": { "showHeader": true, "cellHeight": "sm" },
+      "fieldConfig": { "defaults": { "custom": { "align": "auto", "filterable": true } }, "overrides": [] },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "grafana-github-datasource", "uid": "github-cicd" },
+          "queryType": "Commits",
+          "owner": "$owner",
+          "repository": "$repo",
+          "options": { "gitRef": "" }
+        }
+      ]
+    },
+    {
+      "id": 17,
+      "type": "table",
+      "title": "Releases",
+      "description": "Published releases (official GitHub datasource).",
+      "datasource": { "type": "grafana-github-datasource", "uid": "github-cicd" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 44 },
+      "options": { "showHeader": true, "cellHeight": "sm" },
+      "fieldConfig": { "defaults": { "custom": { "align": "auto", "filterable": true } }, "overrides": [] },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "grafana-github-datasource", "uid": "github-cicd" },
+          "queryType": "Releases",
+          "owner": "$owner",
+          "repository": "$repo",
+          "options": {}
+        }
+      ]
+    },
+    {
+      "id": 18,
+      "type": "table",
+      "title": "Workflows defined in $repo",
+      "description": "The workflow definitions in the repo and their state (active/disabled). Official GitHub datasource.",
+      "datasource": { "type": "grafana-github-datasource", "uid": "github-cicd" },
+      "gridPos": { "h": 6, "w": 24, "x": 0, "y": 52 },
+      "options": { "showHeader": true, "cellHeight": "sm" },
+      "fieldConfig": { "defaults": { "custom": { "align": "auto", "filterable": true } }, "overrides": [] },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "grafana-github-datasource", "uid": "github-cicd" },
+          "queryType": "Workflows",
+          "owner": "$owner",
+          "repository": "$repo",
+          "options": { "timeField": 0 }
+        }
+      ]
+    },
+
+    { "id": 19, "type": "row", "title": "Docker Hub · $dh_namespace", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 58 } },
+
+    {
+      "id": 20,
+      "type": "table",
+      "title": "Images — last published",
+      "description": "Every repository under the Docker Hub namespace and when it was last pushed (its most recent build). Docker Hub public API.",
+      "datasource": { "type": "yesoreyeram-infinity-datasource", "uid": "dockerhub" },
+      "gridPos": { "h": 8, "w": 16, "x": 0, "y": 59 },
+      "options": { "showHeader": true, "cellHeight": "sm" },
+      "fieldConfig": { "defaults": { "custom": { "align": "auto", "filterable": true } }, "overrides": [
+        { "matcher": { "id": "byName", "options": "Last pushed" }, "properties": [ { "id": "custom.cellOptions", "value": { "type": "color-text" } }, { "id": "unit", "value": "dateTimeFromNow" } ] }
+      ] },
+      "transformations": [ { "id": "sortBy", "options": { "sort": [ { "field": "Last pushed", "desc": true } ] } } ],
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "yesoreyeram-infinity-datasource", "uid": "dockerhub" },
+          "type": "json", "source": "url", "format": "table", "parser": "backend",
+          "url": "https://hub.docker.com/v2/namespaces/$dh_namespace/repositories/",
+          "url_options": { "method": "GET", "params": [ { "key": "page_size", "value": "100" } ] },
+          "root_selector": "results",
+          "columns": [
+            { "selector": "name", "text": "Image", "type": "string" },
+            { "selector": "last_updated", "text": "Last pushed", "type": "timestamp" },
+            { "selector": "pull_count", "text": "Pulls", "type": "number" },
+            { "selector": "star_count", "text": "Stars", "type": "number" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 21,
+      "type": "stat",
+      "title": "Images",
+      "description": "Number of repositories in the namespace.",
+      "datasource": { "type": "yesoreyeram-infinity-datasource", "uid": "dockerhub" },
+      "gridPos": { "h": 4, "w": 4, "x": 16, "y": 59 },
+      "fieldConfig": { "defaults": { "unit": "short", "color": { "mode": "fixed", "fixedColor": "blue" } }, "overrides": [] },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "" }, "colorMode": "value", "graphMode": "none", "textMode": "value" },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "yesoreyeram-infinity-datasource", "uid": "dockerhub" },
+          "type": "json", "source": "url", "format": "table", "parser": "backend",
+          "url": "https://hub.docker.com/v2/namespaces/$dh_namespace/repositories/",
+          "url_options": { "method": "GET", "params": [ { "key": "page_size", "value": "1" } ] },
+          "root_selector": "",
+          "columns": [ { "selector": "count", "text": "Images", "type": "number" } ]
+        }
+      ]
+    },
+    {
+      "id": 22,
+      "type": "stat",
+      "title": "Total pulls",
+      "description": "Sum of pull_count across all images in the namespace.",
+      "datasource": { "type": "yesoreyeram-infinity-datasource", "uid": "dockerhub" },
+      "gridPos": { "h": 4, "w": 4, "x": 20, "y": 59 },
+      "fieldConfig": { "defaults": { "unit": "short", "color": { "mode": "fixed", "fixedColor": "purple" } }, "overrides": [] },
+      "options": { "reduceOptions": { "calcs": ["sum"], "fields": "/^Pulls$/" }, "colorMode": "value", "graphMode": "none", "textMode": "value" },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "yesoreyeram-infinity-datasource", "uid": "dockerhub" },
+          "type": "json", "source": "url", "format": "table", "parser": "backend",
+          "url": "https://hub.docker.com/v2/namespaces/$dh_namespace/repositories/",
+          "url_options": { "method": "GET", "params": [ { "key": "page_size", "value": "100" } ] },
+          "root_selector": "results",
+          "columns": [ { "selector": "pull_count", "text": "Pulls", "type": "number" } ]
+        }
+      ]
+    },
+    {
+      "id": 23,
+      "type": "stat",
+      "title": "Most recent image push",
+      "description": "How long ago the most recently pushed image in the namespace was built.",
+      "datasource": { "type": "yesoreyeram-infinity-datasource", "uid": "dockerhub" },
+      "gridPos": { "h": 4, "w": 8, "x": 16, "y": 63 },
+      "fieldConfig": { "defaults": { "unit": "dateTimeFromNow", "color": { "mode": "fixed", "fixedColor": "green" } }, "overrides": [] },
+      "options": { "reduceOptions": { "calcs": ["max"], "fields": "/^Last pushed$/" }, "colorMode": "value", "graphMode": "none", "textMode": "value" },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "yesoreyeram-infinity-datasource", "uid": "dockerhub" },
+          "type": "json", "source": "url", "format": "table", "parser": "backend",
+          "url": "https://hub.docker.com/v2/namespaces/$dh_namespace/repositories/",
+          "url_options": { "method": "GET", "params": [ { "key": "page_size", "value": "100" } ] },
+          "root_selector": "results",
+          "columns": [ { "selector": "last_updated", "text": "Last pushed", "type": "timestamp" } ]
+        }
+      ]
+    },
+    {
+      "id": 24,
+      "type": "table",
+      "title": "Tags / builds · $dh_namespace/$dh_image",
+      "description": "Tag history for the selected image — each tag, its size, digest and when it was last pushed (i.e. built). Docker Hub public API.",
+      "datasource": { "type": "yesoreyeram-infinity-datasource", "uid": "dockerhub" },
+      "gridPos": { "h": 9, "w": 24, "x": 0, "y": 67 },
+      "options": { "showHeader": true, "cellHeight": "sm" },
+      "fieldConfig": { "defaults": { "custom": { "align": "auto", "filterable": true } }, "overrides": [
+        { "matcher": { "id": "byName", "options": "Size" }, "properties": [ { "id": "unit", "value": "decbytes" } ] },
+        { "matcher": { "id": "byName", "options": "Last pushed" }, "properties": [ { "id": "unit", "value": "dateTimeFromNow" } ] }
+      ] },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "yesoreyeram-infinity-datasource", "uid": "dockerhub" },
+          "type": "json", "source": "url", "format": "table", "parser": "backend",
+          "url": "https://hub.docker.com/v2/repositories/$dh_namespace/$dh_image/tags/",
+          "url_options": { "method": "GET", "params": [ { "key": "page_size", "value": "25" }, { "key": "ordering", "value": "last_updated" } ] },
+          "root_selector": "results",
+          "columns": [
+            { "selector": "name", "text": "Tag", "type": "string" },
+            { "selector": "full_size", "text": "Size", "type": "number" },
+            { "selector": "last_updated", "text": "Last pushed", "type": "timestamp" },
+            { "selector": "last_updater_username", "text": "By", "type": "string" },
+            { "selector": "digest", "text": "Digest", "type": "string" },
+            { "selector": "tag_status", "text": "Status", "type": "string" }
+          ]
+        }
+      ]
+    }
+  ]
+}

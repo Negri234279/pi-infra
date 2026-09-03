@@ -1,0 +1,64 @@
+# CI/CD datasources for the "CI/CD · GitHub + Docker Hub" dashboard.
+#
+# THREE datasources, all reaching the internet directly from the grafana container
+# (same as the Cloudflare Infinity one). Two of them talk to GitHub, on purpose:
+#
+#   1. GitHub (grafana-github-datasource, uid: github-cicd)
+#        The OFFICIAL GitHub datasource. Powers the repo-context panels (pull
+#        requests, commits, releases, workflow definitions) with native query
+#        types. This is the foundation for a richer GitHub app later.
+#        NOTE: its "Workflow Runs" query REQUIRES a specific workflow per panel
+#        (it calls the per-workflow API), so it can't list runs across ALL
+#        workflows of a repo with a single $repo variable — that's why #2 exists.
+#
+#   2. GitHub REST (Infinity, uid: github-rest)
+#        Infinity pointed at the GitHub REST API. Powers the Actions panels
+#        (latest runs, in-progress, KPIs, outcome timeline) via
+#        /repos/{owner}/{repo}/actions/runs, which returns runs from EVERY
+#        workflow in one call — exactly what the "latest actions" list needs.
+#
+#   3. Docker Hub (Infinity, uid: dockerhub)
+#        Infinity pointed at Docker Hub's public API (no auth). Powers the image
+#        panels (last-published images + per-image tag/build history). Kept as a
+#        SEPARATE Infinity instance with NO auth so the GitHub token is never
+#        sent to Docker Hub.
+#
+# The GitHub token is interpolated from $GITHUB_TOKEN, passed to the grafana
+# service from the root .env (see core/docker-compose.yml). A fine-grained,
+# READ-ONLY PAT is enough — scopes documented in .env.example. Empty token →
+# GitHub panels just show "no data" / hit the 60 req/h anonymous limit; nothing
+# else breaks. Docker Hub public endpoints need no token.
+apiVersion: 1
+
+datasources:
+  # --- 1. Official GitHub datasource (repo context) ---
+  - name: GitHub
+    uid: github-cicd
+    type: grafana-github-datasource
+    access: proxy
+    jsonData:
+      selectedAuthType: personal-access-token
+    secureJsonData:
+      accessToken: $GITHUB_TOKEN
+
+  # --- 2. GitHub REST via Infinity (Actions runs) ---
+  - name: GitHub REST
+    uid: github-rest
+    type: yesoreyeram-infinity-datasource
+    access: proxy
+    jsonData:
+      auth_method: bearerToken
+      allowedHosts:
+        - https://api.github.com
+    secureJsonData:
+      bearerToken: $GITHUB_TOKEN
+
+  # --- 3. Docker Hub via Infinity (image builds/tags, no auth) ---
+  - name: Docker Hub
+    uid: dockerhub
+    type: yesoreyeram-infinity-datasource
+    access: proxy
+    jsonData:
+      auth_method: none
+      allowedHosts:
+        - https://hub.docker.com
