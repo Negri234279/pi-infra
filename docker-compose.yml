@@ -12,7 +12,6 @@
 include:
   - core/docker-compose.yml
   - apps/coreforge/docker-compose.yml
-  - apps/coreforge/prod/docker-compose.yml
   - apps/proxy-control/compose.yml
   - apps/wake-lan-app/compose.yml
   - apps/powerlog/prod/compose.yml
