@@ -37,13 +37,15 @@ services:
             NODE_ENV: production
             HOST: 0.0.0.0
             PORT: 4321
-        # Socket de Docker (solo lectura): descubrimiento de dominios por labels (opt-in con
-        # DOCKER_LABELS_ENABLED=true en proxy-control.env). RO minimiza la superficie.
-        volumes:
-            - /var/run/docker.sock:/var/run/docker.sock:ro
+            # Descubrimiento de dominios por labels (opt-in con DOCKER_LABELS_ENABLED=true en
+            # proxy-control.env). La app NO monta el socket: habla con el daemon a través del
+            # docker-socket-proxy (API filtrada y read-only), así corre como `node` sin EACCES.
+            DOCKER_HOST: tcp://proxy-control-docker-proxy:2375
         depends_on:
             proxy-control-migrate:
                 condition: service_completed_successfully
+            proxy-control-docker-proxy:
+                condition: service_started
         healthcheck:
             test: ['CMD-SHELL', 'wget -qO- http://127.0.0.1:4321/health || exit 1']
             interval: 15s
@@ -84,6 +86,32 @@ services:
             - proxy-control.visibility=private
             - proxy-control.forward.host=proxy-control
             - proxy-control.forward.port=4321
+
+    # Proxy HAProxy que expone una API de Docker FILTRADA y read-only por TCP. Es el único
+    # que monta el socket; la app le habla por `proxy-control-net`. Solo se habilitan los
+    # endpoints que el watcher usa (GET /containers/json y GET /events); POST queda denegado
+    # (default). Así la app corre sin privilegios y no toca el socket del host.
+    proxy-control-docker-proxy:
+        image: tecnativa/docker-socket-proxy:0.3.0
+        container_name: proxy-control-docker-proxy
+        environment:
+            CONTAINERS: 1
+            EVENTS: 1
+            PING: 1
+            POST: 0
+        volumes:
+            - /var/run/docker.sock:/var/run/docker.sock:ro
+        read_only: true
+        tmpfs:
+            - /run
+        deploy:
+            resources:
+                limits: { cpus: '0.25', memory: 64m }
+        logging:
+            driver: json-file
+            options: { max-size: '10m', max-file: '3' }
+        networks: [proxy-control-net]
+        restart: unless-stopped
 
     proxy-control-prometheus:
         image: prom/prometheus:v3.1.0
