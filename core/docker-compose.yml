@@ -240,7 +240,10 @@ services:
       - WATCHTOWER_LABEL_ENABLE=true # only update opted-in containers
       - WATCHTOWER_CLEANUP=true # prune the replaced images
       - WATCHTOWER_INCLUDE_RESTARTING=true
-      - WATCHTOWER_ROLLING_RESTART=true # one container at a time
+      # NOTE: rolling restart is incompatible with depends_on between two
+      # watchtower-enabled containers (powerlog-web depends_on powerlog-api),
+      # which makes the update run abort every poll. Left off so watchtower
+      # recreates outdated containers all-at-once in dependency order.
       - WATCHTOWER_POLL_INTERVAL=300 # check every 5 minutes
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
