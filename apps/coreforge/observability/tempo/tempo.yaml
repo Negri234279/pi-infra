@@ -1,0 +1,42 @@
+# Single-binary Tempo for CoreForge (filesystem storage). Shared by
+# dev / staging / prod. The app pushes OTLP directly (http/protobuf, :4318);
+# browser RUM arrives via Alloy's OTLP receiver (which forwards here).
+server:
+    http_listen_port: 3200
+    log_level: warn
+
+distributor:
+    receivers:
+        otlp:
+            protocols:
+                http:
+                    endpoint: 0.0.0.0:4318
+                grpc:
+                    endpoint: 0.0.0.0:4317
+
+# Derive RED span-metrics + a service graph from incoming spans and push them
+# to coreforge's Prometheus via remote-write (started with
+# --web.enable-remote-write-receiver in the compose files).
+metrics_generator:
+    registry:
+        external_labels:
+            source: tempo
+            app: coreforge
+    storage:
+        path: /var/tempo/generator/wal
+        remote_write:
+            - url: http://coreforge-prometheus:9090/api/v1/write
+              send_exemplars: true
+
+storage:
+    trace:
+        backend: local
+        wal:
+            path: /var/tempo/wal
+        local:
+            path: /var/tempo/blocks
+
+overrides:
+    defaults:
+        metrics_generator:
+            processors: [service-graphs, span-metrics]

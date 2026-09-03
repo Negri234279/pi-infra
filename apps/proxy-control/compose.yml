@@ -37,11 +37,15 @@ services:
             NODE_ENV: production
             HOST: 0.0.0.0
             PORT: 4321
+        # Socket de Docker (solo lectura): descubrimiento de dominios por labels (opt-in con
+        # DOCKER_LABELS_ENABLED=true en proxy-control.env). RO minimiza la superficie.
+        volumes:
+            - /var/run/docker.sock:/var/run/docker.sock:ro
         depends_on:
             proxy-control-migrate:
                 condition: service_completed_successfully
         healthcheck:
-            test: ['CMD-SHELL', 'wget -q --spider http://localhost:4321/health || exit 1']
+            test: ['CMD-SHELL', 'wget -qO- http://127.0.0.1:4321/health || exit 1']
             interval: 15s
             timeout: 5s
             retries: 5
@@ -75,6 +79,11 @@ services:
             - homepage.widget.mappings[2].field=synced
             - homepage.widget.mappings[3].label=Drift
             - homepage.widget.mappings[3].field=drift
+            - proxy-control.enable=true
+            - proxy-control.hostname=proxy-control.negri.es
+            - proxy-control.visibility=private
+            - proxy-control.forward.host=proxy-control
+            - proxy-control.forward.port=4321
 
     proxy-control-prometheus:
         image: prom/prometheus:v3.1.0
