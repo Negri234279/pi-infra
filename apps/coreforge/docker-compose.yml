@@ -138,9 +138,9 @@ services:
             # Store trace exemplars so latency panels can link to traces.
             - '--enable-feature=exemplar-storage'
         volumes:
-            # Shared single-source obs configs (../observability) + per-env scrape.d.
-            - ../observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-            - ../observability/prometheus/rules:/etc/prometheus/rules:ro
+            # Shared single-source obs configs (./observability) + per-env scrape.d.
+            - ./observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+            - ./observability/prometheus/rules:/etc/prometheus/rules:ro
             - ./scrape.d:/etc/prometheus/scrape.d:ro
             - prometheus-data:/prometheus
         deploy:
@@ -153,7 +153,7 @@ services:
         container_name: coreforge-loki
         command: ['-config.file=/etc/loki/loki-config.yaml']
         volumes:
-            - ../observability/loki/loki-config.yaml:/etc/loki/loki-config.yaml:ro
+            - ./observability/loki/loki-config.yaml:/etc/loki/loki-config.yaml:ro
             - loki-data:/loki
         deploy:
             resources:
@@ -165,7 +165,7 @@ services:
         container_name: coreforge-tempo
         command: ['-config.file=/etc/tempo/tempo.yaml']
         volumes:
-            - ../observability/tempo/tempo.yaml:/etc/tempo/tempo.yaml:ro
+            - ./observability/tempo/tempo.yaml:/etc/tempo/tempo.yaml:ro
             - tempo-data:/var/tempo
         deploy:
             resources:
@@ -181,7 +181,7 @@ services:
             - --storage.path=/var/lib/alloy/data
             - /etc/alloy/config.alloy
         volumes:
-            - ../observability/alloy/config.alloy:/etc/alloy/config.alloy:ro
+            - ./observability/alloy/config.alloy:/etc/alloy/config.alloy:ro
             - /var/run/docker.sock:/var/run/docker.sock:ro
             - alloy-data:/var/lib/alloy/data
         depends_on:
@@ -201,7 +201,7 @@ services:
         container_name: coreforge-blackbox
         command: ['--config.file=/etc/blackbox/blackbox.yml']
         volumes:
-            - ../observability/blackbox/blackbox.yml:/etc/blackbox/blackbox.yml:ro
+            - ./observability/blackbox/blackbox.yml:/etc/blackbox/blackbox.yml:ro
         deploy:
             resources:
                 limits: { cpus: '0.1', memory: 64m }
@@ -233,7 +233,7 @@ services:
             - '--config.file=/etc/alertmanager/alertmanager.yml'
             - '--storage.path=/alertmanager'
         volumes:
-            - ../observability/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+            - ./observability/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
             - alertmanager-secrets:/etc/alertmanager/secrets:ro
             - alertmanager-data:/alertmanager
         depends_on:
