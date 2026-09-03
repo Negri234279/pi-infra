@@ -121,7 +121,7 @@ services:
       # Dynamic scrape files written by prometheus-init (e.g. healthchecks). Mounted
       # OUTSIDE the read-only ./prometheus bind (can't create a subdir inside it).
       - prometheus-dynamic:/etc/prometheus-dynamic:ro
-      - prometheus-data:/prometheus
+      - infra-prometheus-data:/prometheus
     depends_on:
       prometheus-init:
         condition: service_completed_successfully
@@ -344,7 +344,7 @@ services:
       - DISCORD_WEBHOOK_URL=${DISCORD_WEBHOOK_URL:-}
       - HEARTBEAT_URL=${HEARTBEAT_URL:-}
     volumes:
-      - alertmanager-secrets:/secrets
+      - infra-alertmanager-secrets:/secrets
     restart: "no"
 
   alertmanager:
@@ -358,8 +358,8 @@ services:
       - "9093:9093"
     volumes:
       - ./alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
-      - alertmanager-secrets:/etc/alertmanager/secrets:ro
-      - alertmanager-data:/alertmanager
+      - infra-alertmanager-secrets:/etc/alertmanager/secrets:ro
+      - infra-alertmanager-data:/alertmanager
     depends_on:
       alertmanager-init:
         condition: service_completed_successfully
@@ -562,7 +562,7 @@ services:
     volumes:
       - ./loki/loki-config.yaml:/etc/loki/loki-config.yaml:ro
       - ./loki/rules:/loki/rules:ro
-      - loki-data:/loki
+      - infra-loki-data:/loki
     healthcheck:
       test: [ "CMD-SHELL", "wget -qO- http://localhost:3100/ready || exit 1" ]
       interval: 30s
@@ -587,7 +587,7 @@ services:
       - "514:514/tcp"
     volumes:
       - ./alloy/config.alloy:/etc/alloy/config.alloy:ro
-      - alloy-data:/var/lib/alloy/data
+      - infra-alloy-data:/var/lib/alloy/data
       # Host journald (persistent + current-boot runtime) so the Pi's own logs
       # reach Loki. machine-id lets the journal reader identify the host.
       - /var/log/journal:/var/log/journal:ro
@@ -602,15 +602,26 @@ services:
 
 volumes:
   grafana-data:
-  prometheus-data:
-  alertmanager-data:
-  alertmanager-secrets:
+  # These five use `infra-` KEYS (not the bare names) so the root `include:` can't
+  # let an app's identically-keyed volume shadow them — coreforge declares
+  # `prometheus-data`/`loki-data`/`alloy-data`/`alertmanager-*` too, and Compose
+  # merges top-level volumes by KEY (last include wins), which silently repointed
+  # this stack at coreforge's volumes. `name:` pins each to its original
+  # pi-infra_* volume so the historical data is preserved across the rename.
+  infra-prometheus-data:
+    name: pi-infra_prometheus-data
+  infra-alertmanager-data:
+    name: pi-infra_alertmanager-data
+  infra-alertmanager-secrets:
+    name: pi-infra_alertmanager-secrets
+  infra-loki-data:
+    name: pi-infra_loki-data
+  infra-alloy-data:
+    name: pi-infra_alloy-data
   prometheus-dynamic:
   postgres-data:
   pgbouncer-secrets:
   wg-easy-data:
-  loki-data:
-  alloy-data:
 
     # Shared, cross-app network. Declared external so each app's compose (under ../apps/,
     # or in its own repo) can join the SAME network (`networks: [monitoring]` +
