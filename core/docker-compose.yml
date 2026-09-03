@@ -257,6 +257,9 @@ services:
       - ./nginx-proxy-manager/letsencrypt:/etc/letsencrypt
       - ./nginx-proxy-manager/npm-custom/http_top.conf:/data/nginx/custom/http_top.conf
       - ./nginx-proxy-manager/npm-custom/server_proxy.conf:/data/nginx/custom/server_proxy.conf
+      # Static maintenance page served (as 503) when any proxied app's upstream
+      # is down — see the error_page block in server_proxy.conf.
+      - ./nginx-proxy-manager/npm-custom/maintenance.html:/data/nginx/custom/maintenance.html:ro
     networks:
       - monitoring
 
