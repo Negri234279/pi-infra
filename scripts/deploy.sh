@@ -75,10 +75,18 @@ else
 fi
 
 # Recreate any service whose *definition* changed (image, ports, env, mounts list).
-# --build (re)builds locally-built services (e.g. smartctl-exporter) when their
-# Dockerfile/context changed; it's a no-op (cached) otherwise.
+# smartctl-exporter is the ONLY locally-built service. Rebuilding it every deploy
+# is NOT a cached no-op: its Dockerfile apt-installs smartmontools, so a
+# cache-less rebuild produces a NEW image digest even for the same version — which
+# spams "container updated" notifications. So only pass --build when its build
+# context actually changed; otherwise reuse the existing image.
+BUILD_ARG=""
+if changed '^core/smartctl-exporter/'; then
+  log "smartctl-exporter context changed -> rebuilding it"
+  BUILD_ARG="--build"
+fi
 log "applying compose"
-docker compose up -d --remove-orphans --build
+docker compose up -d --remove-orphans $BUILD_ARG
 
 # Mounted-config changes that don't alter the container definition: reload/restart.
 if changed '^core/prometheus/'; then
