@@ -21,9 +21,12 @@ auths:
   # Sodola SL-SWTGW3C8F (8× 10G SFP+, L3 managed). Its own auth so the two
   # switches' SNMP communities can differ. Referenced by the
   # `switch-sodola-snmp` prometheus job via `params: { auth: [sodola_v2] }`.
-  # Set the same community in the switch web UI (SNMP settings).
+  # Community renamed off the default `public` (read-only) as basic hardening;
+  # set the EXACT same string in the switch web UI (SNMP → Community, Read-Only).
+  # This file is git-tracked, so this is not a real secret — it only defeats
+  # default-community scanning on the LAN.
   sodola_v2:
-    community: public
+    community: sodola-ro-ez3pzf
     version: 2
 
 modules:
