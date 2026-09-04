@@ -24,7 +24,22 @@
     "snmp",
     "sodola"
   ],
-  "links": [],
+  "links": [
+    {
+      "asDropdown": false,
+      "icon": "external link",
+      "includeVars": false,
+      "keepTime": true,
+      "tags": [
+        "network"
+      ],
+      "targetBlank": false,
+      "title": "Red",
+      "tooltip": "",
+      "type": "dashboards",
+      "url": ""
+    }
+  ],
   "title": "Switch Sodola SL-SWTGW3C8F · SNMP",
   "uid": "switch-sodola-snmp",
   "time": {
