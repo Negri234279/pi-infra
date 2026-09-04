@@ -118,6 +118,16 @@ if changed '^core/blackbox/'; then
   log "blackbox config changed -> restart blackbox-exporter"
   docker compose restart blackbox-exporter
 fi
+if changed '^core/snmp-exporter/'; then
+  # snmp.yml is a single-FILE bind mount, so a plain `restart` keeps the container
+  # bound to the OLD inode (git replaces the file on pull) and reloads the stale
+  # config — which is why switch config changes silently didn't take. Recreate so
+  # it re-binds and reads the new snmp.yml. Prometheus needs nothing here: it only
+  # passes module/auth params to the exporter, and any prometheus.yml change is
+  # hot-reloaded by the '^core/prometheus/' handler above.
+  log "snmp-exporter config changed -> recreate snmp-exporter"
+  docker compose up -d --force-recreate snmp-exporter
+fi
 if changed '^core/homepage/'; then
   # homepage vigila config/ en caliente, pero un restart es determinista y barato.
   log "homepage config changed -> restart homepage"
