@@ -1,5 +1,6 @@
 # Alert rules for the network gear (MikroTik RB750Gr3 router via mktxp, and the
-# CSS326 switch via snmp-exporter). Metric-based; log-based router alerts live in
+# CSS326 + Sodola SL-SWTGW3C8F switches via snmp-exporter). Metric-based;
+# log-based router alerts live in
 # Loki's ruler (core/loki/rules/). Same severity labels → same Discord routing.
 groups:
   # ── Exporters up ─────────────────────────────────────────────────────────
@@ -22,6 +23,15 @@ groups:
         annotations:
           summary: "snmp-exporter scrape of the switch is failing"
           description: "No SNMP metrics from the CSS326 switch for >5m (job=switch-snmp) — snmp-exporter down or the switch unreachable."
+
+      - alert: SodolaSnmpDown
+        expr: up{job="switch-sodola-snmp"} == 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "snmp-exporter scrape of the Sodola switch is failing"
+          description: "No SNMP metrics from the Sodola SL-SWTGW3C8F for >5m (job=switch-sodola-snmp) — snmp-exporter down, SNMP disabled on the switch, or wrong community."
 
   # ── Router (mktxp) ───────────────────────────────────────────────────────
   - name: router
@@ -87,3 +97,28 @@ groups:
         annotations:
           summary: "Errors on a switch port"
           description: "Port {{ $labels.ifName }} on the CSS326 is logging >1 error/s for >10m — check the cable/SFP."
+
+  # ── Sodola SL-SWTGW3C8F (snmp-exporter / IF-MIB) ─────────────────────────
+  - name: switch-sodola
+    rules:
+      - alert: SodolaPortDown
+        expr: |
+          ifOperStatus{job="switch-sodola-snmp"} == 2
+            and ifAdminStatus{job="switch-sodola-snmp"} == 1
+        for: 3m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Sodola switch port down"
+          description: "Port {{ $labels.ifName }} ({{ $labels.ifAlias }}) on the Sodola is admin-up but link-down for >3m."
+
+      - alert: SodolaInterfaceErrors
+        expr: |
+          rate(ifInErrors{job="switch-sodola-snmp"}[5m])
+            + rate(ifOutErrors{job="switch-sodola-snmp"}[5m]) > 1
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Errors on a Sodola switch port"
+          description: "Port {{ $labels.ifName }} on the Sodola is logging >1 error/s for >10m — check the DAC/fiber/SFP+."

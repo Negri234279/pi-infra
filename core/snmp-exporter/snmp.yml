@@ -1,9 +1,11 @@
-# snmp-exporter config for the MikroTik CSS326-24G-2S+RM switch (SwOS 2.18).
+# snmp-exporter config shared by both LAN switches:
+#   • MikroTik CSS326-24G-2S+RM (SwOS 2.18)      → job switch-snmp,        auth public_v2
+#   • Sodola SL-SWTGW3C8F (8× 10G SFP+, L3 mgd)  → job switch-sodola-snmp, auth sodola_v2
 #
-# SwOS speaks SNMP v1/v2c and exposes IF-MIB (per-port counters + status),
-# SNMPv2-MIB and BRIDGE-MIB. It has NO remote syslog and NO SNMP traps, so this
-# is metrics-only. Enable SNMP on the switch first: SwOS web UI → System → SNMP
-# (Enabled + Community). See core/network/README.md.
+# Both speak SNMP v2c and expose the standard IF-MIB (per-port counters +
+# status), so the single `if_mib` module below serves both. SwOS is metrics-only
+# (no syslog/traps); the Sodola is fully managed (SSH/HTTPS/SNMP). Enable SNMP on
+# each switch first (web UI → SNMP: Enabled + Community). See core/network/README.md.
 #
 # The `if_mib` module below is the standard IF-MIB walk (hand-maintained subset
 # of what the snmp_exporter generator produces). Counter metrics get ifName /
@@ -13,6 +15,14 @@ auths:
   # Referenced by the prometheus job via `params: { auth: [public_v2] }`.
   # Change `community` to whatever you set on the switch.
   public_v2:
+    community: public
+    version: 2
+
+  # Sodola SL-SWTGW3C8F (8× 10G SFP+, L3 managed). Its own auth so the two
+  # switches' SNMP communities can differ. Referenced by the
+  # `switch-sodola-snmp` prometheus job via `params: { auth: [sodola_v2] }`.
+  # Set the same community in the switch web UI (SNMP settings).
+  sodola_v2:
     community: public
     version: 2
 

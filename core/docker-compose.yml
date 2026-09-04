@@ -546,9 +546,10 @@ services:
     networks:
       - monitoring
 
-  # snmp-exporter: polls the CSS326 switch over SNMP v2c (IF-MIB) on Prometheus's
-  # behalf (job `switch-snmp`). SwOS has no remote logging, so the switch is
-  # metrics-only. Enable SNMP in the SwOS web UI first (System → SNMP).
+  # snmp-exporter: polls both LAN switches over SNMP v2c (IF-MIB) on Prometheus's
+  # behalf — the CSS326 (job `switch-snmp`) and the Sodola SL-SWTGW3C8F (job
+  # `switch-sodola-snmp`). Both are metrics-only. Enable SNMP in each switch's web
+  # UI first (CSS326: System → SNMP; Sodola: SNMP settings).
   snmp-exporter:
     image: prom/snmp-exporter:v0.29.0
     container_name: snmp-exporter

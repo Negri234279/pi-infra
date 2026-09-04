@@ -1,12 +1,13 @@
-# Network gear observability — MikroTik RB750Gr3 + CSS326-24G-2S+RM
+# Network gear observability — MikroTik RB750Gr3 + CSS326-24G-2S+RM + Sodola SL-SWTGW3C8F
 
-Metrics, logs and alerts for the two MikroTik boxes on the LAN. Everything runs
-in the **core** stack and surfaces in the shared Grafana / Alertmanager (→ Discord).
+Metrics, logs and alerts for the LAN network gear. Everything runs in the
+**core** stack and surfaces in the shared Grafana / Alertmanager (→ Discord).
 
 | Device | IP | Metrics | Logs | Alerts |
 |--------|-----|---------|------|--------|
 | RB750Gr3 router (RouterOS 7.23.2) | `192.168.1.2` | `mktxp` (RouterOS API) | remote syslog → Alloy → Loki | metrics + **log** |
 | CSS326 switch (SwOS 2.18) | `192.168.1.5` | `snmp-exporter` (SNMP v2c, IF-MIB) | **none** — SwOS has no logging | metrics only |
+| Sodola SL-SWTGW3C8F switch (8× 10G SFP+, L3 managed) | `192.168.1.4` | `snmp-exporter` (SNMP v2c, IF-MIB) | not wired (has SSH/HTTPS/console) | metrics only |
 
 > **SwOS limitation (not a config gap):** SwOS 2.18 has no local log, no remote
 > syslog and no SNMP traps. The switch is therefore metrics-only. If you need
@@ -17,11 +18,13 @@ in the **core** stack and surfaces in the shared Grafana / Alertmanager (→ Dis
 
 - **mktxp** → `mikrotik` Prometheus job. Config: `core/mktxp/` (`mktxp.conf` is
   gitignored — it holds the API password; copy it from `mktxp.conf.example`).
-- **snmp-exporter** → `switch-snmp` job. Config: `core/snmp-exporter/snmp.yml`.
+- **snmp-exporter** → `switch-snmp` (CSS326) and `switch-sodola-snmp` (Sodola)
+  jobs, each with its own `auth` in `core/snmp-exporter/snmp.yml` (`public_v2`
+  and `sodola_v2`), both using the shared `if_mib` module.
 - **loki** + **alloy** → router syslog. Alloy listens on host `514/udp+tcp`.
 - Grafana datasource `Loki` (`core/grafana/provisioning/datasources/loki.yml`).
 - Dashboards in `core/grafana/dashboards/network/` (folder **network** in Grafana):
-  MKTXP exporter, Mikrotik logs, Switch CSS326 · SNMP.
+  MKTXP exporter, Mikrotik logs, Switch CSS326 · SNMP, Switch Sodola SL-SWTGW3C8F · SNMP.
 - Alerts: `core/prometheus/rules/network-alerts.yml` (metrics) and
   `core/loki/rules/fake/router-log-alerts.yml` (router log, via Loki's ruler).
 
@@ -98,6 +101,30 @@ There is nothing to configure for logs — SwOS can't send them.
 
 ---
 
+## 2b. Sodola SL-SWTGW3C8F switch — one-time setup
+
+The Sodola is a fully **managed** L3 switch (8× 10G SFP+, each port adaptive
+10G/2.5G/1G). Configure it from the **web UI** at `http://192.168.1.4` (or SSH /
+console). In the **SNMP** settings:
+
+- **SNMP Agent**: `Enabled`
+- **Version**: `v2c`
+- **Read Community**: default in `snmp.yml` is `public` — set it here (or change
+  `sodola_v2.community:` in `core/snmp-exporter/snmp.yml` to match) and restart
+  `snmp-exporter`.
+- Location / Contact: optional.
+
+The dashboard's faceplate assumes the 8 SFP+ cages map to `ifIndex` 1..8. After
+the first scrape, confirm in Grafana (or the direct curl below) that ports 1..8
+show the expected `ifName`; if the firmware numbers them differently, adjust the
+`ifIndex` in the 8 `SFP+N` stat panels (the table and time-series panels need no
+change — they read every interface the switch reports).
+
+> The Sodola exposes SSH and HTTPS too. Logs aren't wired here (the switch has no
+> remote-syslog push we rely on), so it's metrics-only like the CSS326.
+
+---
+
 ## 3. Deploy & verify
 
 ```bash
@@ -107,12 +134,14 @@ docker compose -f core/docker-compose.yml up -d mktxp snmp-exporter loki alloy
 
 Checks:
 
-- **Prometheus targets** (`http://<pi>:9090/targets`): `mikrotik` and
-  `switch-snmp` should be `UP`.
+- **Prometheus targets** (`http://<pi>:9090/targets`): `mikrotik`,
+  `switch-snmp` and `switch-sodola-snmp` should be `UP`.
 - **snmp-exporter direct test**:
   `curl 'http://<pi>:9116/snmp?target=192.168.1.5&module=if_mib&auth=public_v2'`
-  (only if you publish 9116; otherwise `docker exec`).
-- **Grafana** → dashboards folder **network** → three dashboards populated.
+  (CSS326) and
+  `curl 'http://<pi>:9116/snmp?target=192.168.1.4&module=if_mib&auth=sodola_v2'`
+  (Sodola) — only if you publish 9116; otherwise `docker exec`.
+- **Grafana** → dashboards folder **network** → four dashboards populated.
 - **Loki logs**: Explore → `{job="syslog", source="router"}`.
 - **Alerts**: `http://<pi>:9090/alerts` (metric) and the Loki ruler alerts show
   up in Alertmanager (`http://<pi>:9093`). Firing ones reach Discord.
@@ -122,6 +151,11 @@ Checks:
 - The hEX RB750Gr3 has **no temperature/voltage sensor**, so
   `mktxp_system_temperature` is usually absent and `RouterHighTemperature` stays
   dormant — expected, not a fault.
-- `SwitchPortDown` fires for every admin-up/link-down access port. If unused
-  ports are enabled, either disable them in SwOS or narrow the alert's `ifName`.
+- `SwitchPortDown` / `SodolaPortDown` fire for every admin-up/link-down port.
+  On the Sodola an **empty SFP+ cage** left admin-up counts as link-down, so
+  either disable unused ports in the switch UI or narrow the alert's `ifName`.
+- The Sodola dashboard's per-port **% utilisation** panel divides by the
+  negotiated `ifHighSpeed` (10000/2500/1000 Mbit), so a port forced to 1G shows
+  correctly against its 1G ceiling — useful for spotting a link that auto-negged
+  down from 10G.
 - Loki retention is 168h (7 days), matching the powerlog Loki.

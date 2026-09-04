@@ -121,6 +121,27 @@ scrape_configs:
       - target_label: __address__
         replacement: "snmp-exporter:9116"
 
+  # Sodola SL-SWTGW3C8F switch (8× 10G SFP+, L3 managed) via snmp-exporter. Same
+  # mechanism as the CSS326 above but its OWN job so the Sodola dashboard filters
+  # cleanly on job="switch-sodola-snmp". `auth: sodola_v2` selects that switch's
+  # SNMP community (core/snmp-exporter/snmp.yml) so the two switches' communities
+  # can be managed independently. Enable SNMP in the switch web UI first.
+  - job_name: switch-sodola-snmp
+    scrape_interval: 30s
+    metrics_path: /snmp
+    params:
+      module: [if_mib]
+      auth: [sodola_v2]
+    static_configs:
+      - targets: ["192.168.1.4"] # the Sodola SL-SWTGW3C8F switch
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: "snmp-exporter:9116"
+
   # Blackbox liveness probes. Prometheus passes the TARGET as ?target=; relabeling
   # rewrites __address__ to the exporter and keeps the target as `instance`. The
   # per-target `name` label makes alerts readable.
@@ -152,6 +173,8 @@ scrape_configs:
         labels: { name: router }
       - targets: ["192.168.1.5"]
         labels: { name: switch }
+      - targets: ["192.168.1.4"]
+        labels: { name: sodola }
     relabel_configs:
       - source_labels: [__address__]
         target_label: __param_target

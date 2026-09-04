@@ -1,0 +1,1497 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "graphTooltip": 1,
+  "schemaVersion": 39,
+  "tags": [
+    "network",
+    "switch",
+    "snmp",
+    "sodola"
+  ],
+  "links": [],
+  "title": "Switch Sodola SL-SWTGW3C8F · SNMP",
+  "uid": "switch-sodola-snmp",
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "timezone": "",
+  "refresh": "30s",
+  "templating": {
+    "list": []
+  },
+  "panels": [
+    {
+      "id": 100,
+      "type": "stat",
+      "title": "SNMP",
+      "gridPos": {
+        "h": 3,
+        "w": 4,
+        "x": 0,
+        "y": 0
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus-infra"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "DOWN",
+                  "color": "red"
+                },
+                "1": {
+                  "text": "UP",
+                  "color": "green"
+                }
+              }
+            }
+          ],
+          "thresholds": {
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          },
+          "noValue": "—"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "auto",
+        "justifyMode": "center",
+        "wideLayout": false
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus-infra"
+          },
+          "expr": "up{job=\"switch-sodola-snmp\"}",
+          "queryType": "instant"
+        }
+      ]
+    },
+    {
+      "id": 101,
+      "type": "stat",
+      "title": "Puertos activos",
+      "gridPos": {
+        "h": 3,
+        "w": 4,
+        "x": 4,
+        "y": 0
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus-infra"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "noValue": "—"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "auto",
+        "justifyMode": "center",
+        "wideLayout": false
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus-infra"
+          },
+          "expr": "count(ifOperStatus{job=\"switch-sodola-snmp\"} == 1)",
+          "queryType": "instant"
+        }
+      ]
+    },
+    {
+      "id": 102,
+      "type": "stat",
+      "title": "Uptime",
+      "gridPos": {
+        "h": 3,
+        "w": 4,
+        "x": 8,
+        "y": 0
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus-infra"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "unit": "s",
+          "thresholds": {
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          },
+          "noValue": "—"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "auto",
+        "justifyMode": "center",
+        "wideLayout": false
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus-infra"
+          },
+          "expr": "sysUpTime{job=\"switch-sodola-snmp\"} / 100",
+          "queryType": "instant"
+        }
+      ]
+    },
+    {
+      "id": 103,
+      "type": "stat",
+      "title": "RX total",
+      "gridPos": {
+        "h": 3,
+        "w": 4,
+        "x": 12,
+        "y": 0
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus-infra"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "unit": "bps",
+          "thresholds": {
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          },
+          "noValue": "—"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "auto",
+        "justifyMode": "center",
+        "wideLayout": false
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus-infra"
+          },
+          "expr": "sum(rate(ifHCInOctets{job=\"switch-sodola-snmp\"}[$__rate_interval])) * 8"
+        }
+      ]
+    },
+    {
+      "id": 104,
+      "type": "stat",
+      "title": "TX total",
+      "gridPos": {
+        "h": 3,
+        "w": 4,
+        "x": 16,
+        "y": 0
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus-infra"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "unit": "bps",
+          "thresholds": {
+            "steps": [
+              {
+                "color": "purple",
+                "value": null
+              }
+            ]
+          },
+          "noValue": "—"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "auto",
+        "justifyMode": "center",
+        "wideLayout": false
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus-infra"
+          },
+          "expr": "sum(rate(ifHCOutOctets{job=\"switch-sodola-snmp\"}[$__rate_interval])) * 8"
+        }
+      ]
+    },
+    {
+      "id": 105,
+      "type": "stat",
+      "title": "Ping (RTT)",
+      "gridPos": {
+        "h": 3,
+        "w": 4,
+        "x": 20,
+        "y": 0
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus-infra"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "unit": "s",
+          "thresholds": {
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 0.005
+              },
+              {
+                "color": "red",
+                "value": 0.05
+              }
+            ]
+          },
+          "noValue": "—"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "auto",
+        "justifyMode": "center",
+        "wideLayout": false
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus-infra"
+          },
+          "expr": "probe_icmp_duration_seconds{job=\"blackbox-icmp\", instance=\"192.168.1.4\", phase=\"rtt\"}",
+          "queryType": "instant"
+        }
+      ]
+    },
+    {
+      "id": 110,
+      "type": "stat",
+      "title": "SFP+1",
+      "gridPos": {
+        "h": 3,
+        "w": 3,
+        "x": 0,
+        "y": 3
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus-infra"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "1": {
+                  "text": "UP",
+                  "color": "green",
+                  "index": 0
+                },
+                "2": {
+                  "text": "DOWN",
+                  "color": "red",
+                  "index": 1
+                },
+                "3": {
+                  "text": "TEST",
+                  "color": "yellow",
+                  "index": 2
+                }
+              }
+            }
+          ],
+          "thresholds": {
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          },
+          "noValue": "—"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "value_and_name",
+        "justifyMode": "center",
+        "wideLayout": false
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus-infra"
+          },
+          "expr": "ifOperStatus{job=\"switch-sodola-snmp\", ifIndex=\"1\"} * on(ifIndex) group_left(ifName) ifName{job=\"switch-sodola-snmp\"}",
+          "legendFormat": "{{ifName}}"
+        }
+      ]
+    },
+    {
+      "id": 111,
+      "type": "stat",
+      "title": "SFP+2",
+      "gridPos": {
+        "h": 3,
+        "w": 3,
+        "x": 3,
+        "y": 3
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus-infra"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "1": {
+                  "text": "UP",
+                  "color": "green",
+                  "index": 0
+                },
+                "2": {
+                  "text": "DOWN",
+                  "color": "red",
+                  "index": 1
+                },
+                "3": {
+                  "text": "TEST",
+                  "color": "yellow",
+                  "index": 2
+                }
+              }
+            }
+          ],
+          "thresholds": {
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          },
+          "noValue": "—"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "value_and_name",
+        "justifyMode": "center",
+        "wideLayout": false
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus-infra"
+          },
+          "expr": "ifOperStatus{job=\"switch-sodola-snmp\", ifIndex=\"2\"} * on(ifIndex) group_left(ifName) ifName{job=\"switch-sodola-snmp\"}",
+          "legendFormat": "{{ifName}}"
+        }
+      ]
+    },
+    {
+      "id": 112,
+      "type": "stat",
+      "title": "SFP+3",
+      "gridPos": {
+        "h": 3,
+        "w": 3,
+        "x": 6,
+        "y": 3
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus-infra"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "1": {
+                  "text": "UP",
+                  "color": "green",
+                  "index": 0
+                },
+                "2": {
+                  "text": "DOWN",
+                  "color": "red",
+                  "index": 1
+                },
+                "3": {
+                  "text": "TEST",
+                  "color": "yellow",
+                  "index": 2
+                }
+              }
+            }
+          ],
+          "thresholds": {
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          },
+          "noValue": "—"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "value_and_name",
+        "justifyMode": "center",
+        "wideLayout": false
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus-infra"
+          },
+          "expr": "ifOperStatus{job=\"switch-sodola-snmp\", ifIndex=\"3\"} * on(ifIndex) group_left(ifName) ifName{job=\"switch-sodola-snmp\"}",
+          "legendFormat": "{{ifName}}"
+        }
+      ]
+    },
+    {
+      "id": 113,
+      "type": "stat",
+      "title": "SFP+4",
+      "gridPos": {
+        "h": 3,
+        "w": 3,
+        "x": 9,
+        "y": 3
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus-infra"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "1": {
+                  "text": "UP",
+                  "color": "green",
+                  "index": 0
+                },
+                "2": {
+                  "text": "DOWN",
+                  "color": "red",
+                  "index": 1
+                },
+                "3": {
+                  "text": "TEST",
+                  "color": "yellow",
+                  "index": 2
+                }
+              }
+            }
+          ],
+          "thresholds": {
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          },
+          "noValue": "—"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "value_and_name",
+        "justifyMode": "center",
+        "wideLayout": false
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus-infra"
+          },
+          "expr": "ifOperStatus{job=\"switch-sodola-snmp\", ifIndex=\"4\"} * on(ifIndex) group_left(ifName) ifName{job=\"switch-sodola-snmp\"}",
+          "legendFormat": "{{ifName}}"
+        }
+      ]
+    },
+    {
+      "id": 114,
+      "type": "stat",
+      "title": "SFP+5",
+      "gridPos": {
+        "h": 3,
+        "w": 3,
+        "x": 12,
+        "y": 3
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus-infra"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "1": {
+                  "text": "UP",
+                  "color": "green",
+                  "index": 0
+                },
+                "2": {
+                  "text": "DOWN",
+                  "color": "red",
+                  "index": 1
+                },
+                "3": {
+                  "text": "TEST",
+                  "color": "yellow",
+                  "index": 2
+                }
+              }
+            }
+          ],
+          "thresholds": {
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          },
+          "noValue": "—"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "value_and_name",
+        "justifyMode": "center",
+        "wideLayout": false
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus-infra"
+          },
+          "expr": "ifOperStatus{job=\"switch-sodola-snmp\", ifIndex=\"5\"} * on(ifIndex) group_left(ifName) ifName{job=\"switch-sodola-snmp\"}",
+          "legendFormat": "{{ifName}}"
+        }
+      ]
+    },
+    {
+      "id": 115,
+      "type": "stat",
+      "title": "SFP+6",
+      "gridPos": {
+        "h": 3,
+        "w": 3,
+        "x": 15,
+        "y": 3
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus-infra"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "1": {
+                  "text": "UP",
+                  "color": "green",
+                  "index": 0
+                },
+                "2": {
+                  "text": "DOWN",
+                  "color": "red",
+                  "index": 1
+                },
+                "3": {
+                  "text": "TEST",
+                  "color": "yellow",
+                  "index": 2
+                }
+              }
+            }
+          ],
+          "thresholds": {
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          },
+          "noValue": "—"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "value_and_name",
+        "justifyMode": "center",
+        "wideLayout": false
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus-infra"
+          },
+          "expr": "ifOperStatus{job=\"switch-sodola-snmp\", ifIndex=\"6\"} * on(ifIndex) group_left(ifName) ifName{job=\"switch-sodola-snmp\"}",
+          "legendFormat": "{{ifName}}"
+        }
+      ]
+    },
+    {
+      "id": 116,
+      "type": "stat",
+      "title": "SFP+7",
+      "gridPos": {
+        "h": 3,
+        "w": 3,
+        "x": 18,
+        "y": 3
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus-infra"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "1": {
+                  "text": "UP",
+                  "color": "green",
+                  "index": 0
+                },
+                "2": {
+                  "text": "DOWN",
+                  "color": "red",
+                  "index": 1
+                },
+                "3": {
+                  "text": "TEST",
+                  "color": "yellow",
+                  "index": 2
+                }
+              }
+            }
+          ],
+          "thresholds": {
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          },
+          "noValue": "—"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "value_and_name",
+        "justifyMode": "center",
+        "wideLayout": false
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus-infra"
+          },
+          "expr": "ifOperStatus{job=\"switch-sodola-snmp\", ifIndex=\"7\"} * on(ifIndex) group_left(ifName) ifName{job=\"switch-sodola-snmp\"}",
+          "legendFormat": "{{ifName}}"
+        }
+      ]
+    },
+    {
+      "id": 117,
+      "type": "stat",
+      "title": "SFP+8",
+      "gridPos": {
+        "h": 3,
+        "w": 3,
+        "x": 21,
+        "y": 3
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus-infra"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "1": {
+                  "text": "UP",
+                  "color": "green",
+                  "index": 0
+                },
+                "2": {
+                  "text": "DOWN",
+                  "color": "red",
+                  "index": 1
+                },
+                "3": {
+                  "text": "TEST",
+                  "color": "yellow",
+                  "index": 2
+                }
+              }
+            }
+          ],
+          "thresholds": {
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          },
+          "noValue": "—"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "value_and_name",
+        "justifyMode": "center",
+        "wideLayout": false
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus-infra"
+          },
+          "expr": "ifOperStatus{job=\"switch-sodola-snmp\", ifIndex=\"8\"} * on(ifIndex) group_left(ifName) ifName{job=\"switch-sodola-snmp\"}",
+          "legendFormat": "{{ifName}}"
+        }
+      ]
+    },
+    {
+      "id": 120,
+      "type": "table",
+      "title": "Puertos — estado, velocidad negociada y tráfico",
+      "gridPos": {
+        "h": 9,
+        "w": 24,
+        "x": 0,
+        "y": 7
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus-infra"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus-infra"
+          },
+          "expr": "ifOperStatus{job=\"switch-sodola-snmp\", ifIndex=~\"[1-8]\"} * on(ifIndex) group_left(ifName) ifName{job=\"switch-sodola-snmp\"}",
+          "format": "table",
+          "instant": true
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus-infra"
+          },
+          "expr": "ifAdminStatus{job=\"switch-sodola-snmp\", ifIndex=~\"[1-8]\"} * on(ifIndex) group_left(ifName) ifName{job=\"switch-sodola-snmp\"}",
+          "format": "table",
+          "instant": true
+        },
+        {
+          "refId": "C",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus-infra"
+          },
+          "expr": "ifHighSpeed{job=\"switch-sodola-snmp\", ifIndex=~\"[1-8]\"} * on(ifIndex) group_left(ifName) ifName{job=\"switch-sodola-snmp\"}",
+          "format": "table",
+          "instant": true
+        },
+        {
+          "refId": "D",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus-infra"
+          },
+          "expr": "rate(ifHCInOctets{job=\"switch-sodola-snmp\", ifIndex=~\"[1-8]\"}[$__rate_interval]) * 8 * on(ifIndex) group_left(ifName) ifName{job=\"switch-sodola-snmp\"}",
+          "format": "table",
+          "instant": true
+        },
+        {
+          "refId": "E",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus-infra"
+          },
+          "expr": "rate(ifHCOutOctets{job=\"switch-sodola-snmp\", ifIndex=~\"[1-8]\"}[$__rate_interval]) * 8 * on(ifIndex) group_left(ifName) ifName{job=\"switch-sodola-snmp\"}",
+          "format": "table",
+          "instant": true
+        }
+      ],
+      "transformations": [
+        {
+          "id": "merge",
+          "options": {}
+        },
+        {
+          "id": "sortBy",
+          "options": {
+            "sort": [
+              {
+                "field": "ifIndex"
+              }
+            ]
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "__name__": true,
+              "ifDescr": true,
+              "ifAlias": true,
+              "instance": true,
+              "job": true,
+              "ifIndex": true
+            },
+            "indexByName": {
+              "ifName": 0,
+              "Value #A": 1,
+              "Value #B": 2,
+              "Value #C": 3,
+              "Value #D": 4,
+              "Value #E": 5
+            },
+            "renameByName": {
+              "ifName": "Puerto",
+              "Value #A": "Estado",
+              "Value #B": "Admin",
+              "Value #C": "Velocidad",
+              "Value #D": "RX",
+              "Value #E": "TX"
+            }
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            }
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Estado"
+            },
+            "properties": [
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "1": {
+                        "text": "UP",
+                        "color": "green",
+                        "index": 0
+                      },
+                      "2": {
+                        "text": "DOWN",
+                        "color": "red",
+                        "index": 1
+                      },
+                      "3": {
+                        "text": "TEST",
+                        "color": "yellow",
+                        "index": 2
+                      }
+                    }
+                  }
+                ]
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-background",
+                  "mode": "gradient"
+                }
+              },
+              {
+                "id": "custom.width",
+                "value": 90
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Admin"
+            },
+            "properties": [
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "1": {
+                        "text": "UP",
+                        "color": "green",
+                        "index": 0
+                      },
+                      "2": {
+                        "text": "DOWN",
+                        "color": "red",
+                        "index": 1
+                      },
+                      "3": {
+                        "text": "TEST",
+                        "color": "yellow",
+                        "index": 2
+                      }
+                    }
+                  }
+                ]
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              },
+              {
+                "id": "custom.width",
+                "value": 90
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Velocidad"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "Mbits"
+              },
+              {
+                "id": "custom.width",
+                "value": 110
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "RX"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "bps"
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "gauge",
+                  "mode": "basic"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "TX"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "bps"
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "gauge",
+                  "mode": "basic"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false,
+          "reducer": [
+            "sum"
+          ]
+        }
+      }
+    },
+    {
+      "id": 130,
+      "type": "timeseries",
+      "title": "RX por puerto (bits/s)",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 16
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus-infra"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bps",
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 10
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": [
+            "max",
+            "mean"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus-infra"
+          },
+          "expr": "rate(ifHCInOctets{job=\"switch-sodola-snmp\"}[$__rate_interval]) * 8 * on(ifIndex) group_left(ifName) ifName{job=\"switch-sodola-snmp\"}",
+          "legendFormat": "{{ifName}}"
+        }
+      ]
+    },
+    {
+      "id": 131,
+      "type": "timeseries",
+      "title": "TX por puerto (bits/s)",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 16
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus-infra"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bps",
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 10
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": [
+            "max",
+            "mean"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus-infra"
+          },
+          "expr": "rate(ifHCOutOctets{job=\"switch-sodola-snmp\"}[$__rate_interval]) * 8 * on(ifIndex) group_left(ifName) ifName{job=\"switch-sodola-snmp\"}",
+          "legendFormat": "{{ifName}}"
+        }
+      ]
+    },
+    {
+      "id": 132,
+      "type": "timeseries",
+      "title": "Uso del puerto (% de la velocidad negociada)",
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 0,
+        "y": 24
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus-infra"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 10
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": [
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus-infra"
+          },
+          "expr": "100 * rate(ifHCInOctets{job=\"switch-sodola-snmp\"}[$__rate_interval]) * 8 / (ifHighSpeed{job=\"switch-sodola-snmp\"} * 1e6) * on(ifIndex) group_left(ifName) ifName{job=\"switch-sodola-snmp\"}",
+          "legendFormat": "{{ifName}} RX"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus-infra"
+          },
+          "expr": "100 * rate(ifHCOutOctets{job=\"switch-sodola-snmp\"}[$__rate_interval]) * 8 / (ifHighSpeed{job=\"switch-sodola-snmp\"} * 1e6) * on(ifIndex) group_left(ifName) ifName{job=\"switch-sodola-snmp\"}",
+          "legendFormat": "{{ifName}} TX"
+        }
+      ]
+    },
+    {
+      "id": 133,
+      "type": "timeseries",
+      "title": "Errores + descartes por puerto (pkts/s)",
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 12,
+        "y": 24
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus-infra"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "pps",
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 10
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": [
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus-infra"
+          },
+          "expr": "(rate(ifInErrors{job=\"switch-sodola-snmp\"}[$__rate_interval]) + rate(ifOutErrors{job=\"switch-sodola-snmp\"}[$__rate_interval]) + rate(ifInDiscards{job=\"switch-sodola-snmp\"}[$__rate_interval]) + rate(ifOutDiscards{job=\"switch-sodola-snmp\"}[$__rate_interval])) * on(ifIndex) group_left(ifName) ifName{job=\"switch-sodola-snmp\"}",
+          "legendFormat": "{{ifName}}"
+        }
+      ]
+    }
+  ]
+}
