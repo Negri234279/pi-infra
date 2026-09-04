@@ -3,7 +3,7 @@
   "editable": true,
   "graphTooltip": 1,
   "schemaVersion": 39,
-  "tags": ["blackbox", "probes", "network"],
+  "tags": ["blackbox", "probes"],
   "links": [
     { "asDropdown": false, "icon": "external link", "includeVars": false, "keepTime": true, "tags": ["pi"], "targetBlank": false, "title": "Pi", "tooltip": "", "type": "dashboards", "url": "" }
   ],
