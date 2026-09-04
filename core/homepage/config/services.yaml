@@ -106,6 +106,14 @@
         description: Switch CSS326-24G-2S+RM
         ping: 192.168.1.5
 
+    # Switch gestionado: web UI por HTTPS a través de NPM (dominio privado). El
+    # ping va a la IP LAN del switch para el indicador de estado, como los otros.
+    - Sodola 10G:
+        icon: mdi-lan
+        href: https://switch-sodola-10gb.negri.es
+        description: Switch Sodola SL-SWTGW3C8F · 8×10G SFP+
+        ping: 192.168.1.4
+
 - Datos:
     - Postgres:
         icon: postgres.png
