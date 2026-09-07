@@ -101,9 +101,10 @@ services:
             POST: 0
         volumes:
             - /var/run/docker.sock:/var/run/docker.sock:ro
-        read_only: true
-        tmpfs:
-            - /run
+        # NOTA: sin `read_only: true`. El entrypoint de esta imagen (HAProxy) genera su
+        # haproxy.cfg en /usr/local/etc/haproxy en arranque; un rootfs de solo lectura lo
+        # deja en crash loop. El endurecimiento real se mantiene: socket montado :ro, solo
+        # GET (containers/events/ping) habilitado, POST denegado, límites de recursos.
         deploy:
             resources:
                 limits: { cpus: '0.25', memory: 64m }
