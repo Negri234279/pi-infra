@@ -16,8 +16,7 @@ services:
       FILTERS_CACHE_TTL_HOURS: "24"
     volumes:
       - rust-stats-data:/app/data # persists trackers + snapshots
-    networks:
-      - rust-stats-net
+    networks: [rust-stats-net, monitoring]
     security_opt:
       - no-new-privileges:true
     deploy:
