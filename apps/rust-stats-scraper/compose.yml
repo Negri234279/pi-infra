@@ -1,0 +1,70 @@
+name: rust-stats-scraper
+
+services:
+  rust-stats:
+    image: negrii/rust-stats-scraper:latest
+    container_name: rust-stats
+    restart: unless-stopped
+    init: true # reap Chromium child processes / forward signals
+    shm_size: "1gb" # headroom for Chromium (also launched with --disable-dev-shm-usage)
+    environment:
+      NODE_ENV: production
+      PORT: "3200"
+      HEADLESS: "true"
+      # The daily-snapshot boundary is LOCAL midnight — set the container's TZ.
+      TZ: Europe/Madrid
+      FILTERS_CACHE_TTL_HOURS: "24"
+    volumes:
+      - rust-stats-data:/app/data # persists trackers + snapshots
+    networks:
+      - rust-stats-net
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits: { cpus: "2.0", memory: 2048m }
+        reservations: { memory: 512m }
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:3200/api/providers').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    labels:
+      # ---- auto-update -----------------------------------------------------
+      - com.centurylinklabs.watchtower.enable=true
+      # ---- Homepage dashboard ---------------------------------------------
+      - homepage.group=Apps
+      - homepage.name=Rust Stats
+      - homepage.icon=rust.png
+      - homepage.href=https://rust-stats.negri.es
+      - homepage.description=Stats y trackers de Rust (Moose)
+      - homepage.docker.container=rust-stats
+      - homepage.widget.type=customapi
+      - homepage.widget.url=http://rust-stats:3200/api/widget
+      - homepage.widget.refreshInterval=30000
+      - homepage.widget.mappings[0].label=Estado
+      - homepage.widget.mappings[0].field=status
+      - homepage.widget.mappings[1].label=Trackers
+      - homepage.widget.mappings[1].field=trackers
+      - homepage.widget.mappings[2].label=Snapshots
+      - homepage.widget.mappings[2].field=snapshots
+      - homepage.widget.mappings[3].label=En curso
+      - homepage.widget.mappings[3].field=running
+      # ---- proxy-control (private domain) ---------------------------------
+      - proxy-control.enable=true
+      - proxy-control.hostname=rust-stats.negri.es
+      - proxy-control.visibility=private
+      - proxy-control.forward.host=rust-stats
+      - proxy-control.forward.port=3200
+
+volumes:
+  rust-stats-data:
+
+networks:
+  rust-stats-net:
+    name: rust-stats-net
