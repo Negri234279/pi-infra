@@ -6,3 +6,8 @@
 collections:
   - name: community.general
     version: ">=8.0.0"
+  # Owns the `grafana_annotations` callback: posts a Grafana annotation at the
+  # start/end of every playbook (red marker on dashboards if it fails). Enabled
+  # on demand by scripts/../run.sh — see ansible/README.md.
+  - name: community.grafana
+    version: ">=1.6.0"

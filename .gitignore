@@ -5,6 +5,8 @@
 apps/**/*.env
 # Per-host secrets (each host dir ships a *.env.example; the real *.env stays local).
 hosts/**/*.env
+# Ansible run.sh Grafana-annotation creds (ships .env.local.example; real one local).
+ansible/.env.local
 # Uptime Kuma runtime data on the rpi3 (SQLite DB + monitors) — generated, never commit.
 hosts/rpi3/data/
 

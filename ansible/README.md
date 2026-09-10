@@ -75,6 +75,30 @@ ansible-playbook playbooks/bootstrap-pve.yml --tags observability   # skip posti
 ansible-playbook playbooks/bootstrap-pve.yml --tags postinstall --check --diff  # dry-run
 ```
 
+## Runs in Grafana (logs + annotations)
+
+Wrap playbook runs with `run.sh` to surface them in the existing stack — no new
+services, it reuses the journal→Alloy→Loki pipe and Grafana:
+
+```bash
+./run.sh playbooks/bootstrap-pve.yml            # same args as ansible-playbook
+```
+
+- **Logs (always on).** The run is copied into the systemd journal tagged
+  `ansible`; Alloy already ships the journal to Loki, so in Grafana → Explore:
+  `{job="systemd-journal", host="rpi5", identifier="ansible"}`. Live colored output
+  still shows on your terminal. `profile_tasks` (in `ansible.cfg`) adds per-task
+  timings to that log.
+- **Annotations (opt-in).** Copy `.env.local.example` → `.env.local` and set
+  `GRAFANA_URL` + a service-account `GRAFANA_API_KEY`. Then every run drops a
+  start/end annotation on the dashboards (red if it fails), via the
+  `community.grafana.grafana_annotations` callback. Install collections first:
+  `ansible-galaxy collection install -r requirements.yml`.
+
+`ansible-playbook` directly still works; you just don't get the journal copy or the
+annotation. The relabel rule that exposes the `identifier` label lives in
+`core/alloy/config.alloy` — reload Alloy after pulling (`./scripts/deploy.sh`).
+
 ## Notes / conventions
 
 - **Secrets stay out of git.** The only secret produced is the PVE token, written to

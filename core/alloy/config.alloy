@@ -29,6 +29,12 @@ loki.relabel "journal" {
 		source_labels = ["__journal_priority_keyword"]
 		target_label  = "severity"
 	}
+	// Expose the syslog identifier (systemd-cat -t <tag>) as a label so ad-hoc
+	// runs are queryable directly, e.g. Ansible via `run.sh`: {identifier="ansible"}.
+	rule {
+		source_labels = ["__journal_syslog_identifier"]
+		target_label  = "identifier"
+	}
 }
 
 // ── Docker container logs ──────────────────────────────────────────────────
