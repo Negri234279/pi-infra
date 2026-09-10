@@ -1,0 +1,10 @@
+# Variables for the `proxmox` inventory group (the PVE node).
+---
+# Do NOT let a routine playbook run silently `apt dist-upgrade` the hypervisor.
+# A dist-upgrade can pull a new kernel and, if interrupted, leave the box unable
+# to boot (initramfs half-built → kernel panic). Kernel/PVE upgrades on this node
+# are done by hand, with a controlled reboot. The rest of proxmox_postinstall
+# (repos, nag removal, base packages, timezone) still runs normally.
+#
+# Flip to true only for a deliberate, supervised upgrade run.
+pve_apt_upgrade: false
