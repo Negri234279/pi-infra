@@ -1,0 +1,22 @@
+# Bootstrap a FRESH Proxmox VE install into the pi-infra stack, end to end:
+#   1. proxmox_postinstall — no-subscription repo, disable enterprise repos, remove the
+#      subscription nag, dist-upgrade, base packages, timezone.
+#   2. node_exporter       — native prometheus-node-exporter on :9100 (job `node-pve`).
+#   3. pve_api_token        — read-only API token for pve-exporter; writes the hub's
+#      core/pve-exporter/pve.yml automatically on this (control) node.
+#
+# After it finishes, bring up the hub exporter:  ../scripts/deploy.sh
+#
+#   ansible-playbook playbooks/bootstrap-pve.yml                 # everything
+#   ansible-playbook playbooks/bootstrap-pve.yml --tags observability   # skip postinstall
+---
+- name: Bootstrap the Proxmox VE node
+  hosts: proxmox
+  gather_facts: true
+  roles:
+    - role: proxmox_postinstall
+      tags: [postinstall]
+    - role: node_exporter
+      tags: [node_exporter, observability]
+    - role: pve_api_token
+      tags: [api_token, observability]

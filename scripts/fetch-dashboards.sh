@@ -21,12 +21,15 @@ DASHBOARDS=(
   "1860|37|node-exporter-full.json"      # Node Exporter Full (host)
   "14282|1|cadvisor.json"                # Cadvisor exporter (containers)
   "25257|1|nginx-proxy-manager.json"     # nginxlog-exporter (NPM reverse proxy)
+  "10347|4|proxmox/proxmox-via-prometheus.json" # Proxmox via Prometheus (pve-exporter)
 )
 
 fetch() {
   local id="$1" rev="$2" file="$3"
   local url="https://grafana.com/api/dashboards/${id}/revisions/${rev}/download"
   echo "↓ ${file}  (grafana.com/${id} rev ${rev})"
+  # Some entries land in a subfolder (foldersFromFilesStructure → Grafana folder).
+  mkdir -p "$(dirname "$OUT/${file}")"
   # Substitute the dashboard's datasource input placeholder (any ${DS_...} name)
   # with our UID so the provisioned dashboard binds to Infra without manual input.
   curl -fsSL "$url" \

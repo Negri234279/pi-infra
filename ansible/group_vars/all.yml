@@ -1,0 +1,5 @@
+# Defaults shared by every host. Override per group/host in inventory or group_vars.
+# Kept minimal — role defaults hold most knobs (see roles/*/defaults/main.yml).
+---
+# Timezone applied by the proxmox_postinstall role (matches the rest of the stack).
+pve_timezone: Europe/Madrid

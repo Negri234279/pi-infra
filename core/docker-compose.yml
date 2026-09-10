@@ -78,6 +78,10 @@ services:
       - HOMEPAGE_VAR_NPM_PASSWORD=${NPM_ADMIN_PASSWORD:-}
       - HOMEPAGE_VAR_WG_USER=${WG_ADMIN_USERNAME:-admin}
       - HOMEPAGE_VAR_WG_PASSWORD=${WG_ADMIN_PASSWORD:-}
+      # Proxmox VE card widget: PVE API token id (user@realm!tokenname) + secret.
+      # Empty → the widget just shows no data; the card still links + pings.
+      - HOMEPAGE_VAR_PVE_TOKEN_ID=${PVE_TOKEN_ID:-}
+      - HOMEPAGE_VAR_PVE_TOKEN_SECRET=${PVE_TOKEN_SECRET:-}
     volumes:
       - ./homepage/config:/app/config
       # Auto-descubrimiento de apps por labels + estado de contenedores. RO basta.
@@ -558,6 +562,21 @@ services:
       - "--config.file=/etc/snmp_exporter/snmp.yml"
     volumes:
       - ./snmp-exporter/snmp.yml:/etc/snmp_exporter/snmp.yml:ro
+    networks:
+      - monitoring
+
+  # pve-exporter: Proxmox VE metrics (per-node CPU/RAM/uptime, per-guest VM/LXC
+  # status, and storage usage) pulled from the PVE REST API at 192.168.1.14:8006 on
+  # Prometheus's behalf → job `pve`. Reads the gitignored core/pve-exporter/pve.yml
+  # (API token; copy it from pve.yml.example). Host-level metrics of the box itself
+  # come SEPARATELY from node-exporter on the node (job `node-pve`). Listens on :9221,
+  # endpoint /pve?target=<node-ip>. See core/pve-exporter/README.md.
+  pve-exporter:
+    image: prompve/prometheus-pve-exporter:3.5.5
+    container_name: pve-exporter
+    restart: unless-stopped
+    volumes:
+      - ./pve-exporter/pve.yml:/etc/pve.yml:ro
     networks:
       - monitoring
 

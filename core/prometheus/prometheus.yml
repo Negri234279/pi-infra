@@ -53,6 +53,40 @@ scrape_configs:
         labels:
           host: rpi3
 
+  # Third host: the Proxmox VE server (mgmt 192.168.1.14), scraped over the LAN. It
+  # runs node-exporter, installed natively (systemd) by the Ansible bootstrap
+  # (ansible/) — no Docker on the hypervisor. Kept a SEPARATE job (like node-rpi3) so
+  # the single-host pi-overview dashboard and the
+  # rpi5 host alerts stay unaffected; pve has its own alert group (host-pve). The
+  # box's VMs/LXC/storage come from the `pve` job below, not from here.
+  - job_name: node-pve
+    static_configs:
+      - targets: ["192.168.1.14:9100"]
+        labels:
+          host: pve
+
+  # Proxmox VE cluster/guest/storage metrics via pve-exporter (PVE REST API). Same
+  # target-rewrite mechanism as the SNMP jobs: __address__ is the PVE API host (passed
+  # as ?target=), then rewritten to the exporter's own address; `module` picks the
+  # credentials block in core/pve-exporter/pve.yml. pve-exporter polls the API each
+  # scrape, so 30s is plenty.
+  - job_name: pve
+    scrape_interval: 30s
+    metrics_path: /pve
+    params:
+      module: [default]
+      cluster: ["1"]
+      node: ["1"]
+    static_configs:
+      - targets: ["192.168.1.14"] # the PVE API host (pve.negri.es)
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: "pve-exporter:9221"
+
   # All containers on the Pi (reached by service DNS on the monitoring network).
   - job_name: cadvisor
     static_configs:
@@ -155,6 +189,8 @@ scrape_configs:
         labels: { name: rpi5-ssh }
       - targets: ["192.168.1.6:22"]
         labels: { name: rpi3-ssh }
+      - targets: ["192.168.1.14:22"]
+        labels: { name: pve-ssh }
     relabel_configs:
       - source_labels: [__address__]
         target_label: __param_target
@@ -175,6 +211,28 @@ scrape_configs:
         labels: { name: switch }
       - targets: ["192.168.1.4"]
         labels: { name: sodola }
+      # NOTE: the Proxmox 10G Mellanox NIC is NOT probed here — it lives on an
+      # ISOLATED point-to-point net (10.10.10.0/24, direct link to the W11 box) that
+      # this hub can't route to. Its link health is watched via node-exporter on the
+      # pve host instead — see PveTenGLinkDown in core/prometheus/rules/pve-alerts.yml.
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: "blackbox-exporter:9115"
+
+  # HTTPS health of the Proxmox web panel (192.168.1.14:8006). Its own job because the
+  # panel serves a SELF-SIGNED cert, so it needs the http_2xx_insecure module (TLS
+  # verify off) — see core/blackbox/blackbox.yml. A 200 here means pveproxy is serving.
+  - job_name: blackbox-https-insecure
+    metrics_path: /probe
+    params:
+      module: [http_2xx_insecure]
+    static_configs:
+      - targets: ["https://192.168.1.14:8006"]
+        labels: { name: pve-web }
     relabel_configs:
       - source_labels: [__address__]
         target_label: __param_target

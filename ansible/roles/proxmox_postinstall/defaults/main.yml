@@ -1,0 +1,20 @@
+---
+# Post-install knobs. Override in group_vars/host_vars as needed.
+pve_timezone: Europe/Madrid
+
+# apt dist-upgrade the fresh box. May pull a new kernel → a reboot is advisable
+# afterwards (this role does NOT reboot for you). Set false to only refresh the cache.
+pve_apt_upgrade: true
+
+# Handy base tools on a headless server. Extend freely.
+pve_base_packages:
+  - htop
+  - vim
+  - curl
+  - git
+  - tmux
+  - ncdu
+
+# Patch out the "No valid subscription" login popup (cosmetic; reverts on toolkit
+# package upgrades — just re-run the role). Set false to leave it untouched.
+pve_remove_subscription_nag: true

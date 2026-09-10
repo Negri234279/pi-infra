@@ -22,8 +22,17 @@ secrets/
 # mktxp device inventory holds the RouterOS API password — keep the real file
 # local; only mktxp.conf.example (and the secret-free _mktxp.conf) are committed.
 core/mktxp/mktxp.conf
+# pve-exporter config holds the Proxmox API token — keep the real file local; only
+# pve.yml.example is committed.
+core/pve-exporter/pve.yml
 # Local-only compose override (e.g. skip node-exporter on Docker Desktop).
 core/homepage/config
 !core/homepage/config/*.yaml
 
 .mcp.json
+
+# Ansible: retry files, downloaded Galaxy collections, and any Vault password file.
+ansible/*.retry
+ansible/**/*.retry
+ansible/collections/
+ansible/.vault_pass

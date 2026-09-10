@@ -1,0 +1,9 @@
+---
+# Read-only PVE API token for the hub's pve-exporter (job `pve`).
+pve_token_user: "prometheus@pve"
+pve_token_name: "prometheus"
+pve_token_role: "PVEAuditor" # built-in read-only role
+
+# Where to write the exporter credentials ON THE CONTROL NODE (the rpi5 repo checkout).
+# playbook_dir = ansible/playbooks → ../../ = repo root.
+pve_exporter_config: "{{ playbook_dir }}/../../core/pve-exporter/pve.yml"

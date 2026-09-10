@@ -1,0 +1,6 @@
+---
+# Native prometheus-node-exporter (Debian package). Scraped by the rpi5 hub as job
+# `node-pve` (see core/prometheus/prometheus.yml → 192.168.1.14:9100).
+node_exporter_listen_address: ":9100"
+# systemd unit states (pve, pveproxy, corosync…). Matches the Docker variant's flags.
+node_exporter_extra_args: "--collector.systemd"

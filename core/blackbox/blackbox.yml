@@ -25,3 +25,16 @@ modules:
       preferred_ip_protocol: ip4
       valid_status_codes: [] # defaults to 2xx
       follow_redirects: true
+
+  # Same as http_2xx but skips TLS verification — for endpoints serving a self-signed
+  # cert (e.g. the Proxmox web panel on :8006). Only for probing reachability, never
+  # for anything trusting the cert.
+  http_2xx_insecure:
+    prober: http
+    timeout: 5s
+    http:
+      preferred_ip_protocol: ip4
+      valid_status_codes: [] # defaults to 2xx
+      follow_redirects: true
+      tls_config:
+        insecure_skip_verify: true

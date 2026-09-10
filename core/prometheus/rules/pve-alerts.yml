@@ -1,0 +1,133 @@
+# Alert rules for the Proxmox VE server. Two sources, two groups:
+#   • host-pve — the box itself via node-exporter (job=node-pve), mirroring the
+#     host / host-rpi3 groups. Thresholds tuned for a real server (10900KF).
+#   • pve      — cluster/guest/storage via pve-exporter (job=pve).
+# Same severity labels → same Discord routing as every other alert. Blackbox probes
+# (pve-ssh, pve-web) are covered by the generic ProbeDown rule in alerts.yml. The 10G
+# NIC is on an isolated net the hub can't reach → watched here via PveTenGLinkDown.
+groups:
+  # ── Host: Proxmox node (job=node-pve) ────────────────────────────────────
+  - name: host-pve
+    rules:
+      - alert: PveDown
+        expr: up{job="node-pve"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Proxmox node-exporter is down"
+          description: "No host metrics from pve (192.168.1.14) for >2m — the host or its exporter is unreachable."
+
+      - alert: PveNodeExporterAbsent
+        # Catches the exporter target vanishing entirely (removed/renamed), which a
+        # plain up==0 can't evaluate. Mirrors the rpi5 deadman NodeExporterAbsent.
+        expr: absent(up{job="node-pve"})
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Proxmox node-exporter series is absent"
+          description: "No `up{job=\"node-pve\"}` series at all for >2m — the pve host exporter target has gone missing."
+
+      - alert: PveHighCpu
+        expr: 100 - (avg(irate(node_cpu_seconds_total{job="node-pve",mode="idle"}[5m])) * 100) > 90
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High CPU on pve"
+          description: "pve CPU busy {{ printf \"%.0f\" $value }}% for >15m."
+
+      - alert: PveHighMemory
+        expr: (1 - (node_memory_MemAvailable_bytes{job="node-pve"} / node_memory_MemTotal_bytes{job="node-pve"})) * 100 > 90
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High memory usage on pve"
+          description: "pve memory used {{ printf \"%.0f\" $value }}% for >10m — check VM/LXC allocation."
+
+      - alert: PveHighTemperature
+        # Intel coretemp via hwmon. 85°C sustained is hot for a desktop 10900KF; the
+        # chip throttles around 100°C (Tjmax), so this is an early-warning threshold.
+        expr: max(node_hwmon_temp_celsius{job="node-pve"}) > 85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "pve running hot"
+          description: "CPU package temperature {{ printf \"%.1f\" $value }}°C for >5m. Check cooling."
+
+      - alert: PveTenGLinkDown
+        # The 10G Mellanox NIC lives on an isolated net (10.10.10.0/24, direct link to
+        # the W11 box), so the hub can't ICMP it — we watch carrier on the pve host
+        # itself. Joined by IP via node_network_address_info so it doesn't depend on
+        # the interface name (enpXsY). Fires when that NIC loses carrier.
+        expr: |
+          node_network_carrier{job="node-pve"} == 0
+            and on (device)
+          node_network_address_info{job="node-pve", address="10.10.10.10"}
+        for: 3m
+        labels:
+          severity: warning
+        annotations:
+          summary: "pve 10G link down"
+          description: "The Proxmox 10G NIC (10.10.10.10, storage/VM link to the W11 box) has no carrier for >3m — check the DAC/SFP+ or the peer."
+
+      - alert: PveDiskSpaceLow
+        expr: |
+          (1 - (node_filesystem_avail_bytes{job="node-pve",mountpoint="/",fstype!~"tmpfs|overlay"}
+              / node_filesystem_size_bytes{job="node-pve",mountpoint="/",fstype!~"tmpfs|overlay"})) * 100 > 85
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Root filesystem filling up on pve"
+          description: "pve root filesystem {{ printf \"%.0f\" $value }}% full."
+
+      - alert: PveDiskSpaceCritical
+        expr: |
+          (1 - (node_filesystem_avail_bytes{job="node-pve",mountpoint="/",fstype!~"tmpfs|overlay"}
+              / node_filesystem_size_bytes{job="node-pve",mountpoint="/",fstype!~"tmpfs|overlay"})) * 100 > 95
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Root filesystem almost full on pve"
+          description: "pve root filesystem {{ printf \"%.0f\" $value }}% full — act now."
+
+  # ── Proxmox cluster / guests / storage (job=pve, pve-exporter) ───────────
+  - name: pve
+    rules:
+      - alert: PveExporterDown
+        expr: up{job="pve"} == 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "pve-exporter scrape is failing"
+          description: "No Proxmox API metrics for >5m (job=pve) — pve-exporter down, the API token is wrong/expired, or the node is unreachable."
+
+      - alert: PveNodeOffline
+        # pve_up is 1/0 per PVE object; the node object going 0 means the API reports
+        # the node itself offline (distinct from the scrape failing above).
+        expr: pve_up{id=~"node/.*"} == 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Proxmox node reported offline"
+          description: "PVE reports node {{ $labels.id }} as offline for >5m."
+
+      - alert: PveStorageFull
+        # Per-storage usage from pve-exporter. 90% is a comfortable warn before a
+        # backup/VM-disk write starts failing. Guard against divide-by-zero.
+        expr: |
+          pve_disk_usage_bytes{id=~"storage/.*"}
+            / clamp_min(pve_disk_size_bytes{id=~"storage/.*"}, 1) > 0.90
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Proxmox storage almost full"
+          description: "Storage {{ $labels.id }} is {{ printf \"%.0f\" (mul $value 100) }}% full for >15m."

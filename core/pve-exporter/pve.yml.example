@@ -1,0 +1,21 @@
+# prometheus-pve-exporter credentials — copy to pve.yml and fill the token.
+#
+#   cp core/pve-exporter/pve.yml.example core/pve-exporter/pve.yml
+#
+# pve.yml is gitignored (it holds the PVE API token). Create a READ-ONLY API token on
+# the Proxmox node first (see core/pve-exporter/README.md), e.g. in the shell:
+#
+#   pveum user add prometheus@pve
+#   pveum aclmod / -user prometheus@pve -role PVEAuditor
+#   pveum user token add prometheus@pve prometheus --privsep 0
+#     -> copy the printed "value" (shown ONCE) into token_value below
+#
+# The `default` module name is what Prometheus passes as ?module=default (see the
+# `pve` job in core/prometheus/prometheus.yml).
+default:
+  user: prometheus@pve
+  token_name: "prometheus"
+  token_value: "CHANGE_ME"
+  # The PVE web/API cert is self-signed by default, so don't verify it. Set to true
+  # (and trust the CA) only if you've put a real cert on the node.
+  verify_ssl: false

@@ -1,0 +1,78 @@
+---
+- name: Set the system timezone
+  ansible.builtin.command: "timedatectl set-timezone {{ pve_timezone }}"
+  register: pve_tz
+  changed_when: false
+
+# ── APT repos: drop the paid enterprise repos, add the no-subscription one ──────
+- name: Find enterprise apt sources (.list)
+  ansible.builtin.find:
+    paths: /etc/apt/sources.list.d
+    patterns: ["pve-enterprise.list", "ceph*.list"]
+  register: pve_enterprise_lists
+
+- name: Comment out enterprise repo lines (.list)
+  ansible.builtin.replace:
+    path: "{{ item.path }}"
+    regexp: '^(deb\s+https://enterprise\.proxmox\.com.*)$'
+    replace: '# \1'
+  loop: "{{ pve_enterprise_lists.files }}"
+  loop_control:
+    label: "{{ item.path }}"
+
+- name: Find enterprise apt sources (deb822 .sources)
+  ansible.builtin.find:
+    paths: /etc/apt/sources.list.d
+    patterns: ["pve-enterprise.sources", "ceph*.sources"]
+  register: pve_enterprise_sources
+
+- name: Disable enterprise deb822 sources
+  ansible.builtin.lineinfile:
+    path: "{{ item.path }}"
+    regexp: '^Enabled:'
+    line: "Enabled: false"
+    insertafter: EOF
+  loop: "{{ pve_enterprise_sources.files }}"
+  loop_control:
+    label: "{{ item.path }}"
+
+- name: Add the pve-no-subscription repo
+  ansible.builtin.apt_repository:
+    repo: "deb http://download.proxmox.com/debian/pve {{ ansible_distribution_release }} pve-no-subscription"
+    filename: pve-no-subscription
+    state: present
+    update_cache: false
+
+# ── Updates + base tooling ──────────────────────────────────────────────────────
+- name: Update the apt cache
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Dist-upgrade the system
+  ansible.builtin.apt:
+    upgrade: dist
+  when: pve_apt_upgrade | bool
+
+- name: Install base packages
+  ansible.builtin.apt:
+    name: "{{ pve_base_packages }}"
+    state: present
+
+# ── Cosmetic: remove the "No valid subscription" nag ────────────────────────────
+- name: Check the proxmox widget toolkit is present
+  ansible.builtin.stat:
+    path: /usr/share/javascript/proxmox-widget-toolkit/proxmoxlib.js
+  register: pve_widget_js
+
+- name: Remove the subscription nag
+  ansible.builtin.replace:
+    path: /usr/share/javascript/proxmox-widget-toolkit/proxmoxlib.js
+    # Flip the "subscription is not active" check to a constant false so the popup
+    # never triggers. A no-op on toolkit versions whose source differs.
+    regexp: "res\\.data\\.status\\.toLowerCase\\(\\) !== 'active'"
+    replace: "false"
+  when:
+    - pve_remove_subscription_nag | bool
+    - pve_widget_js.stat.exists
+  notify: Restart pveproxy

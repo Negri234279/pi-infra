@@ -1,0 +1,57 @@
+---
+- name: List existing PVE users
+  ansible.builtin.command: "pveum user list --output-format json"
+  register: pve_users
+  changed_when: false
+
+- name: Create the API user ({{ pve_token_user }})
+  ansible.builtin.command: "pveum user add {{ pve_token_user }}"
+  when: pve_token_user not in (pve_users.stdout | from_json | map(attribute='userid') | list)
+
+- name: Grant the read-only role on / ({{ pve_token_role }})
+  # Idempotent: re-applying the same ACL is a no-op on the PVE side.
+  ansible.builtin.command: "pveum aclmod / -user {{ pve_token_user }} -role {{ pve_token_role }}"
+  changed_when: false
+
+- name: List existing API tokens for {{ pve_token_user }}
+  ansible.builtin.command: "pveum user token list {{ pve_token_user }} --output-format json"
+  register: pve_tokens
+  changed_when: false
+
+- name: Create the API token ({{ pve_token_name }})
+  # --privsep 0 lets the token use the user's (audit) privileges without a separate ACL.
+  # The secret is returned ONCE, here — captured below and written to the hub config.
+  ansible.builtin.command: "pveum user token add {{ pve_token_user }} {{ pve_token_name }} --privsep 0 --output-format json"
+  register: pve_token_new
+  when: pve_token_name not in (pve_tokens.stdout | from_json | map(attribute='tokenid') | list)
+
+- name: Write the pve-exporter config on the control node
+  ansible.builtin.copy:
+    dest: "{{ pve_exporter_config }}"
+    mode: "0600"
+    content: |
+      # Managed by Ansible (bootstrap-pve). Holds the PVE API token — gitignored.
+      default:
+        user: {{ pve_token_user }}
+        token_name: "{{ pve_token_name }}"
+        token_value: "{{ (pve_token_new.stdout | from_json).value }}"
+        verify_ssl: false
+  delegate_to: localhost
+  become: false
+  when: pve_token_new is changed
+
+- name: Token created — next steps
+  ansible.builtin.debug:
+    msg:
+      - "Token {{ (pve_token_new.stdout | from_json)['full-tokenid'] }} creado."
+      - "core/pve-exporter/pve.yml escrito en el hub. Ahora: ../scripts/deploy.sh"
+      - "Widget homepage (opcional): en .env -> PVE_TOKEN_ID={{ (pve_token_new.stdout | from_json)['full-tokenid'] }}  y  PVE_TOKEN_SECRET=<value ya guardado en pve.yml>"
+  when: pve_token_new is changed
+
+- name: Token already existed — secret not retrievable
+  ansible.builtin.debug:
+    msg: >-
+      El token {{ pve_token_user }}!{{ pve_token_name }} ya existía; PVE no vuelve a mostrar el secreto.
+      Si core/pve-exporter/pve.yml no está configurado, elimínalo en PVE
+      (pveum user token remove {{ pve_token_user }} {{ pve_token_name }}) y re-ejecuta este rol.
+  when: pve_token_new is not changed
