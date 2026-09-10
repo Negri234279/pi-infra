@@ -576,7 +576,10 @@ services:
     container_name: pve-exporter
     restart: unless-stopped
     volumes:
-      - ./pve-exporter/pve.yml:/etc/pve.yml:ro
+      # prometheus-pve-exporter's default --config.file is /etc/prometheus/pve.yml,
+      # so mount there (no command override needed). Mounting to /etc/pve.yml made
+      # the exporter crash-loop with FileNotFoundError on /etc/prometheus/pve.yml.
+      - ./pve-exporter/pve.yml:/etc/prometheus/pve.yml:ro
     networks:
       - monitoring
 

@@ -28,7 +28,10 @@
 - name: Write the pve-exporter config on the control node
   ansible.builtin.copy:
     dest: "{{ pve_exporter_config }}"
-    mode: "0600"
+    # 0644 (not 0600): the pve-exporter container runs as a non-root UID and must
+    # read this bind-mounted file. The file is gitignored and holds only a
+    # read-only PVEAuditor token, so world-readable on the host is acceptable.
+    mode: "0644"
     content: |
       # Managed by Ansible (bootstrap-pve). Holds the PVE API token — gitignored.
       default:
