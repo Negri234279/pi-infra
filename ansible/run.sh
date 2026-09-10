@@ -28,8 +28,10 @@ fi
 # annotations on. Copy .env.local.example → .env.local and fill it in.
 if [[ -f .env.local ]]; then
 	set -a
+	# Strip CRLF: .env.local is often edited on Windows, and a trailing \r ends up
+	# glued to the token → Grafana rejects the Bearer header ("Invalid header value").
 	# shellcheck disable=SC1091
-	source .env.local
+	source <(sed 's/\r$//' .env.local)
 	set +a
 fi
 
