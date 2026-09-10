@@ -1,0 +1,107 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "name": "Ansible runs",
+        "datasource": { "type": "grafana", "uid": "-- Grafana --" },
+        "enable": true,
+        "hide": false,
+        "iconColor": "purple",
+        "target": { "type": "tags", "tags": ["ansible"], "limit": 100, "matchAny": false }
+      }
+    ]
+  },
+  "editable": true,
+  "graphTooltip": 1,
+  "schemaVersion": 39,
+  "tags": ["loki", "ansible", "ci-cd"],
+  "links": [
+    { "asDropdown": false, "icon": "external link", "includeVars": false, "keepTime": true, "tags": ["ci-cd"], "targetBlank": false, "title": "CI/CD", "tooltip": "", "type": "dashboards", "url": "" }
+  ],
+  "title": "CI/CD · Ansible runs",
+  "uid": "ansible-runs-cicd",
+  "description": "Ansible playbook runs from the rpi5 control node. Logs come from the systemd journal (tagged `ansible` by scripts/../run.sh) shipped to Loki by Alloy; the purple annotations are the community.grafana grafana_annotations callback (tag `ansible`).",
+  "time": { "from": "now-24h", "to": "now" },
+  "timezone": "browser",
+  "refresh": "30s",
+  "templating": {
+    "list": [
+      {
+        "name": "search",
+        "label": "Search (regex, case-insensitive)",
+        "type": "textbox",
+        "query": "",
+        "current": { "text": "", "value": "" },
+        "options": [ { "selected": true, "text": "", "value": "" } ]
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 100,
+      "type": "row",
+      "title": "Runs — Ansible (journald → Loki)",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "collapsed": false
+    },
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Líneas (rango)",
+      "gridPos": { "h": 4, "w": 8, "x": 0, "y": 1 },
+      "datasource": { "type": "loki", "uid": "loki-infra" },
+      "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "thresholds": { "steps": [ { "color": "blue", "value": null } ] } }, "overrides": [] },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "value", "graphMode": "area" },
+      "targets": [
+        { "refId": "A", "datasource": { "type": "loki", "uid": "loki-infra" }, "queryType": "instant", "expr": "sum(count_over_time({job=\"systemd-journal\", host=\"rpi5\", identifier=\"ansible\"} |~ `(?i)$search` [$__range]))" }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Fallos (failed / fatal / unreachable)",
+      "gridPos": { "h": 4, "w": 8, "x": 8, "y": 1 },
+      "datasource": { "type": "loki", "uid": "loki-infra" },
+      "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "thresholds": { "steps": [ { "color": "green", "value": null }, { "color": "red", "value": 1 } ] } }, "overrides": [] },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "none" },
+      "targets": [
+        { "refId": "A", "datasource": { "type": "loki", "uid": "loki-infra" }, "queryType": "instant", "expr": "sum(count_over_time({job=\"systemd-journal\", host=\"rpi5\", identifier=\"ansible\"} |~ `(?i)(fatal:|unreachable=[1-9]|failed=[1-9])` [$__range]))" }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Cambios (changed)",
+      "gridPos": { "h": 4, "w": 8, "x": 16, "y": 1 },
+      "datasource": { "type": "loki", "uid": "loki-infra" },
+      "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "thresholds": { "steps": [ { "color": "yellow", "value": null } ] } }, "overrides": [] },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "value", "graphMode": "area" },
+      "targets": [
+        { "refId": "A", "datasource": { "type": "loki", "uid": "loki-infra" }, "queryType": "instant", "expr": "sum(count_over_time({job=\"systemd-journal\", host=\"rpi5\", identifier=\"ansible\"} |~ `changed:` [$__range]))" }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "Actividad (líneas)",
+      "gridPos": { "h": 6, "w": 24, "x": 0, "y": 5 },
+      "datasource": { "type": "loki", "uid": "loki-infra" },
+      "fieldConfig": { "defaults": { "custom": { "drawStyle": "bars", "fillOpacity": 40, "lineWidth": 1 }, "color": { "mode": "fixed", "fixedColor": "blue" } }, "overrides": [] },
+      "options": { "legend": { "showLegend": false }, "tooltip": { "mode": "single" } },
+      "targets": [
+        { "refId": "A", "datasource": { "type": "loki", "uid": "loki-infra" }, "legendFormat": "líneas", "expr": "sum(count_over_time({job=\"systemd-journal\", host=\"rpi5\", identifier=\"ansible\"} |~ `(?i)$search` [$__interval]))" }
+      ]
+    },
+    {
+      "id": 5,
+      "type": "logs",
+      "title": "Salida de los runs",
+      "gridPos": { "h": 13, "w": 24, "x": 0, "y": 11 },
+      "datasource": { "type": "loki", "uid": "loki-infra" },
+      "options": { "showTime": true, "showLabels": false, "wrapLogMessage": true, "prettifyLogMessage": false, "enableLogDetails": true, "dedupStrategy": "none", "sortOrder": "Descending" },
+      "targets": [
+        { "refId": "A", "datasource": { "type": "loki", "uid": "loki-infra" }, "expr": "{job=\"systemd-journal\", host=\"rpi5\", identifier=\"ansible\"} |~ `(?i)$search`" }
+      ]
+    }
+  ]
+}
