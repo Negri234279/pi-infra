@@ -128,14 +128,11 @@ if changed '^core/snmp-exporter/'; then
   log "snmp-exporter config changed -> recreate snmp-exporter"
   docker compose up -d --force-recreate snmp-exporter
 fi
-if changed '^core/pve-exporter/'; then
-  # pve.yml is a single-FILE bind mount, so a plain `restart` keeps the container
-  # bound to the OLD inode (git replaces the file on pull) and reloads the stale
-  # token. Recreate so it re-binds and reads the new pve.yml. Same reasoning as
-  # snmp-exporter above. Prometheus needs nothing here (it only passes the target).
-  log "pve-exporter config changed -> recreate pve-exporter"
-  docker compose up -d --force-recreate pve-exporter
-fi
+# NOTE: pve-exporter is no longer a hub service — it runs in an LXC on the pve node
+# (ansible/roles/pve_exporter_lxc) and its pve.yml is managed there by Ansible, not by
+# this script. A stale container from the old Docker setup is cleaned up by the
+# `--remove-orphans` on the `up -d` above. Changes under core/pve-exporter/ (README,
+# example) need no hub action, so there's deliberately no branch for it here.
 if changed '^core/homepage/'; then
   # homepage vigila config/ en caliente, pero un restart es determinista y barato.
   log "homepage config changed -> restart homepage"
