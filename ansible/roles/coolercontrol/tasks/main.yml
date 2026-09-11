@@ -1,0 +1,137 @@
+---
+# CoolerControl on the Proxmox HOST — web-based fan/PWM control for the MSI MEG
+# Z490 ACE (Nuvoton NCT6687-D Super I/O chip). Two parts:
+#   1. nct6687d      — out-of-tree DKMS kernel driver. Mainline has no working
+#                      NCT6687-D support, so without it hwmon exposes no usable PWM
+#                      channels and CoolerControl has nothing to drive.
+#   2. coolercontrold — the daemon + built-in web UI (:11987), from the official
+#                      apt.coolercontrol.org repo.
+#
+# Runs on the HOST, NOT an LXC: the kernel module can only live on the host, and
+# writing to /sys/class/hwmon/*/pwmN from a container is blocked by cgroup2/AppArmor
+# on PVE 8. Same rationale as node_exporter staying native. Idempotent — safe to
+# re-run; the DKMS build is skipped once the module is registered.
+#
+#   ansible-playbook playbooks/bootstrap-pve.yml --tags coolercontrol
+
+# ── 1. nct6687d DKMS driver ────────────────────────────────────────────────
+- name: Install kernel headers + DKMS build toolchain
+  ansible.builtin.apt:
+    name: "{{ coolercontrol_build_packages + coolercontrol_headers_packages }}"
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Blacklist the generic nct6683 driver (binds the chip but can't drive it)
+  ansible.builtin.copy:
+    dest: /etc/modprobe.d/blacklist-nct6683.conf
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      # Managed by Ansible (pi-infra). The mainline nct6683 binds the MSI NCT6687-D
+      # in monitor-only mode and blocks the out-of-tree nct6687 driver.
+      blacklist nct6683
+  when: nct6687d_blacklist_nct6683 | bool
+
+- name: Check whether the nct6687 DKMS module is already installed
+  ansible.builtin.command: dkms status nct6687
+  register: cc_dkms_status
+  changed_when: false
+  failed_when: false
+
+- name: Build + install the nct6687d driver
+  when: "'installed' not in cc_dkms_status.stdout"
+  block:
+    - name: Clone the nct6687d driver source
+      ansible.builtin.git:
+        repo: "{{ nct6687d_repo }}"
+        dest: "{{ nct6687d_src_dir }}"
+        version: "{{ nct6687d_version }}"
+        force: true
+
+    - name: Build + register the module via DKMS
+      ansible.builtin.command: make dkms/install
+      args:
+        chdir: "{{ nct6687d_src_dir }}"
+      register: cc_dkms_build
+      changed_when: true
+      notify: Restart coolercontrold
+
+# ── Load it now (a reboot would also do it, but avoid forcing one) ──────────
+- name: Unload the conflicting nct6683 module if it is currently bound
+  ansible.builtin.command: modprobe -r nct6683
+  register: cc_rmmod
+  changed_when: cc_rmmod.rc == 0
+  failed_when: false
+  when: nct6687d_blacklist_nct6683 | bool
+
+- name: Load the nct6687 module
+  ansible.builtin.command: modprobe nct6687
+  register: cc_modprobe
+  changed_when: false
+  # If nct6683 was already bound and busy, the chip may not free until a reboot.
+  # Don't hard-fail the whole run for that — surface it as a warning instead.
+  failed_when: false
+
+- name: Warn if the module could not be loaded (a reboot is likely required)
+  ansible.builtin.debug:
+    msg: >-
+      nct6687 did not load cleanly (rc={{ cc_modprobe.rc }}). This is usually because
+      nct6683 was already bound to the chip. REBOOT the pve node and re-run this role;
+      the blacklist + modules-load config below will bring nct6687 up on boot.
+  when: cc_modprobe.rc != 0
+
+- name: Load nct6687 automatically on boot
+  ansible.builtin.copy:
+    dest: /etc/modules-load.d/nct6687.conf
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      # Managed by Ansible (pi-infra) — MSI NCT6687-D fan/PWM sensor driver.
+      nct6687
+
+# ── 2. CoolerControl repo + daemon ─────────────────────────────────────────
+- name: Ensure apt HTTPS transport is available
+  ansible.builtin.apt:
+    name:
+      - apt-transport-https
+      - ca-certificates
+      - curl
+    state: present
+
+- name: Add the CoolerControl repository signing key
+  ansible.builtin.get_url:
+    url: "{{ coolercontrol_repo_url }}/coolercontrol-archive-keyring.gpg"
+    dest: /usr/share/keyrings/coolercontrol-archive-keyring.gpg
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Add the CoolerControl apt repository (deb822)
+  ansible.builtin.copy:
+    dest: /etc/apt/sources.list.d/coolercontrol.sources
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      # Managed by Ansible (pi-infra). https://docs.coolercontrol.org
+      Types: deb
+      URIs: {{ coolercontrol_repo_url }}/debian
+      Suites: stable
+      Components: main
+      Signed-By: /usr/share/keyrings/coolercontrol-archive-keyring.gpg
+  register: cc_repo
+
+- name: Install coolercontrold (daemon + web UI)
+  ansible.builtin.apt:
+    name: "{{ coolercontrol_package }}"
+    state: present
+    update_cache: "{{ cc_repo is changed }}"
+
+- name: Enable and start coolercontrold
+  ansible.builtin.service:
+    name: coolercontrold
+    state: started
+    enabled: true

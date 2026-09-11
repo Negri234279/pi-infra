@@ -19,3 +19,12 @@ pve_apt_upgrade: false
 # job's __address__ replacement in core/prometheus/prometheus.yml.
 pve_exporter_lxc_ip: "192.168.1.15/24"
 pve_exporter_lxc_gateway: "192.168.1.1"
+
+# ── CoolerControl fan/PWM control (role `coolercontrol`) ─────────────────────
+# Runs on the HOST: nct6687d DKMS driver (MSI Z490 NCT6687-D chip) + the
+# CoolerControl daemon with its built-in web UI. Reach the UI at
+# http://192.168.1.14:11987 once bootstrapped. Full knob list in
+# roles/coolercontrol/defaults/main.yml — defaults are fine for this board.
+#
+# NOTE: if nct6683 was already bound to the chip, the first run can't load nct6687
+# until a reboot. Reboot the node once and re-run `--tags coolercontrol`.

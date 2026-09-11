@@ -1,0 +1,144 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "graphTooltip": 1,
+  "schemaVersion": 39,
+  "tags": ["proxmox", "pve", "fans", "thermal"],
+  "links": [
+    { "title": "CoolerControl UI", "type": "link", "icon": "external link", "url": "http://192.168.1.14:11987", "targetBlank": true }
+  ],
+  "title": "Proxmox · ventiladores & térmica",
+  "uid": "pve-fans-core",
+  "time": { "from": "now-6h", "to": "now" },
+  "timezone": "browser",
+  "refresh": "30s",
+  "templating": { "list": [] },
+  "description": "RPM de ventiladores (chip NCT6687-D vía nct6687d), temperaturas de placa/CPU y voltajes del host pve, desde el colector hwmon del node-exporter (job node-pve). El duty-cycle PWM se ajusta en CoolerControl (:11987); node-exporter no lo expone.",
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Ventiladores girando",
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus-infra" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [ { "color": "red", "value": null }, { "color": "green", "value": 1 } ] }
+        },
+        "overrides": []
+      },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "" }, "colorMode": "background", "graphMode": "none", "textMode": "value" },
+      "targets": [
+        { "refId": "A", "datasource": { "type": "prometheus", "uid": "prometheus-infra" }, "expr": "count(node_hwmon_fan_rpm{job=\"node-pve\"} > 0) or vector(0)", "instant": true }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "RPM máx",
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus-infra" },
+      "fieldConfig": { "defaults": { "unit": "rotrpm", "color": { "mode": "fixed", "fixedColor": "blue" } }, "overrides": [] },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "" }, "colorMode": "value", "graphMode": "area", "textMode": "value" },
+      "targets": [
+        { "refId": "A", "datasource": { "type": "prometheus", "uid": "prometheus-infra" }, "expr": "max(node_hwmon_fan_rpm{job=\"node-pve\"}) or vector(0)", "instant": true }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Temp CPU (coretemp)",
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus-infra" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "celsius",
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "yellow", "value": 70 }, { "color": "red", "value": 85 } ] }
+        },
+        "overrides": []
+      },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "" }, "colorMode": "background", "graphMode": "area", "textMode": "value" },
+      "targets": [
+        { "refId": "A", "datasource": { "type": "prometheus", "uid": "prometheus-infra" }, "expr": "max(node_hwmon_temp_celsius{job=\"node-pve\", chip=~\".*coretemp.*\"})", "instant": true }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Temp placa (nct6687)",
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus-infra" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "celsius",
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "yellow", "value": 65 }, { "color": "red", "value": 80 } ] }
+        },
+        "overrides": []
+      },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "" }, "colorMode": "background", "graphMode": "area", "textMode": "value" },
+      "targets": [
+        { "refId": "A", "datasource": { "type": "prometheus", "uid": "prometheus-infra" }, "expr": "max(node_hwmon_temp_celsius{job=\"node-pve\", chip=~\".*nct6687.*\"})", "instant": true }
+      ]
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "RPM por ventilador",
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 4 },
+      "datasource": { "type": "prometheus", "uid": "prometheus-infra" },
+      "fieldConfig": { "defaults": { "unit": "rotrpm", "min": 0, "custom": { "drawStyle": "line", "lineWidth": 1, "fillOpacity": 10, "showPoints": "never", "spanNulls": true } }, "overrides": [] },
+      "options": { "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["lastNotNull", "max"] }, "tooltip": { "mode": "multi", "sort": "desc" } },
+      "targets": [
+        { "refId": "A", "datasource": { "type": "prometheus", "uid": "prometheus-infra" }, "expr": "node_hwmon_fan_rpm{job=\"node-pve\"}", "legendFormat": "{{chip}} {{sensor}}" }
+      ]
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "Temperaturas (hwmon)",
+      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 4 },
+      "datasource": { "type": "prometheus", "uid": "prometheus-infra" },
+      "fieldConfig": { "defaults": { "unit": "celsius", "custom": { "drawStyle": "line", "lineWidth": 1, "fillOpacity": 8, "showPoints": "never", "spanNulls": true } }, "overrides": [] },
+      "options": { "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["lastNotNull", "max"] }, "tooltip": { "mode": "multi", "sort": "desc" } },
+      "targets": [
+        { "refId": "A", "datasource": { "type": "prometheus", "uid": "prometheus-infra" }, "expr": "node_hwmon_temp_celsius{job=\"node-pve\"}", "legendFormat": "{{chip}} {{sensor}}" }
+      ]
+    },
+    {
+      "id": 7,
+      "type": "bargauge",
+      "title": "Ventiladores — RPM ahora",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 13 },
+      "datasource": { "type": "prometheus", "uid": "prometheus-infra" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "rotrpm",
+          "min": 0,
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [ { "color": "red", "value": null }, { "color": "orange", "value": 1 }, { "color": "green", "value": 400 } ] }
+        },
+        "overrides": []
+      },
+      "options": { "orientation": "horizontal", "displayMode": "gradient", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "" } },
+      "targets": [
+        { "refId": "A", "datasource": { "type": "prometheus", "uid": "prometheus-infra" }, "expr": "node_hwmon_fan_rpm{job=\"node-pve\"}", "legendFormat": "{{chip}} {{sensor}}", "instant": true }
+      ]
+    },
+    {
+      "id": 8,
+      "type": "timeseries",
+      "title": "Voltajes (hwmon)",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 13 },
+      "datasource": { "type": "prometheus", "uid": "prometheus-infra" },
+      "fieldConfig": { "defaults": { "unit": "volt", "custom": { "drawStyle": "line", "lineWidth": 1, "fillOpacity": 0, "showPoints": "never", "spanNulls": true } }, "overrides": [] },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "desc" } },
+      "targets": [
+        { "refId": "A", "datasource": { "type": "prometheus", "uid": "prometheus-infra" }, "expr": "node_hwmon_in_volts{job=\"node-pve\"}", "legendFormat": "{{chip}} {{sensor}}" }
+      ]
+    }
+  ]
+}

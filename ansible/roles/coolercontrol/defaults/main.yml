@@ -1,0 +1,36 @@
+---
+# ── CoolerControl daemon ───────────────────────────────────────────────────
+# Headless install: ONLY the daemon (`coolercontrold`). The `coolercontrol`
+# package is the Qt desktop GUI and would drag WebKit/X11 deps onto the
+# hypervisor — we don't want that. The daemon serves its own web UI.
+coolercontrol_package: coolercontrold
+coolercontrol_repo_url: https://apt.coolercontrol.org
+# Informational only (the daemon binds this itself, not configured here). Reach the
+# UI at http://{{ ansible_host }}:11987 once the service is up.
+coolercontrol_web_port: 11987
+
+# ── nct6687d out-of-tree driver (the MSI NCT6687-D Super I/O chip) ──────────
+# Mainline has no working driver for the NCT6687-D on MSI Z490 boards, so hwmon
+# exposes no usable PWM channels without this. Built via DKMS → auto-rebuilds on
+# kernel upgrades. Fred78290's fork is the actively-maintained one.
+nct6687d_repo: https://github.com/Fred78290/nct6687d.git
+nct6687d_version: main
+nct6687d_src_dir: /opt/nct6687d
+
+# Blacklist the generic nct6683: it binds the chip in monitor-only mode and stops
+# nct6687 from loading. Set false only if you know nct6683 already works for you.
+nct6687d_blacklist_nct6683: true
+
+# Toolchain to compile the DKMS module.
+coolercontrol_build_packages:
+  - dkms
+  - git
+  - build-essential
+  - make
+
+# Kernel headers for the DKMS build. proxmox-default-headers tracks the default PVE
+# kernel; the exact running-kernel headers guarantee a build against THIS boot even
+# if the two differ (e.g. right after a kernel upgrade, before a reboot).
+coolercontrol_headers_packages:
+  - "proxmox-headers-{{ ansible_kernel }}"
+  - proxmox-default-headers

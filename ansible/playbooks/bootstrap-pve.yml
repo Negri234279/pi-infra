@@ -7,12 +7,15 @@
 #                            exporter on :9221 (job `pve`), scraped by the hub over the
 #                            LAN. Replaces the old Docker container on the rpi5.
 #   4. pve_api_token        — read-only API token; writes pve.yml INTO that LXC.
+#   5. coolercontrol        — nct6687d DKMS driver + CoolerControl daemon/web UI on
+#                             the HOST, for fan/PWM control of the MSI Z490 board.
 #
 # Everything now lives on the pve node — no hub-side deploy step is needed for the
 # exporter anymore. Just point Prometheus at the LXC IP (core/prometheus/prometheus.yml).
 #
 #   ansible-playbook playbooks/bootstrap-pve.yml                 # everything
 #   ansible-playbook playbooks/bootstrap-pve.yml --tags observability   # skip postinstall
+#   ansible-playbook playbooks/bootstrap-pve.yml --tags coolercontrol   # just fan control
 ---
 - name: Bootstrap the Proxmox VE node
   hosts: proxmox
@@ -26,3 +29,5 @@
       tags: [pve_exporter, observability]
     - role: pve_api_token
       tags: [api_token, observability]
+    - role: coolercontrol
+      tags: [coolercontrol, fans]

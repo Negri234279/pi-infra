@@ -18,6 +18,7 @@ ansible/
     node_exporter/         # native prometheus-node-exporter on the host (job node-pve)
     pve_exporter_lxc/      # LXC on the node running prometheus-pve-exporter (job pve)
     pve_api_token/         # read-only API token + writes pve.yml INSIDE that LXC
+    coolercontrol/         # nct6687d DKMS driver + CoolerControl web UI (fan/PWM control)
 ```
 
 ## One-time: set up the control node (on the rpi5)
@@ -63,6 +64,14 @@ What it does (all idempotent — safe to re-run):
    as `PVE_TOKEN_ID` / `PVE_TOKEN_SECRET`, then `./scripts/deploy.sh`. Keeping the two
    tokens separate means rotating the exporter token never breaks the homepage widget.
    (Set `pve_homepage_token_manage: false` to skip the homepage token on a run.)
+5. **coolercontrol** — builds the out-of-tree `nct6687d` kernel driver via DKMS (the
+   MSI Z490 ACE uses a Nuvoton **NCT6687-D** the mainline kernel can't drive) and
+   installs the **CoolerControl** daemon **on the host**, with its built-in web UI on
+   `:11987`. Open `http://192.168.1.14:11987` to set fan curves for the board headers.
+   > Runs on the host, not an LXC — the kernel module lives on the host and writing to
+   > `/sys/class/hwmon/*/pwmN` from a container is blocked on PVE 8. If `nct6683` was
+   > already bound to the chip, the first run can't load `nct6687` until a **reboot** —
+   > reboot once and re-run `--tags coolercontrol`.
 
 No hub-side deploy step is needed for the exporter anymore. Verify (from the hub):
 
@@ -83,6 +92,7 @@ docker compose exec -T prometheus wget -qO- \
 
 ```bash
 ansible-playbook playbooks/bootstrap-pve.yml --tags observability   # skip postinstall
+ansible-playbook playbooks/bootstrap-pve.yml --tags coolercontrol   # just fan control
 ansible-playbook playbooks/bootstrap-pve.yml --tags postinstall --check --diff  # dry-run
 ```
 
