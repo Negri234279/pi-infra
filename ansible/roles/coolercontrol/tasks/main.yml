@@ -34,14 +34,19 @@
       blacklist nct6683
   when: nct6687d_blacklist_nct6683 | bool
 
-- name: Check whether the nct6687 DKMS module is already installed
-  ansible.builtin.command: dkms status nct6687
-  register: cc_dkms_status
+# Gate on the actual module, NOT `dkms status`: this repo registers its DKMS package
+# as `nct6687d` while the kernel module is `nct6687`, so `dkms status nct6687` is
+# empty even when it's installed. `modinfo nct6687` (rc 0) is the reliable signal that
+# the driver is built for the running kernel. DKMS still auto-rebuilds on kernel
+# upgrades on its own — Ansible only needs to do the ONE-TIME first build here.
+- name: Check whether the nct6687 kernel module is already available
+  ansible.builtin.command: modinfo nct6687
+  register: cc_modinfo
   changed_when: false
   failed_when: false
 
 - name: Build + install the nct6687d driver
-  when: "'installed' not in cc_dkms_status.stdout"
+  when: cc_modinfo.rc != 0
   block:
     - name: Clone the nct6687d driver source
       ansible.builtin.git:
@@ -49,6 +54,10 @@
         dest: "{{ nct6687d_src_dir }}"
         version: "{{ nct6687d_version }}"
         force: true
+      register: cc_git
+      until: cc_git is succeeded
+      retries: 3
+      delay: 5
 
     - name: Build + register the module via DKMS
       ansible.builtin.command: make dkms/install
