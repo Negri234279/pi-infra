@@ -5,9 +5,20 @@
 # hypervisor — we don't want that. The daemon serves its own web UI.
 coolercontrol_package: coolercontrold
 coolercontrol_repo_url: https://apt.coolercontrol.org
-# Informational only (the daemon binds this itself, not configured here). Reach the
-# UI at http://{{ ansible_host }}:11987 once the service is up.
 coolercontrol_web_port: 11987
+
+# ── Network binding ────────────────────────────────────────────────────────
+# The daemon ships bound to localhost only (127.0.0.1 / ::1), so the web UI is
+# unreachable from the LAN out of the box. We rebind it via a systemd drop-in using
+# the daemon's CC_* env vars — deliberately NOT by rewriting
+# /etc/coolercontrol/config.toml, because the daemon owns that file (saved fan curves
+# + TLS certs live there) and would fight us over it.
+coolercontrol_bind_ipv4: "0.0.0.0"
+coolercontrol_bind_ipv6: "::"
+# TLS terminates at the core NPM (private domain with the negri.es cert), so the
+# daemon serves plain HTTP on the LAN — same as the upstream Docker image default.
+# Set true to keep the daemon's own self-signed HTTPS instead.
+coolercontrol_daemon_tls: false
 
 # ── nct6687d out-of-tree driver (the MSI NCT6687-D Super I/O chip) ──────────
 # Mainline has no working driver for the NCT6687-D on MSI Z490 boards, so hwmon

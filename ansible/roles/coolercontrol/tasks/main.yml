@@ -130,6 +130,33 @@
     state: present
     update_cache: "{{ cc_repo is changed }}"
 
+# ── Rebind off localhost so the LAN (and the core NPM) can reach the UI ─────
+- name: Ensure the coolercontrold systemd drop-in directory exists
+  ansible.builtin.file:
+    path: /etc/systemd/system/coolercontrold.service.d
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Bind the daemon to the LAN via a systemd drop-in (leaves config.toml untouched)
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/coolercontrold.service.d/override.conf
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      # Managed by Ansible (pi-infra). Bind address + TLS for coolercontrold, as CC_*
+      # env vars. Kept as a drop-in so the daemon's own /etc/coolercontrol/config.toml
+      # — where saved fan curves live — is never overwritten by us.
+      [Service]
+      Environment=CC_HOST_IP4={{ coolercontrol_bind_ipv4 }}
+      Environment=CC_HOST_IP6={{ coolercontrol_bind_ipv6 }}
+      Environment=CC_TLS={{ 'ON' if coolercontrol_daemon_tls else 'OFF' }}
+  notify:
+    - Reload systemd
+    - Restart coolercontrold
+
 - name: Enable and start coolercontrold
   ansible.builtin.service:
     name: coolercontrold

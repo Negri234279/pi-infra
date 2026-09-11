@@ -1,4 +1,10 @@
 ---
+# Ordered on purpose: handlers run in DEFINITION order, so systemd is reloaded
+# before the daemon is restarted with the new drop-in.
+- name: Reload systemd
+  ansible.builtin.systemd:
+    daemon_reload: true
+
 - name: Restart coolercontrold
   ansible.builtin.service:
     name: coolercontrold
