@@ -25,36 +25,52 @@
   register: pve_token_new
   when: pve_token_name not in (pve_tokens.stdout | from_json | map(attribute='tokenid') | list)
 
-- name: Write the pve-exporter config on the control node
-  ansible.builtin.copy:
-    dest: "{{ pve_exporter_config }}"
-    # 0644 (not 0600): the pve-exporter container runs as a non-root UID and must
-    # read this bind-mounted file. The file is gitignored and holds only a
-    # read-only PVEAuditor token, so world-readable on the host is acceptable.
-    mode: "0644"
-    content: |
-      # Managed by Ansible (bootstrap-pve). Holds the PVE API token — gitignored.
-      default:
-        user: {{ pve_token_user }}
-        token_name: "{{ pve_token_name }}"
-        token_value: "{{ (pve_token_new.stdout | from_json).value }}"
-        verify_ssl: false
-  delegate_to: localhost
-  become: false
+# The secret is only returned once (when the token is first created), so the config
+# can only be (re)written on a run where the token was actually created.
+- name: Write the pve-exporter config INTO the LXC
   when: pve_token_new is changed
+  block:
+    - name: Render pve.yml to a temp file on the pve host
+      ansible.builtin.copy:
+        dest: /tmp/pve-exporter.yml
+        mode: "0600"
+        content: |
+          # Managed by Ansible (bootstrap-pve). Holds the PVE API token.
+          default:
+            user: {{ pve_token_user }}
+            token_name: "{{ pve_token_name }}"
+            token_value: "{{ (pve_token_new.stdout | from_json).value }}"
+            verify_ssl: false
+
+    - name: Ensure the config directory exists in the LXC
+      ansible.builtin.command: "pct exec {{ pve_exporter_lxc_vmid }} -- mkdir -p /etc/prometheus"
+      changed_when: false
+
+    - name: Push pve.yml into the LXC (root-only — service runs as root)
+      ansible.builtin.command: >-
+        pct push {{ pve_exporter_lxc_vmid }} /tmp/pve-exporter.yml
+        {{ pve_exporter_config_path }} --perms 0600
+      changed_when: true
+      notify: Restart pve-exporter
+
+    - name: Remove the temp file from the host
+      ansible.builtin.file:
+        path: /tmp/pve-exporter.yml
+        state: absent
 
 - name: Token created — next steps
   ansible.builtin.debug:
     msg:
       - "Token {{ (pve_token_new.stdout | from_json)['full-tokenid'] }} creado."
-      - "core/pve-exporter/pve.yml escrito en el hub. Ahora: ../scripts/deploy.sh"
-      - "Widget homepage (opcional): en .env -> PVE_TOKEN_ID={{ (pve_token_new.stdout | from_json)['full-tokenid'] }}  y  PVE_TOKEN_SECRET=<value ya guardado en pve.yml>"
+      - "pve.yml escrito en el LXC {{ pve_exporter_lxc_vmid }} ({{ pve_exporter_config_path }}); el servicio se reinicia solo."
+      - "Widget homepage (opcional): en .env -> PVE_TOKEN_ID={{ (pve_token_new.stdout | from_json)['full-tokenid'] }}  y  PVE_TOKEN_SECRET=<value ya guardado en el LXC>"
   when: pve_token_new is changed
 
 - name: Token already existed — secret not retrievable
   ansible.builtin.debug:
     msg: >-
-      El token {{ pve_token_user }}!{{ pve_token_name }} ya existía; PVE no vuelve a mostrar el secreto.
-      Si core/pve-exporter/pve.yml no está configurado, elimínalo en PVE
-      (pveum user token remove {{ pve_token_user }} {{ pve_token_name }}) y re-ejecuta este rol.
+      El token {{ pve_token_user }}!{{ pve_token_name }} ya existía; PVE no vuelve a mostrar el secreto,
+      así que no se ha podido escribir pve.yml en el LXC. Si el exporter no arranca (migración desde
+      el setup Docker antiguo o config perdida), rota el token:
+      `pveum user token remove {{ pve_token_user }} {{ pve_token_name }}` y re-ejecuta este rol.
   when: pve_token_new is not changed

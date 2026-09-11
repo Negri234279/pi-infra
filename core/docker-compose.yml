@@ -565,23 +565,11 @@ services:
     networks:
       - monitoring
 
-  # pve-exporter: Proxmox VE metrics (per-node CPU/RAM/uptime, per-guest VM/LXC
-  # status, and storage usage) pulled from the PVE REST API at 192.168.1.14:8006 on
-  # Prometheus's behalf → job `pve`. Reads the gitignored core/pve-exporter/pve.yml
-  # (API token; copy it from pve.yml.example). Host-level metrics of the box itself
-  # come SEPARATELY from node-exporter on the node (job `node-pve`). Listens on :9221,
-  # endpoint /pve?target=<node-ip>. See core/pve-exporter/README.md.
-  pve-exporter:
-    image: prompve/prometheus-pve-exporter:3.5.5
-    container_name: pve-exporter
-    restart: unless-stopped
-    volumes:
-      # prometheus-pve-exporter's default --config.file is /etc/prometheus/pve.yml,
-      # so mount there (no command override needed). Mounting to /etc/pve.yml made
-      # the exporter crash-loop with FileNotFoundError on /etc/prometheus/pve.yml.
-      - ./pve-exporter/pve.yml:/etc/prometheus/pve.yml:ro
-    networks:
-      - monitoring
+  # NOTE: pve-exporter (job `pve`) no longer runs here. It moved to a lightweight LXC
+  # ON the Proxmox node (created by ansible/roles/pve_exporter_lxc) so the API poller
+  # lives with what it monitors and this stack stays lean. The infra Prometheus now
+  # scrapes it over the LAN at 192.168.1.15:9221 — see core/prometheus/prometheus.yml
+  # (job `pve`) and core/pve-exporter/README.md.
 
   # Core Loki: infra logs (currently the router's remote syslog). Its ruler
   # evaluates core/loki/rules/ and pushes log-based alerts to the same

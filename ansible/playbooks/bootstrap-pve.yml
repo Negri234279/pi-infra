@@ -2,10 +2,14 @@
 #   1. proxmox_postinstall — no-subscription repo, disable enterprise repos, remove the
 #      subscription nag, dist-upgrade, base packages, timezone.
 #   2. node_exporter       — native prometheus-node-exporter on :9100 (job `node-pve`).
-#   3. pve_api_token        — read-only API token for pve-exporter; writes the hub's
-#      core/pve-exporter/pve.yml automatically on this (control) node.
+#                            Stays on the HOST: an LXC can't give the real host view.
+#   3. pve_exporter_lxc    — a lightweight LXC on this node running prometheus-pve-
+#                            exporter on :9221 (job `pve`), scraped by the hub over the
+#                            LAN. Replaces the old Docker container on the rpi5.
+#   4. pve_api_token        — read-only API token; writes pve.yml INTO that LXC.
 #
-# After it finishes, bring up the hub exporter:  ../scripts/deploy.sh
+# Everything now lives on the pve node — no hub-side deploy step is needed for the
+# exporter anymore. Just point Prometheus at the LXC IP (core/prometheus/prometheus.yml).
 #
 #   ansible-playbook playbooks/bootstrap-pve.yml                 # everything
 #   ansible-playbook playbooks/bootstrap-pve.yml --tags observability   # skip postinstall
@@ -18,5 +22,7 @@
       tags: [postinstall]
     - role: node_exporter
       tags: [node_exporter, observability]
+    - role: pve_exporter_lxc
+      tags: [pve_exporter, observability]
     - role: pve_api_token
       tags: [api_token, observability]

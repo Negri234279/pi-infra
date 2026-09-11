@@ -65,11 +65,13 @@ scrape_configs:
         labels:
           host: pve
 
-  # Proxmox VE cluster/guest/storage metrics via pve-exporter (PVE REST API). Same
-  # target-rewrite mechanism as the SNMP jobs: __address__ is the PVE API host (passed
-  # as ?target=), then rewritten to the exporter's own address; `module` picks the
-  # credentials block in core/pve-exporter/pve.yml. pve-exporter polls the API each
-  # scrape, so 30s is plenty.
+  # Proxmox VE cluster/guest/storage metrics via pve-exporter (PVE REST API). The
+  # exporter runs in an LXC ON the pve node (ansible/roles/pve_exporter_lxc), so we
+  # scrape it over the LAN instead of by container name. Same target-rewrite as the
+  # SNMP jobs: __address__ is the PVE API host (passed as ?target=), then rewritten to
+  # the exporter's LXC address; `module` picks the credentials block in the LXC's
+  # /etc/prometheus/pve.yml. The exporter polls the API each scrape, so 30s is plenty.
+  # NOTE: the replacement IP below MUST match pve_exporter_lxc_ip (group_vars/proxmox.yml).
   - job_name: pve
     scrape_interval: 30s
     metrics_path: /pve
@@ -78,14 +80,14 @@ scrape_configs:
       cluster: ["1"]
       node: ["1"]
     static_configs:
-      - targets: ["192.168.1.14"] # the PVE API host (pve.negri.es)
+      - targets: ["192.168.1.14"] # the PVE API host (pve.negri.es), passed as ?target=
     relabel_configs:
       - source_labels: [__address__]
         target_label: __param_target
       - source_labels: [__param_target]
         target_label: instance
       - target_label: __address__
-        replacement: "pve-exporter:9221"
+        replacement: "192.168.1.15:9221" # the pve-exporter LXC on the pve node
 
   # All containers on the Pi (reached by service DNS on the monitoring network).
   - job_name: cadvisor

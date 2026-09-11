@@ -1,0 +1,10 @@
+---
+# Handlers run in the order defined here (not notify order), so daemon-reload
+# always precedes the restart. Also notified from the pve_api_token role after it
+# pushes pve.yml into the LXC — both roles run in the same play, so the cross-role
+# notify resolves fine.
+- name: Reload systemd in LXC
+  ansible.builtin.command: "pct exec {{ pve_exporter_lxc_vmid }} -- systemctl daemon-reload"
+
+- name: Restart pve-exporter
+  ansible.builtin.command: "pct exec {{ pve_exporter_lxc_vmid }} -- systemctl restart pve-exporter.service"

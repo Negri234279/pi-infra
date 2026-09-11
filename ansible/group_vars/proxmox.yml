@@ -8,3 +8,14 @@
 #
 # Flip to true only for a deliberate, supervised upgrade run.
 pve_apt_upgrade: false
+
+# ── pve-exporter LXC (job `pve`) ───────────────────────────────────────────
+# The PVE REST-API exporter runs as a lightweight LXC ON this node (it used to be a
+# Docker container on the rpi5 hub). The hub's Prometheus scrapes it at
+# pve_exporter_lxc_ip:9221. Full knob list + defaults in
+# roles/pve_exporter_lxc/defaults/main.yml — only the network is set here.
+#
+# IMPORTANT: pve_exporter_lxc_ip MUST be a FREE LAN address and MUST match the `pve`
+# job's __address__ replacement in core/prometheus/prometheus.yml.
+pve_exporter_lxc_ip: "192.168.1.15/24"
+pve_exporter_lxc_gateway: "192.168.1.1"

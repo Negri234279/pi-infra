@@ -4,6 +4,7 @@ pve_token_user: "prometheus@pve"
 pve_token_name: "prometheus"
 pve_token_role: "PVEAuditor" # built-in read-only role
 
-# Where to write the exporter credentials ON THE CONTROL NODE (the rpi5 repo checkout).
-# playbook_dir = ansible/playbooks → ../../ = repo root.
-pve_exporter_config: "{{ playbook_dir }}/../../core/pve-exporter/pve.yml"
+# Where the exporter reads its credentials — INSIDE the pve-exporter LXC (created by
+# the pve_exporter_lxc role). This role pushes pve.yml here via `pct push`; the
+# exporter's systemd unit points --config.file at the same path.
+pve_exporter_config_path: "/etc/prometheus/pve.yml"

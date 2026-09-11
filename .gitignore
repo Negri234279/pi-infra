@@ -24,8 +24,10 @@ secrets/
 # mktxp device inventory holds the RouterOS API password — keep the real file
 # local; only mktxp.conf.example (and the secret-free _mktxp.conf) are committed.
 core/mktxp/mktxp.conf
-# pve-exporter config holds the Proxmox API token — keep the real file local; only
-# pve.yml.example is committed.
+# pve-exporter config holds the Proxmox API token. The live file now lives INSIDE the
+# pve-exporter LXC (/etc/prometheus/pve.yml), not here — but keep this ignore so a
+# leftover hub file from the old Docker setup can never be committed. Only
+# pve.yml.example is tracked (it's the reference format for the in-LXC config).
 core/pve-exporter/pve.yml
 # Local-only compose override (e.g. skip node-exporter on Docker Desktop).
 core/homepage/config

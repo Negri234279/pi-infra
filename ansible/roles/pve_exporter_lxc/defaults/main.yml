@@ -1,0 +1,32 @@
+---
+# A lightweight, single-purpose LXC on the PVE node that runs
+# prometheus-pve-exporter (job `pve`). It replaces the old Docker container that
+# ran on the rpi5 hub: the exporter now lives WITH the thing it monitors (the PVE
+# API) and the hub's Prometheus scrapes it over the LAN at
+# {{ pve_exporter_lxc_ip }}:{{ pve_exporter_lxc_port }}.
+#
+# node-exporter stays NATIVE on the host (job `node-pve`) — it needs the real host
+# view (/proc, /sys, hwmon), which an LXC cannot give. Only the API poller, which
+# just speaks HTTP to :8006, is moved into the container.
+pve_exporter_lxc_vmid: 150
+pve_exporter_lxc_hostname: pve-exporter
+
+# STATIC IP is required — it is Prometheus's scrape target and MUST match the `pve`
+# job replacement in core/prometheus/prometheus.yml. Pick a free LAN address.
+pve_exporter_lxc_ip: "192.168.1.15/24"
+pve_exporter_lxc_gateway: "192.168.1.1"
+pve_exporter_lxc_bridge: vmbr0
+pve_exporter_lxc_nameserver: "1.1.1.1"
+
+# Container sizing — the exporter is tiny; these are generous.
+pve_exporter_lxc_storage: "local-lvm"     # where the rootfs lives
+pve_exporter_lxc_rootfs_gb: 4
+pve_exporter_lxc_memory_mb: 256
+pve_exporter_lxc_cores: 1
+
+# Storage that holds the downloaded LXC template (pveam list <storage>).
+pve_exporter_lxc_template_storage: "local"
+
+pve_exporter_lxc_port: 9221
+# Pinned to match the image the hub used to run (prompve/prometheus-pve-exporter).
+pve_exporter_version: "3.5.5"

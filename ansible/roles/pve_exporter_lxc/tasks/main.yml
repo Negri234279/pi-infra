@@ -1,0 +1,155 @@
+---
+# Create + provision the pve-exporter LXC on the Proxmox node. Idempotent: safe to
+# re-run. Driven entirely with `pct`/`pveam` over the existing root SSH — no extra
+# Galaxy collections and no more than the root access the other roles already use.
+#
+# The exporter service is ENABLED here but only STARTED once its config exists: the
+# credentials (pve.yml) are written by the pve_api_token role, which runs after this
+# one and notifies the "Restart pve-exporter" handler below.
+
+- name: Check whether the exporter LXC already exists
+  ansible.builtin.command: "pct status {{ pve_exporter_lxc_vmid }}"
+  register: pve_lxc_status
+  changed_when: false
+  failed_when: false
+
+# ── Create the container (only when the VMID is free) ──────────────────────
+- name: Provision the LXC
+  when: pve_lxc_status.rc != 0
+  block:
+    - name: Update the appliance-template catalog
+      ansible.builtin.command: pveam update
+      changed_when: false
+
+    - name: Find the latest Debian 12 standard LXC template
+      ansible.builtin.shell: >-
+        set -o pipefail;
+        pveam available --section system
+        | awk '/debian-12-standard/ {print $2}'
+        | sort -V | tail -n1
+      args:
+        executable: /bin/bash
+      register: pve_lxc_template
+      changed_when: false
+
+    - name: Fail if no Debian 12 template is available
+      ansible.builtin.fail:
+        msg: "No debian-12-standard template found via `pveam available`."
+      when: pve_lxc_template.stdout | trim | length == 0
+
+    - name: List templates already downloaded on {{ pve_exporter_lxc_template_storage }}
+      ansible.builtin.command: "pveam list {{ pve_exporter_lxc_template_storage }}"
+      register: pve_lxc_local_templates
+      changed_when: false
+
+    - name: Download the template if it is missing
+      ansible.builtin.command: >-
+        pveam download {{ pve_exporter_lxc_template_storage }} {{ pve_lxc_template.stdout | trim }}
+      when: (pve_lxc_template.stdout | trim) not in pve_lxc_local_templates.stdout
+
+    - name: Create the LXC
+      ansible.builtin.command: >-
+        pct create {{ pve_exporter_lxc_vmid }}
+        {{ pve_exporter_lxc_template_storage }}:vztmpl/{{ pve_lxc_template.stdout | trim }}
+        --hostname {{ pve_exporter_lxc_hostname }}
+        --cores {{ pve_exporter_lxc_cores }}
+        --memory {{ pve_exporter_lxc_memory_mb }}
+        --swap 0
+        --rootfs {{ pve_exporter_lxc_storage }}:{{ pve_exporter_lxc_rootfs_gb }}
+        --net0 name=eth0,bridge={{ pve_exporter_lxc_bridge }},ip={{ pve_exporter_lxc_ip }},gw={{ pve_exporter_lxc_gateway }}
+        --nameserver {{ pve_exporter_lxc_nameserver }}
+        --onboot 1
+        --unprivileged 1
+        --features nesting=0
+        --description "prometheus-pve-exporter (job pve) - managed by pi-infra Ansible"
+
+# ── Make sure it is running ────────────────────────────────────────────────
+- name: Get the LXC status
+  ansible.builtin.command: "pct status {{ pve_exporter_lxc_vmid }}"
+  register: pve_lxc_status2
+  changed_when: false
+
+- name: Start the LXC if it is not running
+  ansible.builtin.command: "pct start {{ pve_exporter_lxc_vmid }}"
+  when: "'status: running' not in pve_lxc_status2.stdout"
+
+- name: Wait for the LXC to have DNS + network
+  ansible.builtin.command: "pct exec {{ pve_exporter_lxc_vmid }} -- getent hosts deb.debian.org"
+  register: pve_lxc_net
+  until: pve_lxc_net.rc == 0
+  retries: 12
+  delay: 5
+  changed_when: false
+
+# ── Install the exporter natively (venv → deterministic binary path) ───────
+- name: Ensure python3 + venv are present in the LXC
+  ansible.builtin.command: >-
+    pct exec {{ pve_exporter_lxc_vmid }} --
+    bash -lc "apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y python3 python3-venv"
+  changed_when: false   # apt is idempotent here; don't churn the run
+
+- name: Check whether the exporter venv exists
+  ansible.builtin.command: "pct exec {{ pve_exporter_lxc_vmid }} -- test -d /opt/pve-exporter"
+  register: pve_exporter_venv
+  changed_when: false
+  failed_when: false
+
+- name: Create the exporter venv
+  ansible.builtin.command: "pct exec {{ pve_exporter_lxc_vmid }} -- python3 -m venv /opt/pve-exporter"
+  when: pve_exporter_venv.rc != 0
+
+- name: Install / pin prometheus-pve-exporter in the venv
+  ansible.builtin.command: >-
+    pct exec {{ pve_exporter_lxc_vmid }} --
+    /opt/pve-exporter/bin/pip install prometheus-pve-exporter=={{ pve_exporter_version }}
+  register: pve_exporter_pip
+  changed_when: "'Successfully installed' in pve_exporter_pip.stdout"
+  notify: Restart pve-exporter
+
+# ── systemd unit inside the LXC ────────────────────────────────────────────
+- name: Render the exporter systemd unit
+  ansible.builtin.copy:
+    dest: /tmp/pve-exporter.service
+    mode: "0644"
+    content: |
+      [Unit]
+      Description=Prometheus PVE Exporter
+      Documentation=https://github.com/prometheus-pve/prometheus-pve-exporter
+      After=network-online.target
+      Wants=network-online.target
+
+      [Service]
+      Type=simple
+      ExecStart=/opt/pve-exporter/bin/pve_exporter --config.file {{ pve_exporter_config_path }} --web.listen-address :{{ pve_exporter_lxc_port }}
+      Restart=on-failure
+      RestartSec=5
+
+      [Install]
+      WantedBy=multi-user.target
+  register: pve_exporter_unit
+
+- name: Push the unit into the LXC
+  ansible.builtin.command: >-
+    pct push {{ pve_exporter_lxc_vmid }} /tmp/pve-exporter.service
+    /etc/systemd/system/pve-exporter.service --perms 0644
+  when: pve_exporter_unit is changed
+  changed_when: true
+  notify:
+    - Reload systemd in LXC
+    - Restart pve-exporter
+
+- name: Remove the temp unit file from the host
+  ansible.builtin.file:
+    path: /tmp/pve-exporter.service
+    state: absent
+
+- name: Ensure the config directory exists in the LXC
+  ansible.builtin.command: "pct exec {{ pve_exporter_lxc_vmid }} -- mkdir -p /etc/prometheus"
+  changed_when: false
+
+- name: Enable the exporter service
+  # Enabled (starts on boot) but not started here — pve_api_token writes the
+  # credentials and its "Restart pve-exporter" handler brings it up. Starting it
+  # without pve.yml would just crash-loop until the token is written.
+  ansible.builtin.command: "pct exec {{ pve_exporter_lxc_vmid }} -- systemctl enable pve-exporter.service"
+  changed_when: false

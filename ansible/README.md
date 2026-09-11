@@ -15,8 +15,9 @@ ansible/
     bootstrap-pve.yml      # fresh Proxmox → into the stack
   roles/
     proxmox_postinstall/   # repos, nag, dist-upgrade, base pkgs, timezone
-    node_exporter/         # native prometheus-node-exporter (job node-pve)
-    pve_api_token/         # read-only API token + writes core/pve-exporter/pve.yml
+    node_exporter/         # native prometheus-node-exporter on the host (job node-pve)
+    pve_exporter_lxc/      # LXC on the node running prometheus-pve-exporter (job pve)
+    pve_api_token/         # read-only API token + writes pve.yml INSIDE that LXC
 ```
 
 ## One-time: set up the control node (on the rpi5)
@@ -49,24 +50,30 @@ What it does (all idempotent — safe to re-run):
    > A dist-upgrade may install a new kernel — **reboot** the node afterwards when
    > convenient. Set `pve_apt_upgrade: false` (group_vars) to skip the upgrade.
 2. **node_exporter** — installs the native `prometheus-node-exporter` on `:9100`
-   (systemd, no Docker on the hypervisor). This is what the hub scrapes as job
-   `node-pve` (host CPU/RAM/disk/temp).
-3. **pve_api_token** — creates the read-only `prometheus@pve` user + token and writes
-   the token into `core/pve-exporter/pve.yml` **on the rpi5** automatically.
+   (systemd, **on the host** — an LXC can't expose the real host view). Scraped by the
+   hub as job `node-pve` (host CPU/RAM/disk/temp).
+3. **pve_exporter_lxc** — creates a lightweight Debian LXC on the node (VMID 150,
+   `192.168.1.15`) running `prometheus-pve-exporter` on `:9221` under systemd. This is
+   the job `pve` target, scraped by the hub over the LAN. Replaces the old Docker
+   container that ran on the hub.
+4. **pve_api_token** — creates the read-only `prometheus@pve` user + token and pushes
+   the token into `/etc/prometheus/pve.yml` **inside the LXC** (via `pct push`), then
+   restarts the exporter service.
 
-Then bring up the hub-side exporter with the new credentials:
-
-```bash
-cd ~/pi-infra
-./scripts/deploy.sh              # recreates pve-exporter with the written pve.yml
-```
-
-Verify:
+No hub-side deploy step is needed for the exporter anymore. Verify (from the hub):
 
 ```bash
 docker compose exec -T prometheus wget -qO- \
   'http://localhost:9090/api/v1/query?query=up%7Bjob=~%22pve%7Cnode-pve%22%7D'
 ```
+
+> **LXC IP.** `pve_exporter_lxc_ip` (group_vars/proxmox.yml, default `192.168.1.15/24`)
+> must be a FREE LAN address and must match the `pve` job's target in
+> `core/prometheus/prometheus.yml`. Change both together if you pick a different IP.
+>
+> **Migrating** from the old Docker exporter (rotate the pre-existing token so Ansible
+> can write it into the LXC): see *Migrating from the old Docker exporter* in
+> `core/pve-exporter/README.md`.
 
 ## Useful tag runs
 
@@ -102,8 +109,9 @@ annotation. The relabel rule that exposes the `identifier` label lives in
 ## Notes / conventions
 
 - **Secrets stay out of git.** The only secret produced is the PVE token, written to
-  `core/pve-exporter/pve.yml` (already gitignored). No Ansible Vault is needed yet; if
-  you add one, keep the vault password file out of git (see `.gitignore`).
+  `/etc/prometheus/pve.yml` **inside the pve-exporter LXC** (never on the hub, never in
+  the repo). No Ansible Vault is needed yet; if you add one, keep the vault password
+  file out of git (see `.gitignore`).
 - **Idempotency:** the token is created only if missing. If it already exists, PVE
   won't reveal the secret again — the role tells you how to rotate it.
 - Roles use only `ansible.builtin`, so no collection install is strictly required to
