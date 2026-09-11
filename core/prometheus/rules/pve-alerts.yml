@@ -130,4 +130,6 @@ groups:
           severity: warning
         annotations:
           summary: "Proxmox storage almost full"
-          description: "Storage {{ $labels.id }} is {{ printf \"%.0f\" (mul $value 100) }}% full for >15m."
+          # $value is a 0-1 ratio; humanizePercentage renders it as e.g. "92%".
+          # (Prometheus templates have no `mul` — that's a Helm/Sprig function.)
+          description: "Storage {{ $labels.id }} is {{ $value | humanizePercentage }} full for >15m."
