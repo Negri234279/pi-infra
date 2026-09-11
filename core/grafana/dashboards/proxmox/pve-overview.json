@@ -179,6 +179,110 @@
       "targets": [
         { "refId": "A", "datasource": { "type": "prometheus", "uid": "prometheus-infra" }, "expr": "pve_up{id=~\"qemu/.*|lxc/.*\"}", "legendFormat": "{{id}}", "instant": true }
       ]
+    },
+    {
+      "id": 20,
+      "type": "row",
+      "title": "Host — detalle (node-exporter)",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 26 },
+      "collapsed": false
+    },
+    {
+      "id": 21,
+      "type": "timeseries",
+      "title": "Load average",
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 27 },
+      "datasource": { "type": "prometheus", "uid": "prometheus-infra" },
+      "fieldConfig": { "defaults": { "unit": "short", "min": 0, "custom": { "drawStyle": "line", "lineWidth": 1, "fillOpacity": 10, "showPoints": "never" } }, "overrides": [] },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "desc" } },
+      "targets": [
+        { "refId": "A", "datasource": { "type": "prometheus", "uid": "prometheus-infra" }, "expr": "node_load1{job=\"node-pve\"}", "legendFormat": "1m" },
+        { "refId": "B", "datasource": { "type": "prometheus", "uid": "prometheus-infra" }, "expr": "node_load5{job=\"node-pve\"}", "legendFormat": "5m" },
+        { "refId": "C", "datasource": { "type": "prometheus", "uid": "prometheus-infra" }, "expr": "node_load15{job=\"node-pve\"}", "legendFormat": "15m" }
+      ]
+    },
+    {
+      "id": 22,
+      "type": "timeseries",
+      "title": "Red — RX/TX por interfaz",
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 27 },
+      "datasource": { "type": "prometheus", "uid": "prometheus-infra" },
+      "fieldConfig": { "defaults": { "unit": "bps", "custom": { "drawStyle": "line", "lineWidth": 1, "fillOpacity": 10, "showPoints": "never" } }, "overrides": [] },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "desc" } },
+      "targets": [
+        { "refId": "A", "datasource": { "type": "prometheus", "uid": "prometheus-infra" }, "expr": "rate(node_network_receive_bytes_total{job=\"node-pve\", device!~\"lo|veth.*|tap.*|fwbr.*|fwln.*|fwpr.*\"}[$__rate_interval]) * 8", "legendFormat": "RX {{device}}" },
+        { "refId": "B", "datasource": { "type": "prometheus", "uid": "prometheus-infra" }, "expr": "rate(node_network_transmit_bytes_total{job=\"node-pve\", device!~\"lo|veth.*|tap.*|fwbr.*|fwln.*|fwpr.*\"}[$__rate_interval]) * 8", "legendFormat": "TX {{device}}" }
+      ]
+    },
+    {
+      "id": 23,
+      "type": "timeseries",
+      "title": "Disco — I/O por dispositivo",
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 27 },
+      "datasource": { "type": "prometheus", "uid": "prometheus-infra" },
+      "fieldConfig": { "defaults": { "unit": "Bps", "custom": { "drawStyle": "line", "lineWidth": 1, "fillOpacity": 10, "showPoints": "never" } }, "overrides": [] },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "desc" } },
+      "targets": [
+        { "refId": "A", "datasource": { "type": "prometheus", "uid": "prometheus-infra" }, "expr": "rate(node_disk_read_bytes_total{job=\"node-pve\", device=~\"nvme[0-9]+n[0-9]+|sd[a-z]+\"}[$__rate_interval])", "legendFormat": "read {{device}}" },
+        { "refId": "B", "datasource": { "type": "prometheus", "uid": "prometheus-infra" }, "expr": "rate(node_disk_written_bytes_total{job=\"node-pve\", device=~\"nvme[0-9]+n[0-9]+|sd[a-z]+\"}[$__rate_interval])", "legendFormat": "write {{device}}" }
+      ]
+    },
+    {
+      "id": 24,
+      "type": "bargauge",
+      "title": "Filesystems (uso)",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 35 },
+      "datasource": { "type": "prometheus", "uid": "prometheus-infra" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0,
+          "max": 1,
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "yellow", "value": 0.8 }, { "color": "red", "value": 0.9 } ] }
+        },
+        "overrides": []
+      },
+      "options": { "orientation": "horizontal", "displayMode": "gradient", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "" } },
+      "targets": [
+        { "refId": "A", "datasource": { "type": "prometheus", "uid": "prometheus-infra" }, "expr": "1 - (node_filesystem_avail_bytes{job=\"node-pve\", fstype!~\"tmpfs|overlay|squashfs|nsfs|fuse.*\"} / node_filesystem_size_bytes{job=\"node-pve\", fstype!~\"tmpfs|overlay|squashfs|nsfs|fuse.*\"})", "legendFormat": "{{mountpoint}}", "instant": true }
+      ]
+    },
+    {
+      "id": 25,
+      "type": "timeseries",
+      "title": "CPU por guest (VM / LXC)",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 35 },
+      "datasource": { "type": "prometheus", "uid": "prometheus-infra" },
+      "fieldConfig": { "defaults": { "unit": "percent", "min": 0, "custom": { "drawStyle": "line", "lineWidth": 1, "fillOpacity": 10, "showPoints": "never" } }, "overrides": [] },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "desc" } },
+      "targets": [
+        { "refId": "A", "datasource": { "type": "prometheus", "uid": "prometheus-infra" }, "expr": "pve_cpu_usage_ratio{id=~\"qemu/.*|lxc/.*\"} * 100", "legendFormat": "{{id}}" }
+      ]
+    },
+    {
+      "id": 26,
+      "type": "timeseries",
+      "title": "RAM por guest (uso %)",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 43 },
+      "datasource": { "type": "prometheus", "uid": "prometheus-infra" },
+      "fieldConfig": { "defaults": { "unit": "percent", "min": 0, "max": 100, "custom": { "drawStyle": "line", "lineWidth": 1, "fillOpacity": 10, "showPoints": "never" } }, "overrides": [] },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "desc" } },
+      "targets": [
+        { "refId": "A", "datasource": { "type": "prometheus", "uid": "prometheus-infra" }, "expr": "pve_memory_usage_bytes{id=~\"qemu/.*|lxc/.*\"} / clamp_min(pve_memory_size_bytes{id=~\"qemu/.*|lxc/.*\"}, 1) * 100", "legendFormat": "{{id}}" }
+      ]
+    },
+    {
+      "id": 27,
+      "type": "timeseries",
+      "title": "Swap (uso)",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 43 },
+      "datasource": { "type": "prometheus", "uid": "prometheus-infra" },
+      "fieldConfig": { "defaults": { "unit": "bytes", "min": 0, "custom": { "drawStyle": "line", "lineWidth": 1, "fillOpacity": 15, "showPoints": "never" } }, "overrides": [] },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "desc" } },
+      "targets": [
+        { "refId": "A", "datasource": { "type": "prometheus", "uid": "prometheus-infra" }, "expr": "node_memory_SwapTotal_bytes{job=\"node-pve\"} - node_memory_SwapFree_bytes{job=\"node-pve\"}", "legendFormat": "swap usado" }
+      ]
     }
   ]
 }
