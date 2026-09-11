@@ -1,8 +1,20 @@
 ---
-# Read-only PVE API token for the hub's pve-exporter (job `pve`).
+# Read-only PVE API token for the pve-exporter (job `pve`, in the LXC).
 pve_token_user: "prometheus@pve"
 pve_token_name: "prometheus"
 pve_token_role: "PVEAuditor" # built-in read-only role
+
+# SEPARATE read-only identity for the homepage "Proxmox VE" widget. Decoupled on
+# purpose: rotating the exporter token (a routine troubleshooting step) must NOT break
+# the homepage widget's secret in .env, and vice-versa. Same PVEAuditor role.
+pve_homepage_token_user: "homepage@pve"
+pve_homepage_token_name: "homepage"
+
+# Set true to also (re)provision the homepage identity + token during the run. The
+# secret is printed once for you to paste into .env (PVE_TOKEN_ID / PVE_TOKEN_SECRET);
+# it is NOT written anywhere automatically. Leave false on routine exporter rotations
+# so the homepage token is left untouched.
+pve_homepage_token_manage: true
 
 # Where the exporter reads its credentials — INSIDE the pve-exporter LXC (created by
 # the pve_exporter_lxc role). This role pushes pve.yml here via `pct push`; the

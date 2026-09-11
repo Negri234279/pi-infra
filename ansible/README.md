@@ -57,8 +57,12 @@ What it does (all idempotent — safe to re-run):
    the job `pve` target, scraped by the hub over the LAN. Replaces the old Docker
    container that ran on the hub.
 4. **pve_api_token** — creates the read-only `prometheus@pve` user + token and pushes
-   the token into `/etc/prometheus/pve.yml` **inside the LXC** (via `pct push`), then
-   restarts the exporter service.
+   it into `/etc/prometheus/pve.yml` **inside the LXC** (via `pct push`), then restarts
+   the exporter. It ALSO creates a **separate** read-only identity for the homepage
+   widget (`homepage@pve!homepage`) and prints its secret once — paste it into `.env`
+   as `PVE_TOKEN_ID` / `PVE_TOKEN_SECRET`, then `./scripts/deploy.sh`. Keeping the two
+   tokens separate means rotating the exporter token never breaks the homepage widget.
+   (Set `pve_homepage_token_manage: false` to skip the homepage token on a run.)
 
 No hub-side deploy step is needed for the exporter anymore. Verify (from the hub):
 

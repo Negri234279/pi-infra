@@ -111,16 +111,30 @@ mkdir -p /etc/prometheus
 the user's full (audit) privileges without a separate ACL. `pve.yml.example` in this
 dir is the reference format for the in-LXC config.
 
-### 2. (Optional) same token for the homepage widget
+### 2. (Optional) SEPARATE token for the homepage widget
 
-The homepage *Proxmox VE* card can reuse the same token. In `.env` set:
+The homepage *Proxmox VE* card uses its **own** read-only identity, `homepage@pve`,
+**not** the exporter's token — so rotating the exporter token (a routine step) never
+breaks the widget, and vice-versa. The Ansible bootstrap creates it and prints the
+secret once; the manual equivalent is:
+
+```bash
+pveum user add homepage@pve
+pveum aclmod / -user homepage@pve -role PVEAuditor
+pveum user token add homepage@pve homepage --privsep 0
+#   -> copy the printed "value" NOW
+```
+
+Then in the hub's `.env` (and `./scripts/deploy.sh` to recreate homepage):
 
 ```
-PVE_TOKEN_ID=prometheus@pve!prometheus
+PVE_TOKEN_ID=homepage@pve!homepage
 PVE_TOKEN_SECRET=<the token value>
 ```
 
-Empty → the card still links + pings, just no live widget data.
+Empty → the card still links + pings, just no live widget data. If you ever lose the
+secret, rotate just this token (`pveum user token remove homepage@pve homepage` →
+re-run the bootstrap); it won't touch the exporter.
 
 ### 3. Publish the panel via NPM (already noted as done)
 

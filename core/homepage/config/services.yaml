@@ -117,8 +117,9 @@
 - Cómputo:
     # Servidor Proxmox VE (10900KF). El panel web se publica por NPM en
     # pve-web.negri.es (→ 192.168.1.14:8006). El widget nativo `proxmox` lee la API
-    # con un API token de solo lectura (mismo token que usa pve-exporter, o uno
-    # propio): username = user@realm!tokenname, password = el secreto del token. Vacío
+    # con su PROPIO token de solo lectura (homepage@pve!homepage, distinto del que usa
+    # pve-exporter para no acoplar rotaciones): username = user@realm!tokenname,
+    # password = el secreto del token (PVE_TOKEN_ID / PVE_TOKEN_SECRET en .env). Vacío
     # → el widget no puebla; la tarjeta sigue con enlace + ping. La observabilidad
     # completa (host, VMs, LXC, almacenamiento) está en Grafana (carpeta Proxmox).
     - Proxmox VE:
