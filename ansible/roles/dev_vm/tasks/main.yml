@@ -9,8 +9,8 @@
   ansible.builtin.fail:
     msg: >-
       dev_vm_authorized_keys is empty. Add at least your Windows 11 public key (for
-      VSCode Remote-SSH) and this control node's key (for the second play) in
-      group_vars/dev.yml before provisioning.
+      VSCode Remote-SSH) and this control node's key (for the second play) to
+      dev_vm_authorized_keys in group_vars/proxmox.yml before provisioning.
   when: dev_vm_authorized_keys | length == 0
 
 - name: Check whether the dev VM already exists
