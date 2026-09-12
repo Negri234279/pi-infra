@@ -1,0 +1,4 @@
+---
+# No handlers needed: Docker/qemu-guest-agent are managed with the `service` module
+# directly, and the docker-group change only takes effect on the user's next login
+# (nothing to restart). File kept for role-layout consistency.

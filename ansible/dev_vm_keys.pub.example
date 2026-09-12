@@ -1,0 +1,13 @@
+# Public SSH keys authorized inside the dev VM for the `dev` user (via cloud-init).
+#
+#   cp dev_vm_keys.pub.example dev_vm_keys.pub   # the real file is GITIGNORED
+#
+# Then replace the lines below with your REAL public keys, ONE PER LINE. Put BOTH so
+# everything can reach the VM:
+#   - Windows 11 (VSCode Remote-SSH):   type $env:USERPROFILE\.ssh\id_ed25519.pub
+#   - rpi5 (Ansible control node):      cat ~/.ssh/id_ed25519.pub
+#
+# These are PUBLIC keys — safe by design. NEVER put a private key (the file WITHOUT
+# .pub) in here. Comment (#) and blank lines are ignored.
+ssh-ed25519 AAAA...your-windows-11-public-key... you@windows
+ssh-ed25519 AAAA...your-rpi5-control-node-public-key... ansible@rpi5

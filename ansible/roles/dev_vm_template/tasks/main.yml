@@ -1,0 +1,73 @@
+---
+# Build the Ubuntu 24.04 cloud-init template on the PVE node. Idempotent: if the
+# template VMID already exists it is left untouched unless `dev_vm_rebuild_template`
+# is set. Nothing here touches an already-running dev VM (that is a separate VMID).
+#
+#   ansible-playbook playbooks/provision-dev-vm.yml --tags template
+
+- name: Check whether the template VMID already exists
+  ansible.builtin.command: "qm status {{ dev_vm_template_vmid }}"
+  register: dev_tpl_status
+  changed_when: false
+  failed_when: false
+
+- name: (Rebuild) Destroy the existing template
+  ansible.builtin.command: "qm destroy {{ dev_vm_template_vmid }} --purge"
+  when:
+    - dev_vm_rebuild_template | bool
+    - dev_tpl_status.rc == 0
+  register: dev_tpl_destroyed
+
+# ── Build the template (only when the VMID is free, or we just destroyed it) ──
+- name: Build the cloud-init template
+  when: dev_tpl_status.rc != 0 or (dev_tpl_destroyed is defined and dev_tpl_destroyed is changed)
+  block:
+    - name: Ensure the cloud-image download directory exists
+      ansible.builtin.file:
+        path: "{{ dev_vm_template_image_dir }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Download the Ubuntu 24.04 cloud image (checksum-verified)
+      ansible.builtin.get_url:
+        url: "{{ dev_vm_template_image_url }}"
+        dest: "{{ dev_vm_template_image_dir }}/{{ dev_vm_template_image_file }}"
+        checksum: "{{ dev_vm_template_image_checksum }}"
+        owner: root
+        group: root
+        mode: "0644"
+      register: dev_tpl_img
+      until: dev_tpl_img is succeeded
+      retries: 3
+      delay: 5
+
+    - name: Create the base VM shell (virtio-scsi + serial console for cloud images)
+      ansible.builtin.command: >-
+        qm create {{ dev_vm_template_vmid }}
+        --name {{ dev_vm_template_name }}
+        --ostype l26
+        --cores {{ dev_vm_template_cores }}
+        --memory {{ dev_vm_template_memory_mb }}
+        --net0 virtio,bridge={{ dev_vm_template_bridge }}
+        --scsihw virtio-scsi-single
+        --serial0 socket
+        --vga serial0
+        --agent enabled=1
+
+    - name: Import the cloud image as scsi0 (sized from the image)
+      ansible.builtin.command: >-
+        qm set {{ dev_vm_template_vmid }}
+        --scsi0 {{ dev_vm_template_disk_storage }}:0,import-from={{ dev_vm_template_image_dir }}/{{ dev_vm_template_image_file }}
+
+    - name: Attach a cloud-init drive on ide2
+      ansible.builtin.command: >-
+        qm set {{ dev_vm_template_vmid }} --ide2 {{ dev_vm_template_disk_storage }}:cloudinit
+
+    - name: Boot from the imported disk
+      ansible.builtin.command: >-
+        qm set {{ dev_vm_template_vmid }} --boot order=scsi0
+
+    - name: Convert the VM into a template
+      ansible.builtin.command: "qm template {{ dev_vm_template_vmid }}"

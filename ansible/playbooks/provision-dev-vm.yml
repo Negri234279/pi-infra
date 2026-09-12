@@ -1,0 +1,39 @@
+# Provision a reproducible Ubuntu 24.04 development VM on the Proxmox node, end to end:
+#   1. dev_vm_template  — build a cloud-init template from the official Ubuntu 24.04
+#                         cloud image (once; rebuild with -e dev_vm_rebuild_template=true).
+#   2. dev_vm           — full-clone the template into the `dev` VM (6 vCPU / 16 GB /
+#                         100 GB), configure it via cloud-init (user, SSH key, static
+#                         IP), start it and wait for SSH.
+#   3. dev_workstation  — inside the VM: base dev packages, Docker CE + Compose v2, and
+#                         fnm with Node 24 as the default + .nvmrc auto-switch on `cd`.
+#
+# Then connect from Windows 11 with VSCode Remote-SSH (see ansible/README.md).
+#
+#   ansible-playbook playbooks/provision-dev-vm.yml                       # everything
+#   ansible-playbook playbooks/provision-dev-vm.yml --tags template       # (re)build the template
+#   ansible-playbook playbooks/provision-dev-vm.yml --tags workstation    # just reconfigure the guest
+#   ansible-playbook playbooks/provision-dev-vm.yml -e dev_vm_recreate=true   # wipe + re-clone the VM
+---
+- name: Create the dev VM on the Proxmox node
+  hosts: proxmox
+  gather_facts: true
+  roles:
+    - role: dev_vm_template
+      tags: [template]
+    - role: dev_vm
+      tags: [vm]
+
+- name: Configure the dev workstation guest
+  hosts: dev
+  gather_facts: true
+  pre_tasks:
+    # First boot runs cloud-init (apt upgrade, growpart, user setup) and holds the apt
+    # lock while it does. Block until it finishes so the role's apt tasks don't collide.
+    - name: Wait for cloud-init to finish
+      become: true
+      ansible.builtin.command: cloud-init status --wait
+      changed_when: false
+      failed_when: false
+  roles:
+    - role: dev_workstation
+      tags: [workstation]

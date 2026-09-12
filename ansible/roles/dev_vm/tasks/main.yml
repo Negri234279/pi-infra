@@ -1,0 +1,109 @@
+---
+# Clone the template into the dev VM, configure it via cloud-init, start it and wait
+# for SSH. Idempotent: an existing VM is left running untouched unless `dev_vm_recreate`
+# is set. Runs on the PVE node with `qm`, same style as pve_exporter_lxc's `pct`.
+#
+#   ansible-playbook playbooks/provision-dev-vm.yml --tags vm
+
+- name: Fail early if no SSH keys were provided
+  ansible.builtin.fail:
+    msg: >-
+      dev_vm_authorized_keys is empty. Add at least your Windows 11 public key (for
+      VSCode Remote-SSH) and this control node's key (for the second play) in
+      group_vars/dev.yml before provisioning.
+  when: dev_vm_authorized_keys | length == 0
+
+- name: Check whether the dev VM already exists
+  ansible.builtin.command: "qm status {{ dev_vm_vmid }}"
+  register: dev_vm_status
+  changed_when: false
+  failed_when: false
+
+# ── Recreate: tear the existing VM down so it can be re-cloned clean ──────────
+- name: Recreate the dev VM
+  when:
+    - dev_vm_recreate | bool
+    - dev_vm_status.rc == 0
+  block:
+    - name: Stop the dev VM
+      ansible.builtin.command: "qm stop {{ dev_vm_vmid }}"
+      register: dev_vm_stopped
+      changed_when: true
+      failed_when: false
+
+    - name: Destroy the dev VM
+      ansible.builtin.command: "qm destroy {{ dev_vm_vmid }} --purge"
+      changed_when: true
+
+    - name: Mark the VM as absent so it gets re-cloned below
+      ansible.builtin.set_fact:
+        dev_vm_status: { rc: 1 }
+
+# ── Create the VM (only when the VMID is free) ───────────────────────────────
+- name: Provision the dev VM
+  when: dev_vm_status.rc != 0
+  block:
+    - name: Clone the VM from the cloud-init template (full clone)
+      ansible.builtin.command: >-
+        qm clone {{ dev_vm_clone_from_vmid }} {{ dev_vm_vmid }}
+        --name {{ dev_vm_name }}
+        --full
+        --storage {{ dev_vm_disk_storage }}
+
+    - name: Set CPU + memory
+      ansible.builtin.command: >-
+        qm set {{ dev_vm_vmid }}
+        --cores {{ dev_vm_cores }}
+        --memory {{ dev_vm_memory_mb }}
+
+    - name: Grow the root disk to the target size
+      ansible.builtin.command: "qm disk resize {{ dev_vm_vmid }} scsi0 {{ dev_vm_disk_gb }}G"
+
+    # cloud-init keys are written to a root-only temp file, passed to qm, then removed —
+    # the same key ends up baked into the guest's authorized_keys on first boot.
+    - name: Stage the authorized SSH keys for cloud-init
+      ansible.builtin.copy:
+        dest: "/tmp/dev-vm-{{ dev_vm_vmid }}.pub"
+        owner: root
+        group: root
+        mode: "0600"
+        content: "{{ dev_vm_authorized_keys | join('\n') }}\n"
+
+    - name: Apply cloud-init config (user, keys, static network, upgrade)
+      ansible.builtin.command: >-
+        qm set {{ dev_vm_vmid }}
+        --ciuser {{ dev_vm_ci_user }}
+        --sshkeys /tmp/dev-vm-{{ dev_vm_vmid }}.pub
+        --ipconfig0 ip={{ dev_vm_ip }},gw={{ dev_vm_gateway }}
+        --nameserver {{ dev_vm_nameserver }}
+        --ciupgrade {{ 1 if dev_vm_ci_upgrade | bool else 0 }}
+        --onboot {{ 1 if dev_vm_onboot | bool else 0 }}
+
+    - name: Set the cloud-init password (only if one was provided)
+      ansible.builtin.command: >-
+        qm set {{ dev_vm_vmid }} --cipassword {{ dev_vm_ci_password }}
+      when: dev_vm_ci_password | length > 0
+      no_log: true
+
+    - name: Remove the staged key file from the PVE host
+      ansible.builtin.file:
+        path: "/tmp/dev-vm-{{ dev_vm_vmid }}.pub"
+        state: absent
+
+# ── Make sure it is running, then wait for SSH ───────────────────────────────
+- name: Get the VM status
+  ansible.builtin.command: "qm status {{ dev_vm_vmid }}"
+  register: dev_vm_status2
+  changed_when: false
+
+- name: Start the dev VM if it is not running
+  ansible.builtin.command: "qm start {{ dev_vm_vmid }}"
+  when: "'status: running' not in dev_vm_status2.stdout"
+
+- name: Wait for the guest's SSH to accept connections
+  ansible.builtin.wait_for:
+    host: "{{ dev_vm_ip | regex_replace('/.*$', '') }}"
+    port: 22
+    state: started
+    timeout: "{{ dev_vm_ssh_wait_timeout }}"
+    delay: 5

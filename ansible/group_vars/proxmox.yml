@@ -28,3 +28,27 @@ pve_exporter_lxc_gateway: "192.168.1.1"
 #
 # NOTE: if nct6683 was already bound to the chip, the first run can't load nct6687
 # until a reboot. Reboot the node once and re-run `--tags coolercontrol`.
+
+# ── Dev VM (roles dev_vm_template + dev_vm, playbook provision-dev-vm.yml) ────
+# These describe the VM the pve node builds. They live here (not in group_vars/dev.yml)
+# because the roles that consume them run WHILE connected to the pve host — the same
+# reason the pve-exporter LXC knobs are in this file. Full knob list + defaults in
+# roles/dev_vm{,_template}/defaults/main.yml; only the site-specific bits are set here.
+#
+# IMPORTANT: dev_vm_ip MUST match the `dev-vm` host's ansible_host in inventory/hosts.yml.
+dev_vm_ip: "192.168.1.16/24"      # next free LAN address (the pve-exporter LXC holds .15)
+dev_vm_gateway: "192.168.1.1"
+dev_vm_nameserver: "192.168.1.2"  # the LAN DNS server
+dev_vm_memory_mb: 8192            # 8 GB RAM (role default is 16 GB)
+
+# REQUIRED — public keys authorized inside the VM for the `dev` user. Public keys are
+# safe to commit (GitHub itself publishes yours at github.com/<user>.keys). Put BOTH so
+# everything can reach the box:
+#   - your Windows 11 key   → so VSCode Remote-SSH connects (get it on W11 with:
+#                             `type $env:USERPROFILE\.ssh\id_ed25519.pub`)
+#   - THIS control node's key → so provision-dev-vm.yml's 2nd play (Ansible) connects
+#                             (`cat ~/.ssh/id_ed25519.pub` on the rpi5)
+# Replace the placeholders below with your real one-line public keys.
+dev_vm_authorized_keys:
+  - "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFPFPnG6x6QP5OBpEvQI+mytQyFETzxp9tLx/BqPoES4 negrii@Negrii"
+  - "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMAVCKiDd4xJNUCOKysqVqI9lvzufr5/l6PwzCXpbmK8 negri@rpi5"

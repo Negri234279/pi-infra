@@ -1,0 +1,13 @@
+# Variables for the `dev` inventory group (the development VM's guest OS).
+#
+# The dev_workstation role's defaults (roles/dev_workstation/defaults/main.yml) are
+# already sensible — override here only if you want to. The cloud-init `dev` user has
+# passwordless sudo, so `become: true` in the role needs no password.
+---
+# Example overrides (uncomment to change):
+# dev_ws_node_version: "24"
+# dev_ws_global_npm:
+#   - typescript
+#   - ts-node
+#   - "@nestjs/cli"
+#   - "@angular/cli"

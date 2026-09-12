@@ -1,0 +1,147 @@
+---
+# Configure the dev VM's guest OS. Runs as the cloud-init user with `become` for the
+# system parts. Idempotent — safe to re-run to pick up new packages or a Node bump.
+#
+#   ansible-playbook playbooks/provision-dev-vm.yml --tags workstation
+
+# ── Base packages ────────────────────────────────────────────────────────────
+- name: Install base dev + CLI packages
+  become: true
+  ansible.builtin.apt:
+    name: "{{ dev_ws_apt_packages }}"
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Enable the QEMU guest agent (lets PVE see the VM's IP + do clean shutdowns)
+  become: true
+  ansible.builtin.service:
+    name: qemu-guest-agent
+    state: started
+    enabled: true
+
+# ── Docker CE + Compose v2 (official Docker apt repo) ────────────────────────
+- name: Install Docker
+  become: true
+  when: dev_ws_install_docker | bool
+  block:
+    - name: Ensure the apt keyrings directory exists
+      ansible.builtin.file:
+        path: /etc/apt/keyrings
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Add the Docker repository signing key
+      ansible.builtin.get_url:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        dest: /etc/apt/keyrings/docker.asc
+        owner: root
+        group: root
+        mode: "0644"
+
+    - name: Add the Docker apt repository
+      ansible.builtin.apt_repository:
+        repo: >-
+          deb [arch={{ 'amd64' if ansible_architecture == 'x86_64' else ansible_architecture }}
+          signed-by=/etc/apt/keyrings/docker.asc]
+          https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable
+        filename: docker
+        state: present
+
+    - name: Install Docker Engine + Compose v2 plugin
+      ansible.builtin.apt:
+        name:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+          - docker-buildx-plugin
+          - docker-compose-plugin
+        state: present
+        update_cache: true
+
+    - name: Enable and start Docker
+      ansible.builtin.service:
+        name: docker
+        state: started
+        enabled: true
+
+    - name: Add users to the docker group (re-login needed for it to take effect)
+      ansible.builtin.user:
+        name: "{{ item }}"
+        groups: docker
+        append: true
+      loop: "{{ dev_ws_docker_users }}"
+
+# ── fnm + Node ───────────────────────────────────────────────────────────────
+# Installed for the login user (not root): fnm is per-user by design. FNM_DIR holds
+# both the fnm binary and the installed Node versions so everything lives in one place.
+- name: Check whether fnm is already installed
+  ansible.builtin.stat:
+    path: "{{ dev_ws_fnm_dir }}/fnm"
+  register: dev_ws_fnm_bin
+
+- name: Install fnm for {{ dev_ws_user }}
+  when: not dev_ws_fnm_bin.stat.exists
+  ansible.builtin.shell: >-
+    set -o pipefail;
+    curl -fsSL https://fnm.vercel.app/install
+    | bash -s -- --install-dir "{{ dev_ws_fnm_dir }}" --skip-shell
+  args:
+    executable: /bin/bash
+    creates: "{{ dev_ws_fnm_dir }}/fnm"
+
+# Shell hook: puts fnm on PATH and enables auto-switch on `cd` into a dir with a
+# .nvmrc / .node-version. Marked block so re-runs update it in place.
+- name: Wire fnm into the login shell (PATH + --use-on-cd for .nvmrc)
+  ansible.builtin.blockinfile:
+    path: "/home/{{ dev_ws_user }}/.bashrc"
+    create: true
+    owner: "{{ dev_ws_user }}"
+    group: "{{ dev_ws_user }}"
+    mode: "0644"
+    marker: "# {mark} ANSIBLE MANAGED — fnm (pi-infra)"
+    block: |
+      export FNM_DIR="{{ dev_ws_fnm_dir }}"
+      export PATH="{{ dev_ws_fnm_dir }}:$PATH"
+      eval "$(fnm env --use-on-cd --shell bash)"
+
+- name: Install Node {{ dev_ws_node_version }} and set it as the fnm default
+  ansible.builtin.shell: |
+    set -eo pipefail
+    export FNM_DIR="{{ dev_ws_fnm_dir }}"
+    export PATH="{{ dev_ws_fnm_dir }}:$PATH"
+    eval "$(fnm env --shell bash)"
+    fnm install {{ dev_ws_node_version }}
+    fnm default {{ dev_ws_node_version }}
+    fnm use default
+    node --version
+  args:
+    executable: /bin/bash
+  register: dev_ws_node_install
+  changed_when: "'is already installed' not in dev_ws_node_install.stderr"
+
+- name: Enable corepack (pnpm + yarn shims)
+  when: dev_ws_enable_corepack | bool
+  ansible.builtin.shell: |
+    set -eo pipefail
+    export FNM_DIR="{{ dev_ws_fnm_dir }}"
+    export PATH="{{ dev_ws_fnm_dir }}:$PATH"
+    eval "$(fnm env --shell bash)"
+    corepack enable
+  args:
+    executable: /bin/bash
+  changed_when: false
+
+- name: Install global npm tooling ({{ dev_ws_global_npm | join(', ') }})
+  ansible.builtin.shell: |
+    set -eo pipefail
+    export FNM_DIR="{{ dev_ws_fnm_dir }}"
+    export PATH="{{ dev_ws_fnm_dir }}:$PATH"
+    eval "$(fnm env --shell bash)"
+    npm install -g {{ dev_ws_global_npm | join(' ') }}
+  args:
+    executable: /bin/bash
+  register: dev_ws_npm_global
+  changed_when: "'up to date' not in dev_ws_npm_global.stdout"

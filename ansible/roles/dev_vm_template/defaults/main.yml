@@ -1,0 +1,32 @@
+---
+# Cloud-init TEMPLATE for the dev VM. Built once on the PVE node from the official
+# Ubuntu 24.04 (noble) cloud image, then cloned by the `dev_vm` role. Rebuilding it
+# is cheap and non-destructive to the running dev VM (a clone is a full copy) — flip
+# `dev_vm_rebuild_template` to refresh the base image, then re-clone with
+# `dev_vm_recreate` when you want the VM to pick up the newer base.
+#
+# Driven entirely with `qm` over the existing root SSH — no extra Galaxy collections,
+# same approach as the pve_exporter_lxc role's `pct` usage.
+
+dev_vm_template_vmid: 9000
+dev_vm_template_name: ubuntu-2404-cloudinit
+
+# Ubuntu 24.04 LTS (noble) minimal cloud image. `current` always points at the latest
+# daily-stable build; the checksum is verified against the matching SHA256SUMS file so
+# a corrupted/truncated download fails loudly instead of producing a broken template.
+dev_vm_template_image_url: "https://cloud-images.ubuntu.com/noble/current/noble-server-cloudimg-amd64.img"
+dev_vm_template_image_checksum: "sha256:https://cloud-images.ubuntu.com/noble/current/SHA256SUMS"
+dev_vm_template_image_dir: /var/lib/vz/template/cloudimg
+dev_vm_template_image_file: noble-server-cloudimg-amd64.img
+
+# Where the imported root disk lands, and which bridge the NIC attaches to. Same
+# storage/bridge the rest of this node already uses.
+dev_vm_template_disk_storage: local-lvm
+dev_vm_template_bridge: vmbr0
+
+# Template shell only — actual dev-VM sizing is set on the clone by the `dev_vm` role.
+dev_vm_template_memory_mb: 2048
+dev_vm_template_cores: 2
+
+# Set true to stop+destroy an existing template and rebuild it from a fresh download.
+dev_vm_rebuild_template: false

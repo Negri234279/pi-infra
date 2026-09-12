@@ -1,0 +1,46 @@
+---
+# The dev VM itself: a full clone of the cloud-init template (see dev_vm_template),
+# configured via cloud-init (static IP, user, SSH key) and started. The guest OS is
+# then provisioned by the `dev_workstation` role in the second play.
+#
+# "Recreate the image when necessary": set `dev_vm_recreate=true` to stop, destroy and
+# re-clone the VM from a fresh copy of the template — a clean, reproducible rebuild.
+# WARNING: that wipes everything inside the VM. Keep your code in git, not only here.
+
+dev_vm_vmid: 200
+dev_vm_name: dev
+dev_vm_clone_from_vmid: "{{ dev_vm_template_vmid }}"   # the template built above
+
+# Sizing — 6 vCPU / 16 GB / 100 GB. cloud-init's growpart expands the root
+# filesystem to fill the resized disk on first boot.
+dev_vm_cores: 6
+dev_vm_memory_mb: 16384
+dev_vm_disk_gb: 100
+dev_vm_disk_storage: local-lvm
+
+# STATIC IP so VSCode Remote-SSH from the W11 box always finds it. MUST be a FREE LAN
+# address (the pve-exporter LXC already holds .15). CIDR form, e.g. 192.168.1.20/24.
+dev_vm_ip: "192.168.1.20/24"
+dev_vm_gateway: "192.168.1.1"
+dev_vm_nameserver: "1.1.1.1"
+
+# cloud-init login user created inside the guest. Key-only auth by default; set
+# `dev_vm_ci_password` only if you also want console/password login.
+dev_vm_ci_user: dev
+dev_vm_ci_password: ""
+
+# REQUIRED — public keys authorized for `dev_vm_ci_user`. Put BOTH here:
+#   - your Windows 11 box's key  → so VSCode Remote-SSH can connect
+#   - this control node's key     → so the second play (Ansible) can connect
+# Override in group_vars/dev.yml. Each item is a full "ssh-ed25519 AAAA... comment" line.
+dev_vm_authorized_keys: []
+
+# cloud-init runs `apt upgrade` on first boot (patched base without baking a new template).
+dev_vm_ci_upgrade: true
+dev_vm_onboot: true
+
+# Set true to stop + destroy + re-clone the VM from the template. Destructive.
+dev_vm_recreate: false
+
+# How long to wait for the guest's SSH to come up after boot (seconds).
+dev_vm_ssh_wait_timeout: 300

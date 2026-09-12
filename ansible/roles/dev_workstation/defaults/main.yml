@@ -1,0 +1,49 @@
+---
+# Provisions the guest OS of the dev VM into a ready-to-code workstation:
+#   - base dev/CLI packages + qemu-guest-agent
+#   - Docker CE + Compose v2 (official Docker apt repo), user added to the docker group
+#   - fnm as the Node version manager: Node 24 as the default, `--use-on-cd` so a
+#     project's .nvmrc / .node-version is honored automatically on `cd`
+#   - corepack (pnpm/yarn) + global tooling (typescript, ts-node, @nestjs/cli)
+#
+# Everything installs for `dev_ws_user` (the cloud-init login). React / Next / Nest
+# apps are scaffolded per-project (npx create-*), so only their global CLIs live here.
+
+# The login user provisioned by cloud-init; defaults to the SSH user Ansible connects as.
+dev_ws_user: "{{ ansible_user }}"
+
+# Base apt packages. Kept lean but enough to build native npm deps and work comfortably.
+dev_ws_apt_packages:
+  - build-essential
+  - git
+  - curl
+  - wget
+  - ca-certificates
+  - gnupg
+  - unzip
+  - zip
+  - jq
+  - ripgrep
+  - fd-find
+  - htop
+  - tmux
+  - vim
+  - openssh-server
+  - python3
+  - python3-venv
+  - python3-pip
+  - qemu-guest-agent
+
+# ── Node via fnm ─────────────────────────────────────────────────────────────
+dev_ws_node_version: "24"                 # installed AND set as the fnm default
+dev_ws_fnm_dir: "/home/{{ dev_ws_user }}/.fnm"
+dev_ws_enable_corepack: true              # provides pnpm + yarn without global installs
+dev_ws_global_npm:                        # framework CLIs useful globally
+  - typescript
+  - ts-node
+  - "@nestjs/cli"
+
+# ── Docker ─────────────────────────────────────────────────────────────────
+dev_ws_install_docker: true
+dev_ws_docker_users:
+  - "{{ dev_ws_user }}"
