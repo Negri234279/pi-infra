@@ -43,6 +43,11 @@ dev_ws_global_npm:                        # framework CLIs useful globally
   - ts-node
   - "@nestjs/cli"
 
+# ── Git identity ─────────────────────────────────────────────────────────────
+# Set in the login user's global git config (~/.gitconfig). Leave blank to skip.
+dev_ws_git_user_name: "negri234279"
+dev_ws_git_user_email: "rafalejo01@gmail.com"
+
 # ── Docker ─────────────────────────────────────────────────────────────────
 dev_ws_install_docker: true
 dev_ws_docker_users:

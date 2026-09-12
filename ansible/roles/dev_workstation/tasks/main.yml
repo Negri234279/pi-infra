@@ -33,6 +33,19 @@
     state: started
     enabled: true
 
+# ── Git identity ─────────────────────────────────────────────────────────────
+# Written to the login user's ~/.gitconfig (not root's) so commits are attributed
+# correctly. Runs without become; skipped cleanly if a value is left blank.
+- name: Configure the global git identity for {{ dev_ws_user }}
+  community.general.git_config:
+    name: "{{ item.name }}"
+    value: "{{ item.value }}"
+    scope: global
+  loop:
+    - { name: user.name, value: "{{ dev_ws_git_user_name }}" }
+    - { name: user.email, value: "{{ dev_ws_git_user_email }}" }
+  when: item.value | length > 0
+
 # ── Docker CE + Compose v2 (official Docker apt repo) ────────────────────────
 - name: Install Docker
   become: true
