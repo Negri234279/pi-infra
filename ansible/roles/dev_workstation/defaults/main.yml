@@ -42,6 +42,7 @@ dev_ws_global_npm:                        # framework CLIs useful globally
   - typescript
   - ts-node
   - "@nestjs/cli"
+  - "@anthropic-ai/claude-code"           # Claude Code CLI
 
 # ── Git identity ─────────────────────────────────────────────────────────────
 # Set in the login user's global git config (~/.gitconfig). Leave blank to skip.
