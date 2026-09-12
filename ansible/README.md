@@ -7,8 +7,10 @@ runs *on* the rpi5 and reaches the managed nodes over the LAN by SSH.
 ```
 ansible/
   ansible.cfg              # points at inventory/, roles/ (run playbooks from here)
-  inventory/hosts.yml      # rpi5 (local) · pve (192.168.1.14) · rpi3 (192.168.1.6)
-  group_vars/all.yml       # shared vars
+  inventory/
+    hosts.yml              # rpi5 (local) · pve (192.168.1.14) · rpi3 (192.168.1.6) · dev-vm
+    group_vars/            # all.yml (shared) · proxmox.yml · dev.yml — MUST live next to
+                           # the inventory so playbooks load them (not just ad-hoc runs)
   requirements.yml         # optional Galaxy collections
   playbooks/
     site.yml               # everything
@@ -106,8 +108,8 @@ A reproducible **Ubuntu 24.04** development VM on the pve node: Docker + Compose
 and **fnm** managing **Node 24** as the default with `.nvmrc` / `.node-version`
 auto-switch on `cd` (so React / Next / Nest / TS projects each pin their own Node).
 
-**1. Put your SSH keys in place** (`group_vars/proxmox.yml → dev_vm_authorized_keys`) —
-both are public keys, safe to commit:
+**1. Put your SSH keys in place** (`inventory/group_vars/proxmox.yml → dev_vm_authorized_keys`)
+— both are public keys, safe to commit:
 
 ```powershell
 # On Windows 11 — create a key if you don't have one, then print it:
@@ -120,8 +122,8 @@ cat ~/.ssh/id_ed25519.pub
 ```
 
 Paste both lines into `dev_vm_authorized_keys` (replace the placeholders). Confirm
-`dev_vm_ip` (group_vars/proxmox.yml) is a **free** LAN address and matches the `dev-vm`
-host's `ansible_host` in `inventory/hosts.yml`.
+`dev_vm_ip` (inventory/group_vars/proxmox.yml) is a **free** LAN address and matches the
+`dev-vm` host's `ansible_host` in `inventory/hosts.yml`.
 
 **2. Provision** (from `~/pi-infra/ansible` on the rpi5):
 
