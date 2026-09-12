@@ -23,17 +23,13 @@
     - role: dev_vm
       tags: [vm]
 
+# gather_facts is false here on purpose: fact-gathering happens as the FIRST task of
+# the dev_workstation role instead, so it inherits the `workstation` tag. That way a
+# template-only / vm-only run (`--tags template` or `--tags vm`) never tries to SSH into
+# a VM that may not exist yet — it just skips this whole play cleanly.
 - name: Configure the dev workstation guest
   hosts: dev
-  gather_facts: true
-  pre_tasks:
-    # First boot runs cloud-init (apt upgrade, growpart, user setup) and holds the apt
-    # lock while it does. Block until it finishes so the role's apt tasks don't collide.
-    - name: Wait for cloud-init to finish
-      become: true
-      ansible.builtin.command: cloud-init status --wait
-      changed_when: false
-      failed_when: false
+  gather_facts: false
   roles:
     - role: dev_workstation
       tags: [workstation]

@@ -4,6 +4,19 @@
 #
 #   ansible-playbook playbooks/provision-dev-vm.yml --tags workstation
 
+# Facts are gathered HERE (not at play level) so a template-only / vm-only run never
+# tries to connect to a not-yet-existing VM — see the note in provision-dev-vm.yml.
+- name: Gather facts about the guest
+  ansible.builtin.setup:
+
+# First boot runs cloud-init (apt upgrade, growpart, user setup) and holds the apt lock
+# while it does. Block until it finishes so the apt tasks below don't collide with it.
+- name: Wait for cloud-init to finish
+  become: true
+  ansible.builtin.command: cloud-init status --wait
+  changed_when: false
+  failed_when: false
+
 # ── Base packages ────────────────────────────────────────────────────────────
 - name: Install base dev + CLI packages
   become: true
