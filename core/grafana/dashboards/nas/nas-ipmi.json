@@ -5,7 +5,7 @@
   "schemaVersion": 39,
   "tags": ["nas", "ipmi", "bmc", "supermicro", "hardware"],
   "links": [
-    { "title": "IPMI web (nas-remote)", "type": "link", "icon": "external link", "url": "https://nas-remote.negri.es", "targetBlank": true }
+    { "title": "IPMI web (nas-remote)", "type": "link", "icon": "external link", "url": "https://192.168.1.17", "targetBlank": true }
   ],
   "title": "NAS · IPMI / BMC (Supermicro X10SRL-F)",
   "uid": "nas-ipmi-core",

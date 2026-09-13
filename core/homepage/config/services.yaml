@@ -138,8 +138,8 @@
     # del BMC para el indicador de estado; sin widget nativo para IPMI.
     - NAS IPMI:
         icon: supermicro.png
-        href: https://nas-remote.negri.es
-        description: IPMI/BMC · Supermicro X10SRL-F
+        href: https://192.168.1.17
+        description: IPMI/BMC · NAS (Supermicro X10SRL-F)
         ping: 192.168.1.17
 
 - Datos:
