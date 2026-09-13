@@ -29,6 +29,9 @@ core/mktxp/mktxp.conf
 # leftover hub file from the old Docker setup can never be committed. Only
 # pve.yml.example is tracked (it's the reference format for the in-LXC config).
 core/pve-exporter/pve.yml
+# ipmi_exporter config holds the NAS BMC's IPMI credentials — keep the real file
+# local; only ipmi.yml.example is committed (the reference format).
+core/ipmi-exporter/ipmi.yml
 # Local-only compose override (e.g. skip node-exporter on Docker Desktop).
 core/homepage/config
 !core/homepage/config/*.yaml

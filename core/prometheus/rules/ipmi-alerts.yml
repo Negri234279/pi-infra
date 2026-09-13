@@ -1,0 +1,74 @@
+# Alert rules for the NAS BMC (Supermicro X10SRL-F) via ipmi_exporter (job=ipmi).
+# The BMC's OWN thresholds are the source of truth for sensors: ipmi_sensor_state is
+# 0=nominal / 1=warning / 2=critical (NaN = no-reading), so we alert on the BMC's
+# verdict rather than hard-coding °C/RPM limits per sensor. Same severity labels →
+# same Discord routing as every other alert. Chassis power-OFF is intentionally NOT
+# alerted (a deliberate NAS shutdown is legitimate, like a stopped VM).
+groups:
+  - name: ipmi
+    rules:
+      - alert: IpmiScrapeDown
+        # The exporter couldn't reach/authenticate the BMC at all (or the exporter
+        # itself is down). Distinct from an individual collector failing below.
+        expr: up{job="ipmi"} == 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "NAS IPMI scrape is failing"
+          description: "No IPMI metrics from the NAS BMC (192.168.1.17) for >5m — ipmi-exporter down, the BMC is unreachable, or the IPMI credentials are wrong/expired."
+
+      - alert: IpmiExporterAbsent
+        # Deadman: the target vanished entirely (job removed/renamed), which up==0
+        # can't catch. Mirrors NodeExporterAbsent / PveNodeExporterAbsent.
+        expr: absent(up{job="ipmi"})
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "NAS IPMI target series is absent"
+          description: "No `up{job=\"ipmi\"}` series at all for >5m — the ipmi-exporter target has gone missing from Prometheus."
+
+      - alert: IpmiCollectorFailing
+        # A specific collector keeps failing while the scrape otherwise succeeds —
+        # typically dcmi (power) or sel needing a higher privilege than "user", or an
+        # unsupported feature. Warning: metrics are partial, not absent.
+        expr: ipmi_up{job="ipmi"} == 0
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "NAS IPMI collector {{ $labels.collector }} failing"
+          description: "The `{{ $labels.collector }}` collector has been failing for >15m — check the BMC account privilege (dcmi/sel may need `operator`) or feature support. See core/ipmi-exporter/ipmi.yml."
+
+      - alert: IpmiSensorCritical
+        # The BMC flags a sensor (temp/fan/voltage/…) as CRITICAL against its own
+        # thresholds — e.g. a fan stopped, a rail out of spec, or overheating.
+        expr: ipmi_sensor_state{job="ipmi"} == 2
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "NAS sensor critical: {{ $labels.name }}"
+          description: "BMC reports {{ $labels.name }} ({{ $labels.type }}) in CRITICAL state for >2m — check the NAS hardware."
+
+      - alert: IpmiSensorWarning
+        expr: ipmi_sensor_state{job="ipmi"} == 1
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "NAS sensor warning: {{ $labels.name }}"
+          description: "BMC reports {{ $labels.name }} ({{ $labels.type }}) in WARNING state for >10m."
+
+      - alert: IpmiSelNewEntries
+        # New rows in the System Event Log = the BMC logged a hardware event (ECC
+        # error, PSU/thermal event, etc.). A positive delta is worth surfacing even
+        # if no sensor is currently out of range. Ignores SEL clears (delta<=0).
+        expr: increase(ipmi_sel_entries_count{job="ipmi"}[1h]) > 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "New entries in the NAS System Event Log"
+          description: "The NAS BMC logged {{ printf \"%.0f\" $value }} new SEL event(s) in the last hour — review the IPMI event log at nas-remote.negri.es."

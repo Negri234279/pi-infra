@@ -1,0 +1,41 @@
+# ipmi_exporter — REMOTE monitoring config for the NAS BMC (Supermicro X10SRL-F).
+# Reference format. Copy to ipmi.yml (gitignored) and fill in the real BMC user/pass:
+#
+#   cp core/ipmi-exporter/ipmi.yml.example core/ipmi-exporter/ipmi.yml
+#   # edit ipmi.yml → set user + pass of the BMC's read-only IPMI account
+#
+# The exporter runs on the rpi5 and polls the BMC over the LAN (RMCP+/IPMI 2.0);
+# Prometheus asks it to scrape 192.168.1.17 via the multi-target /ipmi endpoint
+# (job `ipmi`, params: module=default). See core/ipmi-exporter/README.md.
+
+modules:
+  # Used when no ?module= is given, or module=default. One module is enough: the
+  # single BMC is passed per-scrape as ?target=192.168.1.17 by Prometheus.
+  default:
+    # BMC IPMI account. Create a DEDICATED read-only user on the BMC (Supermicro
+    # web UI → Configuration → Users) instead of reusing ADMIN. Privilege "user"
+    # is enough for sensor/chassis/SEL/DCMI reads; bump to "operator" only if the
+    # dcmi (power) or sel collector reads back empty. NEVER commit real creds.
+    user: "monitor"
+    pass: "CHANGEME_BMC_PASSWORD"
+    # X10SRL-F BMC (ASPEED AST2400) speaks IPMI 2.0 → RMCP+ = LAN_2_0.
+    driver: "LAN_2_0"
+    privilege: "user"
+    # Session timeout in ms. A scrape can take up to timeout × #collectors, so keep
+    # Prometheus's scrape_timeout above that (30s in prometheus.yml).
+    timeout: 10000
+    # bmc     → firmware/manufacturer info + ipmi_up
+    # ipmi    → all sensors (temps, fans, voltages) with per-sensor state
+    # chassis → power on/off + drive/cooling fault flags
+    # dcmi    → whole-node power draw in watts (ipmi_dcmi_power_consumption_watts)
+    # sel     → System Event Log entry count + free space (new HW events)
+    collectors:
+      - bmc
+      - ipmi
+      - chassis
+      - dcmi
+      - sel
+    # Optional: silence sensors you don't care about (unpopulated headers, etc.)
+    # by their numeric id (see `ipmi-sensors` output). Left empty by default.
+    # exclude_sensor_ids:
+    #   - 0

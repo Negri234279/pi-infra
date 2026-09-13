@@ -89,6 +89,29 @@ scrape_configs:
       - target_label: __address__
         replacement: "192.168.1.15:9221" # the pve-exporter LXC on the pve node
 
+  # NAS BMC (Supermicro X10SRL-F) via ipmi_exporter in REMOTE mode. Same multi-target
+  # mechanism as the SNMP/blackbox jobs: __address__ is the BMC ip (passed as the
+  # ?target= param), then rewritten to the exporter's own address; `module` picks the
+  # credential + collector block in core/ipmi-exporter/ipmi.yml. A scrape runs several
+  # freeipmi calls (bmc/ipmi/chassis/dcmi/sel), so it's slow — poll at 60s and give it a
+  # 30s scrape_timeout (must exceed the module's session-timeout × #collectors).
+  - job_name: ipmi
+    scrape_interval: 60s
+    scrape_timeout: 30s
+    metrics_path: /ipmi
+    params:
+      module: [default]
+    static_configs:
+      - targets: ["192.168.1.17"] # the NAS BMC (nas-remote.negri.es)
+        labels: { name: nas-bmc }
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: "ipmi-exporter:9290"
+
   # All containers on the Pi (reached by service DNS on the monitoring network).
   - job_name: cadvisor
     static_configs:

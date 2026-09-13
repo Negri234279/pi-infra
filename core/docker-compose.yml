@@ -565,6 +565,24 @@ services:
     networks:
       - monitoring
 
+  # NAS BMC (Supermicro X10SRL-F @192.168.1.17) via ipmi_exporter in REMOTE mode
+  # (RMCP+/IPMI 2.0): the exporter polls the BMC over the LAN, so it needs NO /dev/ipmi
+  # device and NO privileges — those are only for monitoring the LOCAL host's own BMC.
+  # Prometheus asks it to scrape the BMC by passing it as ?target= (job `ipmi`, same
+  # multi-target pattern as the snmp/blackbox jobs). Credentials live in the gitignored
+  # core/ipmi-exporter/ipmi.yml (copy of ipmi.yml.example). Image is alpine + freeipmi,
+  # multi-arch → runs natively on arm64. Metrics on :9290, multi-target endpoint /ipmi.
+  ipmi-exporter:
+    image: quay.io/prometheuscommunity/ipmi-exporter:v1.10.1
+    container_name: ipmi-exporter
+    restart: unless-stopped
+    command:
+      - "--config.file=/config.yml"
+    volumes:
+      - ./ipmi-exporter/ipmi.yml:/config.yml:ro
+    networks:
+      - monitoring
+
   # NOTE: pve-exporter (job `pve`) no longer runs here. It moved to a lightweight LXC
   # ON the Proxmox node (created by ansible/roles/pve_exporter_lxc) so the API poller
   # lives with what it monitors and this stack stays lean. The infra Prometheus now
