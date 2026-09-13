@@ -1,9 +1,12 @@
 # Alert rules for the NAS BMC (Supermicro X10SRL-F) via ipmi_exporter (job=ipmi).
-# The BMC's OWN thresholds are the source of truth for sensors: ipmi_sensor_state is
-# 0=nominal / 1=warning / 2=critical (NaN = no-reading), so we alert on the BMC's
-# verdict rather than hard-coding °C/RPM limits per sensor. Same severity labels →
-# same Discord routing as every other alert. Chassis power-OFF is intentionally NOT
-# alerted (a deliberate NAS shutdown is legitimate, like a stopped VM).
+# The BMC's OWN thresholds are the source of truth for sensors: the exporter emits a
+# per-type state metric — ipmi_temperature_state, ipmi_fan_speed_state,
+# ipmi_voltage_state (and ipmi_sensor_state for generic sensors like chassis
+# intrusion) — each 0=nominal / 1=warning / 2=critical. We alert on that verdict via a
+# __name__ regex over all of them, rather than hard-coding °C/RPM/V limits per sensor.
+# Same severity labels → same Discord routing as every other alert. Chassis power-OFF
+# is intentionally NOT alerted (a deliberate NAS shutdown is legitimate, like a
+# stopped VM).
 groups:
   - name: ipmi
     rules:
@@ -30,42 +33,62 @@ groups:
           description: "No `up{job=\"ipmi\"}` series at all for >5m — the ipmi-exporter target has gone missing from Prometheus."
 
       - alert: IpmiCollectorFailing
-        # A specific collector keeps failing while the scrape otherwise succeeds —
-        # typically dcmi (power) or sel needing a higher privilege than "user", or an
-        # unsupported feature. Warning: metrics are partial, not absent.
+        # A specific collector keeps failing while the scrape otherwise succeeds.
+        # Warning: metrics are partial, not absent. (dcmi is intentionally disabled on
+        # this board — see core/ipmi-exporter/ipmi.yml — so it won't fire for that.)
         expr: ipmi_up{job="ipmi"} == 0
         for: 15m
         labels:
           severity: warning
         annotations:
           summary: "NAS IPMI collector {{ $labels.collector }} failing"
-          description: "The `{{ $labels.collector }}` collector has been failing for >15m — check the BMC account privilege (dcmi/sel may need `operator`) or feature support. See core/ipmi-exporter/ipmi.yml."
+          description: "The `{{ $labels.collector }}` collector has been failing for >15m — check the BMC account privilege or feature support. See core/ipmi-exporter/README.md."
 
       - alert: IpmiSensorCritical
-        # The BMC flags a sensor (temp/fan/voltage/…) as CRITICAL against its own
-        # thresholds — e.g. a fan stopped, a rail out of spec, or overheating.
-        expr: ipmi_sensor_state{job="ipmi"} == 2
+        # Any sensor (temp/fan/voltage/intrusion) the BMC flags CRITICAL against its
+        # own thresholds — e.g. a fan stopped, a rail out of spec, or overheating.
+        expr: '{__name__=~"ipmi_(temperature|fan_speed|voltage|sensor)_state", job="ipmi"} == 2'
         for: 2m
         labels:
           severity: critical
         annotations:
           summary: "NAS sensor critical: {{ $labels.name }}"
-          description: "BMC reports {{ $labels.name }} ({{ $labels.type }}) in CRITICAL state for >2m — check the NAS hardware."
+          description: "BMC reports {{ $labels.name }} in CRITICAL state for >2m ({{ $labels.__name__ }}) — check the NAS hardware."
 
       - alert: IpmiSensorWarning
-        expr: ipmi_sensor_state{job="ipmi"} == 1
+        expr: '{__name__=~"ipmi_(temperature|fan_speed|voltage|sensor)_state", job="ipmi"} == 1'
         for: 10m
         labels:
           severity: warning
         annotations:
           summary: "NAS sensor warning: {{ $labels.name }}"
-          description: "BMC reports {{ $labels.name }} ({{ $labels.type }}) in WARNING state for >10m."
+          description: "BMC reports {{ $labels.name }} in WARNING state for >10m ({{ $labels.__name__ }})."
+
+      - alert: IpmiCoolingFault
+        # ipmi_chassis_cooling_fault_state is 1=false (no fault) / 0=true (FAULT).
+        expr: ipmi_chassis_cooling_fault_state{job="ipmi"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "NAS cooling/fan fault"
+          description: "The NAS BMC reports a cooling/fan fault for >2m — a fan has likely failed. Check the chassis."
+
+      - alert: IpmiDriveFault
+        # ipmi_chassis_drive_fault_state is 1=false (no fault) / 0=true (FAULT).
+        expr: ipmi_chassis_drive_fault_state{job="ipmi"} == 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "NAS drive fault flag set"
+          description: "The NAS BMC reports a drive fault for >5m — check the disks / backplane (cross-check with smartctl on the NAS itself)."
 
       - alert: IpmiSelNewEntries
         # New rows in the System Event Log = the BMC logged a hardware event (ECC
-        # error, PSU/thermal event, etc.). A positive delta is worth surfacing even
-        # if no sensor is currently out of range. Ignores SEL clears (delta<=0).
-        expr: increase(ipmi_sel_entries_count{job="ipmi"}[1h]) > 0
+        # error, thermal/PSU event, intrusion, etc.). A positive delta is worth
+        # surfacing even if no sensor is currently out of range. Ignores SEL clears.
+        expr: increase(ipmi_sel_logs_count{job="ipmi"}[1h]) > 0
         for: 5m
         labels:
           severity: warning

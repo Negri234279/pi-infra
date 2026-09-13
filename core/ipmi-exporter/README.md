@@ -28,10 +28,19 @@ several FreeIPMI calls (bmc/ipmi/chassis/dcmi/sel), so the job polls at **60s** 
 | Collector | Metrics | Covers |
 |-----------|---------|--------|
 | `bmc` | `ipmi_up`, `ipmi_bmc_info` | BMC firmware/mfr, per-collector health |
-| `ipmi` | `ipmi_temperature_celsius`, `ipmi_fan_speed_rpm`, `ipmi_voltage_volts`, `ipmi_sensor_state` | all sensors + the BMC's own nominal/warning/critical verdict |
-| `chassis` | `ipmi_chassis_power_state`, drive/cooling fault flags | power on/off |
-| `dcmi` | `ipmi_dcmi_power_consumption_watts` | whole-node power draw |
-| `sel` | `ipmi_sel_entries_count`, `ipmi_sel_free_space_bytes` | System Event Log (new HW events) |
+| `ipmi` | `ipmi_temperature_celsius` + `ipmi_temperature_state`, `ipmi_fan_speed_rpm` + `ipmi_fan_speed_state`, `ipmi_voltage_volts` + `ipmi_voltage_state`, `ipmi_sensor_value`/`ipmi_sensor_state` (generic) | every sensor + a **per-type** state (0=nominal / 1=warning / 2=critical) — the BMC's own verdict |
+| `chassis` | `ipmi_chassis_power_state`, `ipmi_chassis_cooling_fault_state`, `ipmi_chassis_drive_fault_state` | power on/off + cooling/drive fault flags (1=OK, 0=fault) |
+| `sel` | `ipmi_sel_logs_count`, `ipmi_sel_free_space_bytes` | System Event Log (new HW events) |
+
+> **`dcmi` is not enabled**: the X10SRL-F BMC returns no DCMI power reading
+> (`ipmi_up{collector="dcmi"}=0` even at higher privilege — the board has no power
+> sensor), so the collector is omitted to avoid a permanently-failing scrape. There is
+> **no whole-node watts** metric for this NAS as a result.
+>
+> **State is per-type, not a single `ipmi_sensor_state`**: temperatures, fans and
+> voltages each have their own `ipmi_<type>_state`. Dashboard/alerts match them with a
+> `{__name__=~"ipmi_(temperature|fan_speed|voltage|sensor)_state"}` regex — keep that in
+> mind if you add panels.
 
 ## Setup
 
@@ -39,8 +48,7 @@ several FreeIPMI calls (bmc/ipmi/chassis/dcmi/sel), so the job polls at **60s** 
 
 In the Supermicro web UI (`nas-remote.negri.es` → **Configuration → Users**), add a
 **dedicated** account for monitoring instead of reusing `ADMIN`. Privilege **User** is
-enough for the sensor/chassis/SEL/DCMI reads above. (Bump it to **Operator** only if the
-`dcmi` power reading or the `sel` log comes back empty — some firmwares gate those.)
+enough for the sensor/chassis/SEL reads above — this NAS is fully covered at User level.
 
 ### 2. Write the exporter config (holds the BMC credentials — gitignored)
 
@@ -79,15 +87,16 @@ docker compose exec -T prometheus wget -qO- \
 docker compose exec -T prometheus wget -qO- \
   'http://localhost:9090/api/v1/query?query=up%7Bjob=%22ipmi%22%7D'
 
-# per-collector health (each should be 1)
+# per-collector health (bmc, ipmi, chassis, sel should each be 1)
 docker compose exec -T prometheus wget -qO- \
   'http://localhost:9090/api/v1/query?query=ipmi_up%7Bjob=%22ipmi%22%7D'
 ```
 
 If the scrape fails, check (1) the container can reach `192.168.1.17` on the LAN, (2) the
-`user`/`pass` in `ipmi.yml` are correct and the account is enabled, (3) IPMI-over-LAN is
-enabled on the BMC (**Configuration → IPMI/Network**), and (4) if only `dcmi`/`sel` read
-empty, raise the account privilege to **operator** in step 1 (and `privilege:` in `ipmi.yml`).
+`user`/`pass` in `ipmi.yml` are correct and the account is enabled, and (3) IPMI-over-LAN
+is enabled on the BMC (**Configuration → IPMI/Network**). If a *specific* collector reads
+`ipmi_up=0` while the rest work, that feature likely isn't supported by the board (as with
+`dcmi` here) — drop that collector from `ipmi.yml` rather than chasing it.
 
 ## Dashboards & alerts
 

@@ -102,8 +102,12 @@ scrape_configs:
     params:
       module: [default]
     static_configs:
+      # NO extra `name` label here: ipmi_exporter already emits a per-sensor `name`
+      # label (FAN1, "System Temp", "12V", …). A target `name` label would COLLIDE and,
+      # with honor_labels=false (default), overwrite every sensor's name (pushing the
+      # real one to `exported_name`) — so panels/alerts would read "nas-bmc" for all.
+      # The BMC is identified by `instance=192.168.1.17` (set by the relabel below).
       - targets: ["192.168.1.17"] # the NAS BMC (nas-remote.negri.es)
-        labels: { name: nas-bmc }
     relabel_configs:
       - source_labels: [__address__]
         target_label: __param_target

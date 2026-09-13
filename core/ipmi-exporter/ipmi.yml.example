@@ -27,13 +27,16 @@ modules:
     # bmc     → firmware/manufacturer info + ipmi_up
     # ipmi    → all sensors (temps, fans, voltages) with per-sensor state
     # chassis → power on/off + drive/cooling fault flags
-    # dcmi    → whole-node power draw in watts (ipmi_dcmi_power_consumption_watts)
-    # sel     → System Event Log entry count + free space (new HW events)
+    # sel     → System Event Log count + free space (new HW events)
+    # NOTE: `dcmi` (whole-node power draw in watts) is intentionally OMITTED: the
+    # X10SRL-F BMC does not expose a DCMI power reading (ipmi_up{collector="dcmi"}=0
+    # even at higher privilege — the board simply has no power sensor), so enabling it
+    # only adds a permanently-failing collector. Add it back only if a future board
+    # supports it.
     collectors:
       - bmc
       - ipmi
       - chassis
-      - dcmi
       - sel
     # Optional: silence sensors you don't care about (unpopulated headers, etc.)
     # by their numeric id (see `ipmi-sensors` output). Left empty by default.
