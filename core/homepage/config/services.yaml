@@ -133,6 +133,15 @@
           username: "{{HOMEPAGE_VAR_PVE_TOKEN_ID}}"
           password: "{{HOMEPAGE_VAR_PVE_TOKEN_SECRET}}"
 
+    # IPMI (BMC) de la Supermicro X10SRL-F del NAS. La web de gestión se publica por
+    # NPM en nas-remote.negri.es (→ https://192.168.1.17:443). El ping va a la IP LAN
+    # del BMC para el indicador de estado; sin widget nativo para IPMI.
+    - NAS IPMI:
+        icon: supermicro.png
+        href: https://nas-remote.negri.es
+        description: IPMI/BMC · Supermicro X10SRL-F
+        ping: 192.168.1.17
+
 - Datos:
     - Postgres:
         icon: postgres.png
