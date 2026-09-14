@@ -142,6 +142,18 @@
         description: IPMI/BMC · NAS (Supermicro X10SRL-F)
         ping: 192.168.1.17
 
+    - NAS Web:
+        icon: truenas.png
+        href: https://nas-web.negri.es/ui/dashboard
+        description: Web management · NAS (Supermicro X10SRL-F)
+        ping: 192.168.1.18
+        widget:
+          type: truenas
+          url: https://nas-web.negri.es
+          version: 2
+          enablePools: true
+          key: "{{HOMEPAGE_VAR_NAS_KEY}}"
+
 - Datos:
     - Postgres:
         icon: postgres.png

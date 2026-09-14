@@ -82,6 +82,7 @@ services:
       # Empty → the widget just shows no data; the card still links + pings.
       - HOMEPAGE_VAR_PVE_TOKEN_ID=${PVE_TOKEN_ID:-}
       - HOMEPAGE_VAR_PVE_TOKEN_SECRET=${PVE_TOKEN_SECRET:-}
+      - HOMEPAGE_VAR_NAS_KEY=${NAS_KEY:-}
     volumes:
       - ./homepage/config:/app/config
       # Auto-descubrimiento de apps por labels + estado de contenedores. RO basta.
