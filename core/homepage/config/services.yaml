@@ -149,7 +149,7 @@
         ping: 192.168.1.18
         widget:
           type: truenas
-          url: https://nas-web.negri.es
+          url: https://192.168.1.18
           version: 2
           enablePools: true
           key: "{{HOMEPAGE_VAR_NAS_KEY}}"
