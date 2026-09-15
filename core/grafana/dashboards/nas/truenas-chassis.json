@@ -58,7 +58,7 @@
             "type": "prometheus",
             "uid": "prometheus-infra"
           },
-          "expr": "disk_temperature{job=\"truenas\", bay=\"C1R1\"} or vector(-1)",
+          "expr": "disk_temperature{job=\"truenas\", bay=\"C1R1\"} or (absent(disk_temperature{job=\"truenas\", bay=\"C1R1\"}) * -1)",
           "instant": true,
           "legendFormat": "{{serial}}"
         }
@@ -125,7 +125,7 @@
             "type": "prometheus",
             "uid": "prometheus-infra"
           },
-          "expr": "disk_temperature{job=\"truenas\", bay=\"C1R2\"} or vector(-1)",
+          "expr": "disk_temperature{job=\"truenas\", bay=\"C1R2\"} or (absent(disk_temperature{job=\"truenas\", bay=\"C1R2\"}) * -1)",
           "instant": true,
           "legendFormat": "{{serial}}"
         }
@@ -192,7 +192,7 @@
             "type": "prometheus",
             "uid": "prometheus-infra"
           },
-          "expr": "disk_temperature{job=\"truenas\", bay=\"C1R3\"} or vector(-1)",
+          "expr": "disk_temperature{job=\"truenas\", bay=\"C1R3\"} or (absent(disk_temperature{job=\"truenas\", bay=\"C1R3\"}) * -1)",
           "instant": true,
           "legendFormat": "{{serial}}"
         }
@@ -373,7 +373,7 @@
             "type": "prometheus",
             "uid": "prometheus-infra"
           },
-          "expr": "disk_temperature{job=\"truenas\", bay=\"C2R1\"} or vector(-1)",
+          "expr": "disk_temperature{job=\"truenas\", bay=\"C2R1\"} or (absent(disk_temperature{job=\"truenas\", bay=\"C2R1\"}) * -1)",
           "instant": true,
           "legendFormat": "{{serial}}"
         }
@@ -440,7 +440,7 @@
             "type": "prometheus",
             "uid": "prometheus-infra"
           },
-          "expr": "disk_temperature{job=\"truenas\", bay=\"C2R2\"} or vector(-1)",
+          "expr": "disk_temperature{job=\"truenas\", bay=\"C2R2\"} or (absent(disk_temperature{job=\"truenas\", bay=\"C2R2\"}) * -1)",
           "instant": true,
           "legendFormat": "{{serial}}"
         }
@@ -507,7 +507,7 @@
             "type": "prometheus",
             "uid": "prometheus-infra"
           },
-          "expr": "disk_temperature{job=\"truenas\", bay=\"C2R3\"} or vector(-1)",
+          "expr": "disk_temperature{job=\"truenas\", bay=\"C2R3\"} or (absent(disk_temperature{job=\"truenas\", bay=\"C2R3\"}) * -1)",
           "instant": true,
           "legendFormat": "{{serial}}"
         }
@@ -916,7 +916,7 @@
             "type": "prometheus",
             "uid": "prometheus-infra"
           },
-          "expr": "disk_temperature{job=\"truenas\", bay=\"C4R1\"} or vector(-1)",
+          "expr": "disk_temperature{job=\"truenas\", bay=\"C4R1\"} or (absent(disk_temperature{job=\"truenas\", bay=\"C4R1\"}) * -1)",
           "instant": true,
           "legendFormat": "{{serial}}"
         }
@@ -983,7 +983,7 @@
             "type": "prometheus",
             "uid": "prometheus-infra"
           },
-          "expr": "disk_temperature{job=\"truenas\", bay=\"C4R2\"} or vector(-1)",
+          "expr": "disk_temperature{job=\"truenas\", bay=\"C4R2\"} or (absent(disk_temperature{job=\"truenas\", bay=\"C4R2\"}) * -1)",
           "instant": true,
           "legendFormat": "{{serial}}"
         }
@@ -1952,6 +1952,6 @@
   "timezone": "",
   "title": "TrueNAS Scale - Chassis (HSW6424)",
   "uid": "truenas-chassis",
-  "version": 3,
+  "version": 4,
   "weekStart": ""
 }
