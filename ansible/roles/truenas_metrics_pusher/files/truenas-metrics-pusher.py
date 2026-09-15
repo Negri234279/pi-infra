@@ -16,6 +16,9 @@ failure so cron does not spam.
 """
 import argparse
 import json
+import os
+import re
+import shutil
 import socket
 import subprocess
 import sys
@@ -25,6 +28,10 @@ GIB = 1024 ** 3
 # States netdata's zfspool collector exposes; we emit all so `zfs_pool{state="online"}` always
 # exists for the alert, with 1 on the pool's current state and 0 on the rest.
 ZFS_STATES = ["online", "degraded", "faulted", "offline", "unavail", "removed", "suspended"]
+
+# cron's PATH is minimal; smartctl lives in /usr/sbin. Resolve it once (None if unavailable).
+SMARTCTL = shutil.which("smartctl") or next(
+    (p for p in ("/usr/sbin/smartctl", "/usr/local/sbin/smartctl") if os.path.exists(p)), None)
 
 
 def midclt(*args):
@@ -36,19 +43,49 @@ def midclt(*args):
         return None
 
 
+def smartctl_temp(dev):
+    """Read a disk's current temperature straight from smartctl, as a fallback for when TrueNAS's
+    disk.temperatures returns null (seen after a hot-swap: ZFS re-admits the disk but the middleware
+    hasn't re-polled its SMART temp yet, while `smartctl -a` reports it fine). Handles SAS, SATA and
+    NVMe output. Returns float °C or None."""
+    if not SMARTCTL or not dev:
+        return None
+    try:
+        out = subprocess.run([SMARTCTL, "-a", f"/dev/{dev}"], capture_output=True, text=True,
+                             timeout=30).stdout
+    except Exception:  # noqa: BLE001
+        return None
+    m = re.search(r"Current Drive Temperature:\s*(\d+)", out)          # SAS
+    if m:
+        return float(m.group(1))
+    m = re.search(r"^Temperature:\s*(\d+)\s*Celsius", out, re.MULTILINE)  # NVMe
+    if m:
+        return float(m.group(1))
+    for line in out.splitlines():                                       # SATA attr 194/190
+        if "Temperature_Celsius" in line or "Airflow_Temperature" in line:
+            nums = re.findall(r"\d+", line)
+            if nums:
+                return float(nums[-1])
+    return None
+
+
 def disk_temp_lines(base, ts):
     lines = []
     disks = midclt("disk.query") or []
-    name_to_serial = {d.get("name"): (d.get("serial") or "").strip()
-                      for d in disks if d.get("name")}
     temps = midclt("disk.temperatures", "[]")
-    if not isinstance(temps, dict):
-        return lines
-    for name, temp in temps.items():
-        if temp is None:
+    temps = temps if isinstance(temps, dict) else {}
+    # Iterate over the disk CATALOG (not the temps dict) so a disk that dropped out of
+    # disk.temperatures entirely still gets a smartctl read.
+    for d in disks:
+        name = d.get("name")
+        serial = (d.get("serial") or "").strip()
+        if not name or not serial:
             continue
-        serial = name_to_serial.get(name)
-        if not serial:
+        temp = temps.get(name)
+        if temp is None:                       # midclt has no temp → fall back to smartctl
+            temp = smartctl_temp(name)
+        if temp is None:                       # genuinely unreadable → skip (tile shows AUSENTE)
+            print(f"warn: no temperature for {name} ({serial})", file=sys.stderr)
             continue
         lines.append((f"{base}.smart.log.smart.disktemp.{serial}.temp", float(temp), ts))
     return lines
