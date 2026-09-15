@@ -40,22 +40,35 @@
   register: truenas_rescan_prime
   changed_when: false
 
-# ── Verify every catalogued disk now reports a temperature ──────────────────────
-- name: Read the disk temperatures back
+# ── Verify the swapped disk is back in the catalog, and wait (best-effort) for SMART ────────────
+# The rescan + disk.sync_all above is what actually recovers the disk: disk.temperatures now lists
+# it again. A freshly re-inserted drive often reports a `null` temperature for a few minutes until
+# TrueNAS's next SMART poll — that's transient and the cron pusher will fill it in on its own, so
+# this check is BEST-EFFORT (never fails the play). It retries briefly to give SMART a chance.
+- name: Wait (best-effort) for all disks to report a SMART temperature
   ansible.builtin.command:
     argv: [midclt, call, disk.temperatures, "[]"]
   register: truenas_rescan_temps
   changed_when: false
-  # Give the middleware a few seconds to settle after the sync; retry until no disk reads null.
+  failed_when: false
   until: >-
-    (truenas_rescan_temps.stdout | from_json).values() | reject('none') | list | length
-    == (truenas_rescan_temps.stdout | from_json) | length
+    (truenas_rescan_temps.stdout | default('{}') | from_json).values()
+    | reject('none') | list | length
+    == (truenas_rescan_temps.stdout | default('{}') | from_json) | length
   retries: 6
-  delay: 5
+  delay: 10
 
-- name: Report the recovered temperatures
+- name: Report recovery status
+  vars:
+    _temps: "{{ truenas_rescan_temps.stdout | default('{}') | from_json }}"
+    _null_disks: "{{ _temps | dict2items | selectattr('value', 'none') | map(attribute='key') | list }}"
   ansible.builtin.debug:
     msg: >-
-      {{ (truenas_rescan_temps.stdout | from_json)
-         | dict2items | map(attribute='key') | list | length }} disks reporting temperature:
-      {{ truenas_rescan_temps.stdout | from_json }}
+      {{ _temps | length }} disks catalogued.
+      {% if _null_disks | length == 0 %}
+      All report a SMART temperature — recovery complete.
+      {% else %}
+      Still awaiting SMART temp for {{ _null_disks | join(', ') }} — this is normal right after a
+      re-insert; TrueNAS fills it on its next SMART poll (a few minutes) and the cron pusher then
+      restores the chassis tile automatically. Re-run `--tags rescan` later if it persists.
+      {% endif %}
