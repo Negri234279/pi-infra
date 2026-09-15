@@ -63,6 +63,28 @@ Prerequisites:
 Then, on the hub, pick up the new Prometheus job + rules + dashboards with `./scripts/deploy.sh`
 from the repo root.
 
+## Nextcloud (private Drive) — opt-in
+
+A self-contained Nextcloud (own Postgres + Redis, so it does NOT depend on the hub's shared
+Postgres) runs on the NAS for a Google-Drive-like cloud, **LAN/VPN only** (no public exposure).
+Files live on dedicated ZFS datasets (`<pool>/nextcloud`, `<pool>/nextcloud-db`) so they get
+snapshots.
+
+```bash
+cp hosts/truenas/nextcloud.env.example hosts/truenas/nextcloud.env   # fill in the passwords
+./run.sh playbooks/bootstrap-truenas.yml --tags nextcloud            # deploy (opt-in tag)
+```
+Then reach it at `http://192.168.1.18:8080` (mgmt LAN / WireGuard) or, for **max transfer speed**,
+`http://nas.negri.es:8080` — that name resolves to `10.10.10.13` (the 10 GbE link) in DNS — from
+the box wired to the 10G segment (which is isolated, so only the directly-connected host reaches
+it). All of `192.168.1.18`, `10.10.10.13` and `nas.negri.es` are in `NEXTCLOUD_TRUSTED_DOMAINS`.
+Log in with the admin user from `nextcloud.env`. For full 10G throughput also enable jumbo frames
+(MTU 9000) on both NICs of that point-to-point link. Compose: `hosts/truenas/nextcloud.compose.yml` (relative binds
+`./html`, `./data`, `../nextcloud-db`). Role: `ansible/roles/truenas_nextcloud`. It is gated behind
+the `nextcloud` tag, so a normal observability bootstrap never touches it. `nextcloud.env` is
+gitignored (`hosts/**/*.env`). To later add TLS/a hostname, front it with NPM restricted to the
+LAN/VPN and set `NEXTCLOUD_OVERWRITEPROTOCOL=https`.
+
 ## Notes
 
 - The `graphite_exporter` expires a metric 5 min after its last push, so if netdata stops

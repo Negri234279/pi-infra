@@ -10,6 +10,9 @@
 #      zfs_pool, disk_bytes) from midclt into graphite_exporter, via a native TrueNAS cron job.
 #   5. truenas_disk_rescan          — ON-DEMAND ONLY (tag `rescan`): after a hot-swap, rescan the
 #      SCSI buses + disk.sync_all + re-prime the pusher so a re-inserted disk's temp reappears.
+#   6. truenas_nextcloud            — OPT-IN (tag `nextcloud`): private Drive on the NAS
+#      (self-contained Nextcloud + Postgres + Redis on ZFS datasets, LAN/VPN only). Needs
+#      hosts/truenas/nextcloud.env (copy from .example). Not part of the observability bootstrap.
 #
 # The hub's Prometheus then scrapes 192.168.1.18:9108 (job `truenas`, in
 # core/prometheus/prometheus.yml). Grafana dashboards live in the "nas" folder.
@@ -37,3 +40,6 @@
     # `never` keeps this out of normal runs; it fires only with `--tags rescan`.
     - role: truenas_disk_rescan
       tags: [rescan, never]
+    # Opt-in service (private Drive). `never` → only with `--tags nextcloud`.
+    - role: truenas_nextcloud
+      tags: [nextcloud, never]

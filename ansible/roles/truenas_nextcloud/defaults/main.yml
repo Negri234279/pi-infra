@@ -1,0 +1,18 @@
+---
+# Deploys Nextcloud (private Drive) onto TrueNAS's native Docker, self-contained (own Postgres +
+# Redis). Files live on dedicated ZFS datasets so they get snapshots. LAN/VPN only.
+#
+# Datasets (single-level names → no missing-parent issue), created via midclt if absent:
+truenas_nextcloud_dataset: "{{ truenas_pool }}/nextcloud"        # app/config + user data
+truenas_nextcloud_db_dataset: "{{ truenas_pool }}/nextcloud-db"  # postgres data (own dataset)
+
+# Where the compose project is synced on the NAS (= the nextcloud dataset mountpoint). The compose
+# uses RELATIVE binds (./html, ./data, ../nextcloud-db), so it must be deployed here.
+truenas_nextcloud_dir: "/mnt/{{ truenas_nextcloud_dataset }}"
+
+# Sources on the control node / hub (the repo checkout). playbook_dir is ansible/playbooks.
+truenas_nextcloud_compose_src: "{{ playbook_dir }}/../../hosts/truenas/nextcloud.compose.yml"
+truenas_nextcloud_env_src: "{{ playbook_dir }}/../../hosts/truenas/nextcloud.env"
+
+# Force-pull images on this run (e.g. to update the containers deliberately).
+truenas_nextcloud_pull: false

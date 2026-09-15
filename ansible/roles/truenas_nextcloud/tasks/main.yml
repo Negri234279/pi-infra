@@ -1,0 +1,87 @@
+---
+# Provision Nextcloud on TrueNAS's native Docker. Runs with become (docker + midclt need root).
+# Self-contained: own Postgres + Redis (see hosts/truenas/nextcloud.compose.yml). LAN/VPN only.
+
+# ── Preflight ───────────────────────────────────────────────────────────────────
+- name: Check the TrueNAS Docker (Apps) engine status
+  ansible.builtin.command:
+    argv: [midclt, call, docker.status]
+  register: truenas_nc_docker_status
+  changed_when: false
+
+- name: Fail if the Docker engine is not running
+  ansible.builtin.fail:
+    msg: >-
+      TrueNAS Docker engine is '{{ (truenas_nc_docker_status.stdout | from_json).status
+      | default("UNKNOWN") }}', expected 'RUNNING'. Initialise Apps with a pool first.
+  when: (truenas_nc_docker_status.stdout | from_json).status | default('') != 'RUNNING'
+
+- name: Ensure the Nextcloud secrets file exists on the control node
+  ansible.builtin.stat:
+    path: "{{ truenas_nextcloud_env_src }}"
+  register: truenas_nc_env
+  delegate_to: localhost
+  become: false
+
+- name: Fail if the secrets file is missing
+  ansible.builtin.fail:
+    msg: >-
+      {{ truenas_nextcloud_env_src }} not found. Copy hosts/truenas/nextcloud.env.example to
+      hosts/truenas/nextcloud.env and fill in the passwords, then re-run.
+  when: not truenas_nc_env.stat.exists
+
+# ── ZFS datasets (idempotent) ─────────────────────────────────────────────────────
+- name: Check whether the Nextcloud datasets exist
+  ansible.builtin.command:
+    argv: [midclt, call, pool.dataset.get_instance, "{{ item }}"]
+  loop:
+    - "{{ truenas_nextcloud_dataset }}"
+    - "{{ truenas_nextcloud_db_dataset }}"
+  register: truenas_nc_ds
+  changed_when: false
+  failed_when: false
+
+- name: Create the missing Nextcloud datasets
+  ansible.builtin.command:
+    argv: [midclt, call, pool.dataset.create, "{{ {'name': item.item} | to_json }}"]
+  loop: "{{ truenas_nc_ds.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+  when: item.rc != 0
+  changed_when: true
+
+# ── Sync the compose project + secrets ────────────────────────────────────────────
+- name: Sync the Nextcloud compose file
+  ansible.builtin.copy:
+    src: "{{ truenas_nextcloud_compose_src }}"
+    dest: "{{ truenas_nextcloud_dir }}/docker-compose.yml"
+    mode: "0644"
+  register: truenas_nc_compose
+
+- name: Sync the Nextcloud secrets (.env, next to the compose)
+  ansible.builtin.copy:
+    src: "{{ truenas_nextcloud_env_src }}"
+    dest: "{{ truenas_nextcloud_dir }}/.env"
+    mode: "0600"
+  register: truenas_nc_envfile
+
+- name: Pull the Nextcloud images
+  ansible.builtin.command:
+    argv: [docker, compose, -f, "{{ truenas_nextcloud_dir }}/docker-compose.yml", pull]
+  when: truenas_nextcloud_pull | bool
+  changed_when: true
+
+- name: Bring up the Nextcloud stack
+  ansible.builtin.command:
+    argv: [docker, compose, -f, "{{ truenas_nextcloud_dir }}/docker-compose.yml", up, -d]
+  register: truenas_nc_up
+  changed_when: >-
+    ('Started' in truenas_nc_up.stderr) or ('Created' in truenas_nc_up.stderr) or
+    ('Recreated' in truenas_nc_up.stderr) or ('Pulling' in truenas_nc_up.stderr)
+
+- name: Where to reach it
+  ansible.builtin.debug:
+    msg: >-
+      Nextcloud is starting (first launch takes ~1 min to install). Reach it on the LAN/VPN at
+      http://{{ ansible_host }}:<NEXTCLOUD_PORT from nextcloud.env, default 8080> and log in with
+      the admin user from nextcloud.env.
