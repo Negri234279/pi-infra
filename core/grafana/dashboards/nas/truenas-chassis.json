@@ -1183,165 +1183,28 @@
     },
     {
       "id": 26,
-      "type": "stat",
-      "title": "",
-      "gridPos": {
-        "h": 3,
-        "w": 6,
-        "x": 0,
-        "y": 27
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus-infra"
-      },
-      "targets": [],
-      "fieldConfig": {
-        "defaults": {
-          "noValue": "data · RAIDZ2",
-          "color": {
-            "mode": "fixed",
-            "fixedColor": "#3274D9"
-          },
-          "mappings": []
-        },
-        "overrides": []
-      },
-      "options": {
-        "colorMode": "background",
-        "graphMode": "none",
-        "justifyMode": "center",
-        "textMode": "value",
-        "reduceOptions": {
-          "calc": "lastNotNull",
-          "fields": "",
-          "values": false
-        }
-      }
-    },
-    {
-      "id": 27,
-      "type": "stat",
-      "title": "",
-      "gridPos": {
-        "h": 3,
-        "w": 6,
-        "x": 6,
-        "y": 27
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus-infra"
-      },
-      "targets": [],
-      "fieldConfig": {
-        "defaults": {
-          "noValue": "boot-pool · OS",
-          "color": {
-            "mode": "fixed",
-            "fixedColor": "#56A64B"
-          },
-          "mappings": []
-        },
-        "overrides": []
-      },
-      "options": {
-        "colorMode": "background",
-        "graphMode": "none",
-        "justifyMode": "center",
-        "textMode": "value",
-        "reduceOptions": {
-          "calc": "lastNotNull",
-          "fields": "",
-          "values": false
-        }
-      }
-    },
-    {
-      "id": 28,
-      "type": "stat",
-      "title": "",
-      "gridPos": {
-        "h": 3,
-        "w": 6,
-        "x": 12,
-        "y": 27
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus-infra"
-      },
-      "targets": [],
-      "fieldConfig": {
-        "defaults": {
-          "noValue": "vacía",
-          "color": {
-            "mode": "fixed",
-            "fixedColor": "#3a3a3a"
-          },
-          "mappings": []
-        },
-        "overrides": []
-      },
-      "options": {
-        "colorMode": "background",
-        "graphMode": "none",
-        "justifyMode": "center",
-        "textMode": "value",
-        "reduceOptions": {
-          "calc": "lastNotNull",
-          "fields": "",
-          "values": false
-        }
-      }
-    },
-    {
-      "id": 29,
-      "type": "stat",
-      "title": "",
-      "gridPos": {
-        "h": 3,
-        "w": 6,
-        "x": 18,
-        "y": 27
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus-infra"
-      },
-      "targets": [],
-      "fieldConfig": {
-        "defaults": {
-          "noValue": "⚠ AUSENTE",
-          "color": {
-            "mode": "fixed",
-            "fixedColor": "red"
-          },
-          "mappings": []
-        },
-        "overrides": []
-      },
-      "options": {
-        "colorMode": "background",
-        "graphMode": "none",
-        "justifyMode": "center",
-        "textMode": "value",
-        "reduceOptions": {
-          "calc": "lastNotNull",
-          "fields": "",
-          "values": false
-        }
-      }
-    },
-    {
-      "id": 30,
       "type": "text",
       "title": "",
       "gridPos": {
         "h": 2,
         "w": 24,
         "x": 0,
-        "y": 30
+        "y": 27
+      },
+      "options": {
+        "mode": "markdown",
+        "content": "**Leyenda:**  🟦 data · RAIDZ2   🟩 boot-pool · OS   ⬛ vacía   🟥 ⚠ AUSENTE (disco que no reporta)"
+      }
+    },
+    {
+      "id": 27,
+      "type": "text",
+      "title": "",
+      "gridPos": {
+        "h": 2,
+        "w": 24,
+        "x": 0,
+        "y": 29
       },
       "options": {
         "mode": "markdown",
@@ -1349,14 +1212,14 @@
       }
     },
     {
-      "id": 31,
+      "id": 28,
       "type": "bargauge",
       "title": "C1R1",
       "gridPos": {
         "h": 4,
         "w": 12,
         "x": 0,
-        "y": 32
+        "y": 31
       },
       "datasource": {
         "type": "prometheus",
@@ -1422,14 +1285,14 @@
       }
     },
     {
-      "id": 32,
+      "id": 29,
       "type": "bargauge",
       "title": "C2R1",
       "gridPos": {
         "h": 4,
         "w": 12,
         "x": 12,
-        "y": 32
+        "y": 31
       },
       "datasource": {
         "type": "prometheus",
@@ -1495,14 +1358,14 @@
       }
     },
     {
-      "id": 33,
+      "id": 30,
       "type": "bargauge",
       "title": "C4R1",
       "gridPos": {
         "h": 4,
         "w": 12,
         "x": 0,
-        "y": 36
+        "y": 35
       },
       "datasource": {
         "type": "prometheus",
@@ -1568,14 +1431,14 @@
       }
     },
     {
-      "id": 34,
+      "id": 31,
       "type": "bargauge",
       "title": "C1R2",
       "gridPos": {
         "h": 4,
         "w": 12,
         "x": 12,
-        "y": 36
+        "y": 35
       },
       "datasource": {
         "type": "prometheus",
@@ -1641,14 +1504,14 @@
       }
     },
     {
-      "id": 35,
+      "id": 32,
       "type": "bargauge",
       "title": "C2R2",
       "gridPos": {
         "h": 4,
         "w": 12,
         "x": 0,
-        "y": 40
+        "y": 39
       },
       "datasource": {
         "type": "prometheus",
@@ -1714,14 +1577,14 @@
       }
     },
     {
-      "id": 36,
+      "id": 33,
       "type": "bargauge",
       "title": "C4R2",
       "gridPos": {
         "h": 4,
         "w": 12,
         "x": 12,
-        "y": 40
+        "y": 39
       },
       "datasource": {
         "type": "prometheus",
@@ -1787,14 +1650,14 @@
       }
     },
     {
-      "id": 37,
+      "id": 34,
       "type": "bargauge",
       "title": "C1R3",
       "gridPos": {
         "h": 4,
         "w": 12,
         "x": 0,
-        "y": 44
+        "y": 43
       },
       "datasource": {
         "type": "prometheus",
@@ -1860,14 +1723,14 @@
       }
     },
     {
-      "id": 38,
+      "id": 35,
       "type": "bargauge",
       "title": "C2R3",
       "gridPos": {
         "h": 4,
         "w": 12,
         "x": 12,
-        "y": 44
+        "y": 43
       },
       "datasource": {
         "type": "prometheus",
@@ -1952,6 +1815,6 @@
   "timezone": "",
   "title": "TrueNAS Scale - Chassis (HSW6424)",
   "uid": "truenas-chassis",
-  "version": 4,
+  "version": 5,
   "weekStart": ""
 }
