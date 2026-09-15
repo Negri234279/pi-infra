@@ -89,29 +89,31 @@
 # ── Enable audit logging so the "Nextcloud Logs" dashboard has events ───────────
 # occ only works once first-run install has finished; wait for it. Runs as www-data.
 - name: Wait for Nextcloud to finish installing
+  # Match on the text, NOT from_json: during first boot occ can print warnings before the JSON, so
+  # `occ status --output=json` output isn't always clean JSON. `is search` tolerates that.
   ansible.builtin.command:
     argv: [docker, exec, --user, www-data, nextcloud, php, occ, status, --output=json]
   register: truenas_nc_status
   changed_when: false
   failed_when: false
-  until: (truenas_nc_status.stdout | default('{}') | from_json).installed | default(false)
-  retries: 20
-  delay: 15
+  until: truenas_nc_status.stdout is search('"installed"\s*:\s*true')
+  retries: 30
+  delay: 10
 
 - name: Enable the admin_audit app (login/file/share events → nextcloud.log)
   ansible.builtin.command:
     argv: [docker, exec, --user, www-data, nextcloud, php, occ, app:enable, admin_audit]
   register: truenas_nc_audit
   changed_when: "'already enabled' not in truenas_nc_audit.stdout"
-  when: (truenas_nc_status.stdout | default('{}') | from_json).installed | default(false)
+  when: truenas_nc_status.stdout is search('"installed"\s*:\s*true')
 
 - name: Set loglevel to info so audit events are recorded
   # admin_audit logs at INFO (1); the Nextcloud default loglevel 2 (warning) would suppress them.
   ansible.builtin.command:
     argv: [docker, exec, --user, www-data, nextcloud, php, occ, config:system:set, loglevel, "--value=1", "--type=integer"]
   register: truenas_nc_loglevel
-  changed_when: "'info' in truenas_nc_loglevel.stdout or 'set to' in truenas_nc_loglevel.stdout"
-  when: (truenas_nc_status.stdout | default('{}') | from_json).installed | default(false)
+  changed_when: "'set to' in truenas_nc_loglevel.stdout"
+  when: truenas_nc_status.stdout is search('"installed"\s*:\s*true')
 
 - name: Where to reach it
   ansible.builtin.debug:
