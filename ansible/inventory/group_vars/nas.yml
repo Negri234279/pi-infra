@@ -28,10 +28,14 @@ truenas_reporting_update_every: 15          # seconds; keep ≤ the Prometheus s
 truenas_reporting_matching_charts: "*"      # export everything netdata collects
 
 # ── Docker stack on TrueNAS (role truenas_docker_stack) ──────────────────────
-# The compose project is synced to a dataset on a REAL data pool (TrueNAS's Apps/Docker
-# subsystem must already be initialised with a pool). The immutable root fs is off-limits,
-# so this MUST live under /mnt/<pool>/...
+# The stack lives on its OWN ZFS dataset on a real data pool, created by the role via midclt —
+# so it shows up under Storage → Datasets and can be snapshotted/quota'd (a plain mkdir would not
+# appear in the UI). The Apps/Docker subsystem must ALSO be initialised with a pool once in the
+# UI (that's what gives TrueNAS its Docker engine); the precheck fails clearly if it isn't.
 #
-# !!! SET THIS to a path on YOUR pool before running. The pool is the 6-wide RAIDZ2 already
-# imported on this NAS; replace `tank` with its real name (check: `midclt call pool.query`).
-truenas_apps_dir: "/mnt/tank/apps/pi-infra-monitoring"
+# !!! SET truenas_pool to your real pool name (check: `midclt call pool.query | jq -r '.[].name'`).
+# Your imported pool is the 6-wide RAIDZ2; if it's called `tank`, the defaults below are correct.
+truenas_pool: tank
+truenas_apps_dataset_name: pi-infra-monitoring
+truenas_apps_dataset: "{{ truenas_pool }}/{{ truenas_apps_dataset_name }}"   # ZFS dataset name
+truenas_apps_dir: "/mnt/{{ truenas_apps_dataset }}"                          # its mountpoint

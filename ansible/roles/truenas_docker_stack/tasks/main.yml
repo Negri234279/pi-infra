@@ -18,12 +18,21 @@
       'RUNNING'. Initialise Apps with a pool first (UI → Apps → choose pool), then re-run.
   when: (truenas_docker_status.stdout | from_json).status | default('') != 'RUNNING'
 
-# ── Sync the compose project to a dataset on the pool ────────────────────────────
-- name: Ensure the compose directory exists on the pool
-  ansible.builtin.file:
-    path: "{{ truenas_apps_dir }}"
-    state: directory
-    mode: "0755"
+# ── Ensure a dedicated ZFS dataset for the stack (visible in Storage → Datasets) ──
+- name: Check whether the apps dataset exists
+  ansible.builtin.command:
+    argv: [midclt, call, pool.dataset.get_instance, "{{ truenas_apps_dataset }}"]
+  register: truenas_apps_ds
+  changed_when: false
+  failed_when: false
+
+- name: Create the apps dataset
+  # ZFS auto-creates + mounts {{ truenas_apps_dir }} when the dataset is made. Single-level name
+  # (pool/<name>) so there is no missing-parent problem.
+  ansible.builtin.command:
+    argv: [midclt, call, pool.dataset.create, "{{ {'name': truenas_apps_dataset} | to_json }}"]
+  when: truenas_apps_ds.rc != 0
+  changed_when: true
 
 - name: Sync compose.yml to the NAS
   ansible.builtin.copy:
