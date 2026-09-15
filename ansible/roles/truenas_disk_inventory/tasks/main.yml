@@ -1,0 +1,77 @@
+---
+# Gather the disk↔slot↔vdev inventory ON the NAS, then regenerate the ANSIBLE-MANAGED block in
+# the hub's Prometheus config. midclt/sas3ircu/zpool need root, so the play runs with become
+# (see the `nas` group in inventory/hosts.yml). The rewrite is delegated to the control node,
+# which IS the hub that holds the repo checkout + the running Prometheus.
+
+- name: Copy the disk-inventory script to the NAS
+  ansible.builtin.copy:
+    src: truenas-disk-map.py
+    dest: /tmp/truenas-disk-map.py
+    mode: "0755"
+
+- name: Gather the disk↔slot↔vdev inventory
+  ansible.builtin.command:
+    argv:
+      - python3
+      - /tmp/truenas-disk-map.py
+      - "--controller"
+      - "{{ truenas_hba_controller | string }}"
+      - "--cols"
+      - "{{ truenas_chassis_cols | string }}"
+      - "--boot-pool"
+      - "{{ truenas_boot_pool_name }}"
+  register: truenas_disk_inv
+  changed_when: false
+
+- name: Parse the inventory
+  ansible.builtin.set_fact:
+    truenas_disk_map: "{{ truenas_disk_inv.stdout | from_json }}"
+
+- name: Fail if no disks could be placed on the chassis
+  ansible.builtin.fail:
+    msg: >-
+      No disks were mapped to a chassis slot. Check that sas3ircu sees the HBA
+      (`sas3ircu {{ truenas_hba_controller }} display`) and that the serials line up.
+  when: truenas_disk_map | length == 0
+
+- name: Show the derived chassis map
+  ansible.builtin.debug:
+    msg: >-
+      bay={{ item.bay }} slot={{ item.slot }} dev={{ item.device }}
+      group={{ item.group }} pool={{ item.pool | default('-') }}
+      vdev={{ item.vdev | default('-') }} serial={{ item.serial_vpd }}
+  loop: "{{ truenas_disk_map }}"
+  loop_control:
+    label: "{{ item.bay }}"
+
+# ── Write the map back to the hub (control node) ────────────────────────────────
+- name: Regenerate the chassis map block in the Prometheus config
+  delegate_to: localhost
+  become: false
+  run_once: true
+  ansible.builtin.blockinfile:
+    path: "{{ truenas_prometheus_config }}"
+    marker: "      # {mark} ANSIBLE MANAGED BLOCK truenas-disk-map"
+    block: "{{ lookup('template', 'disk-map-block.j2') }}"
+  register: truenas_map_written
+
+- name: Save a JSON artifact of the inventory (reference / debugging)
+  delegate_to: localhost
+  become: false
+  run_once: true
+  ansible.builtin.copy:
+    dest: "{{ truenas_disk_map_artifact }}"
+    content: "{{ truenas_disk_map | to_nice_json }}\n"
+    mode: "0644"
+
+- name: Remind to redeploy Prometheus if the map changed
+  delegate_to: localhost
+  become: false
+  run_once: true
+  ansible.builtin.debug:
+    msg: >-
+      Chassis map updated in {{ truenas_prometheus_config | basename }}. Apply it on the hub with
+      `./scripts/deploy.sh` (reloads Prometheus) so the truenas-chassis dashboard picks up the
+      new bay/vdev labels.
+  when: truenas_map_written is changed

@@ -1,0 +1,120 @@
+# Alert rules for TrueNAS SCALE 25.10 (job=truenas), fed by netdata → graphite_exporter
+# (see hosts/truenas/README.md). Metric names come from the mapping baked into the exporter image:
+#   zfs_pool{pool,state}         — 1 for the pool's CURRENT state dim (online/degraded/faulted/…)
+#   disk_temperature{serial}     — per-disk SMART temperature (°C)
+#   cpu_temperature{cpu}         — per-core temperature (°C)
+#   disk_bytes_used/avail{mountpoint, unit="GiB"} — per-mount space
+# Same severity labels → same Discord routing as every other alert.
+#
+# NOTE: ZFS scrub state and TrueNAS's own system alerts are NOT on this path (they'd need the
+# TrueNAS API); this covers pool ONLINE state, disk/CPU temps, capacity and data liveness.
+# VERIFY after the first scrape: the `mountpoint` label format (netdata may sanitize it) and the
+# temperature thresholds for your drives, then tune below.
+groups:
+  - name: truenas
+    rules:
+      - alert: TrueNasScrapeDown
+        # The hub can't reach the graphite_exporter on the NAS (container down, NAS off, or
+        # network). Distinct from netdata having stopped pushing (TrueNasNoData below).
+        expr: up{job="truenas"} == 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "TrueNAS metrics scrape is failing"
+          description: "No response from the TrueNAS graphite_exporter (192.168.1.18:9108) for >5m — container down, NAS offline, or LAN issue. See hosts/truenas/README.md."
+
+      - alert: TrueNasExporterAbsent
+        # Deadman: the target vanished entirely (job removed/renamed) — up==0 can't catch that.
+        # Mirrors IpmiExporterAbsent / NodeExporterAbsent.
+        expr: absent(up{job="truenas"})
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "TrueNAS target series is absent"
+          description: "No `up{job=\"truenas\"}` series at all for >5m — the TrueNAS target has gone missing from Prometheus."
+
+      - alert: TrueNasNoData
+        # The scrape succeeds (exporter reachable) but no TrueNAS metrics exist — netdata has
+        # stopped pushing, so graphite_exporter expired everything (5-min sample expiry). We're
+        # blind on ZFS/disks even though `up==1`, so ScrapeDown won't fire.
+        expr: up{job="truenas"} == 1 and absent(zfs_pool{job="truenas"})
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "TrueNAS exporter is up but has no data"
+          description: "graphite_exporter is reachable but exposes no `zfs_pool` metrics for >15m — netdata likely stopped pushing (check the Reporting Exporter on the NAS)."
+
+      - alert: TrueNasZfsPoolNotOnline
+        # zfs_pool{state="online"} is 1 only while the pool is ONLINE; any DEGRADED/FAULTED/
+        # OFFLINE/UNAVAIL/SUSPENDED/REMOVED state drops it to 0. Robust catch-all for pool health.
+        expr: max by (instance, pool) (zfs_pool{job="truenas", state="online"}) == 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "ZFS pool {{ $labels.pool }} is not ONLINE"
+          description: "TrueNAS pool {{ $labels.pool }} has not been ONLINE for >5m (degraded/faulted/offline) — check the pool status and disks at nas-web.negri.es."
+
+      - alert: TrueNasDiskTempWarning
+        expr: disk_temperature{job="truenas"} > 55
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "NAS disk {{ $labels.serial }} running warm"
+          description: "Disk {{ $labels.serial }} is at {{ printf \"%.0f\" $value }}°C for >10m (>55°C)."
+
+      - alert: TrueNasDiskTempCritical
+        expr: disk_temperature{job="truenas"} > 65
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "NAS disk {{ $labels.serial }} overheating"
+          description: "Disk {{ $labels.serial }} is at {{ printf \"%.0f\" $value }}°C for >5m (>65°C) — check NAS cooling."
+
+      - alert: TrueNasCpuTempHigh
+        expr: cpu_temperature{job="truenas"} > 85
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "NAS CPU {{ $labels.cpu }} hot"
+          description: "CPU core {{ $labels.cpu }} is at {{ printf \"%.0f\" $value }}°C for >10m (>85°C)."
+
+      - alert: TrueNasPoolSpaceWarning
+        # Percent used per data mount (/mnt/...). Uses matching (instance,mountpoint) labels to
+        # divide used by used+avail. Tune the mountpoint regex once the real label is confirmed.
+        expr: |
+          100 * (
+            disk_bytes_used{job="truenas", mountpoint=~"/mnt/.+"}
+            / on(instance, mountpoint) (
+                disk_bytes_used{job="truenas", mountpoint=~"/mnt/.+"}
+                + on(instance, mountpoint) disk_bytes_avail{job="truenas", mountpoint=~"/mnt/.+"}
+            )
+          ) > 80
+        for: 30m
+        labels:
+          severity: warning
+        annotations:
+          summary: "NAS {{ $labels.mountpoint }} over 80% full"
+          description: "{{ $labels.mountpoint }} is {{ printf \"%.0f\" $value }}% full for >30m — plan capacity."
+
+      - alert: TrueNasPoolSpaceCritical
+        expr: |
+          100 * (
+            disk_bytes_used{job="truenas", mountpoint=~"/mnt/.+"}
+            / on(instance, mountpoint) (
+                disk_bytes_used{job="truenas", mountpoint=~"/mnt/.+"}
+                + on(instance, mountpoint) disk_bytes_avail{job="truenas", mountpoint=~"/mnt/.+"}
+            )
+          ) > 90
+        for: 10m
+        labels:
+          severity: critical
+        annotations:
+          summary: "NAS {{ $labels.mountpoint }} over 90% full"
+          description: "{{ $labels.mountpoint }} is {{ printf \"%.0f\" $value }}% full for >10m — free space or expand the pool."

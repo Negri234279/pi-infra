@@ -1,0 +1,36 @@
+# Monitoring stack that runs ON the TrueNAS box (native Docker / Apps subsystem) — NOT part of
+# the hub's root `include:` (like hosts/rpi3/, this is a different host's standalone stack).
+# Deployed by ansible/roles/truenas_docker_stack, which syncs this file to {{ truenas_apps_dir }}
+# on a pool dataset and runs `docker compose up -d`. Never brought up by the hub's deploy.sh.
+#
+# Data path (see README.md): TrueNAS's built-in netdata pushes metrics in the Graphite line
+# protocol to graphite-exporter:9109 (loopback, on the NAS). The exporter — whose image bakes in
+# the TrueNAS mapping from Supporterino/truenas-graphite-to-prometheus — converts them to
+# Prometheus metrics on :9108, which the hub scrapes over the LAN (192.168.1.18:9108, job
+# `truenas` in core/prometheus/prometheus.yml).
+services:
+  graphite-exporter:
+    image: ghcr.io/supporterino/truenas-graphite-to-prometheus:latest
+    container_name: truenas-graphite-exporter
+    restart: unless-stopped
+    ports:
+      # Prometheus /metrics — scraped by the hub over the LAN. Bound on all interfaces
+      # so 192.168.1.18:9108 is reachable; the NAS is on the trusted LAN.
+      - "9108:9108"
+      # Graphite line-protocol ingest — fed by netdata running on the HOST. Bound to
+      # loopback only: nothing off-box should push metrics in.
+      - "127.0.0.1:9109:9109"
+    # graphite_exporter drops metrics 5 min after the last push (--graphite.sample-expiry),
+    # so if netdata stops pushing, /metrics goes empty and the TrueNasNoData alert fires.
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:9108/metrics"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  # ── Multimedia (Jellyfin / *arr) — placeholder for a later phase. When added, they
+  #    serve files off the pool and can be scraped/annotated the same way. Left commented
+  #    so this file stays a pure observability stack for now.
+  # jellyfin:
+  #   image: jellyfin/jellyfin:latest
+  #   ...

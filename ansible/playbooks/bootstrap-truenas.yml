@@ -1,0 +1,29 @@
+# Bootstrap TrueNAS SCALE 25.10 observability into the pi-infra stack:
+#   1. truenas_reporting_exporter — enables the netdata → Graphite "Reporting Exporter" via the
+#      middleware (midclt), so netdata pushes its metrics (ZFS/ARC/SMART/temps/net/apps) in the
+#      Graphite line protocol to the graphite_exporter container on the NAS.
+#   2. truenas_docker_stack        — runs hosts/truenas/docker-compose.yml on TrueNAS's native Docker: the
+#      graphite_exporter container converts those metrics to Prometheus format on :9108.
+#   3. truenas_disk_inventory       — auto-generates the physical chassis map (disk↔bay↔vdev, from
+#      sas3ircu+lsblk+zpool) into the `truenas` job's metric_relabel_configs, for truenas-chassis.
+#
+# The hub's Prometheus then scrapes 192.168.1.18:9108 (job `truenas`, in
+# core/prometheus/prometheus.yml). Grafana dashboards live in the "nas" folder.
+#
+# Prereqs (see hosts/truenas/README.md): SSH enabled on TrueNAS with the hub's key; Apps/Docker
+# initialised with a pool; truenas_apps_dir set in inventory/group_vars/nas.yml.
+#
+#   ./run.sh playbooks/bootstrap-truenas.yml                    # everything
+#   ./run.sh playbooks/bootstrap-truenas.yml --tags reporting   # just the netdata exporter
+#   ./run.sh playbooks/bootstrap-truenas.yml --tags docker      # just the container
+---
+- name: Bootstrap TrueNAS observability
+  hosts: nas
+  gather_facts: true
+  roles:
+    - role: truenas_reporting_exporter
+      tags: [reporting, observability]
+    - role: truenas_docker_stack
+      tags: [docker, observability]
+    - role: truenas_disk_inventory
+      tags: [disk_inventory, observability]

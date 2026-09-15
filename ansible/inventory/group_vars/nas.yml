@@ -1,0 +1,37 @@
+# Variables for the `nas` inventory group (TrueNAS SCALE 25.10 "Goldeye" @ 192.168.1.18).
+#
+# Monitoring path (see hosts/truenas/README.md): TrueNAS's built-in netdata pushes its metrics
+# in the Graphite line protocol to a graphite_exporter container running ON the NAS. That
+# container converts them to Prometheus metrics (via a TrueNAS-specific mapping baked into
+# the image) and the hub's Prometheus scrapes it over the LAN at 192.168.1.18:9108.
+#
+# Two roles consume these (playbooks/bootstrap-truenas.yml):
+#   truenas_reporting_exporter — creates the netdata→Graphite exporter via midclt.
+#   truenas_docker_stack        — runs hosts/truenas/docker-compose.yml on TrueNAS's native Docker.
+---
+# ── graphite_exporter container ports ────────────────────────────────────────
+# 9109 = Graphite line-protocol ingest (netdata on the host pushes here, locally).
+# 9108 = Prometheus /metrics (the hub scrapes this — MUST match the `truenas` job
+#        target in core/prometheus/prometheus.yml).
+truenas_graphite_ingest_port: 9109
+truenas_graphite_metrics_port: 9108
+
+# ── netdata → Graphite Reporting Exporter (role truenas_reporting_exporter) ───
+# netdata runs on the HOST and pushes to the container's published ingest port, so the
+# destination is the loopback address on the NAS itself. The `truenas` PREFIX is REQUIRED:
+# the mapping baked into the exporter image keys off `truenas.<host>.<chart>.<dim>`.
+truenas_reporting_exporter_name: pi-infra-graphite
+truenas_reporting_destination_ip: "127.0.0.1"
+truenas_reporting_prefix: truenas
+truenas_reporting_namespace: truenas
+truenas_reporting_update_every: 15          # seconds; keep ≤ the Prometheus scrape interval
+truenas_reporting_matching_charts: "*"      # export everything netdata collects
+
+# ── Docker stack on TrueNAS (role truenas_docker_stack) ──────────────────────
+# The compose project is synced to a dataset on a REAL data pool (TrueNAS's Apps/Docker
+# subsystem must already be initialised with a pool). The immutable root fs is off-limits,
+# so this MUST live under /mnt/<pool>/...
+#
+# !!! SET THIS to a path on YOUR pool before running. The pool is the 6-wide RAIDZ2 already
+# imported on this NAS; replace `tank` with its real name (check: `midclt call pool.query`).
+truenas_apps_dir: "/mnt/tank/apps/pi-infra-monitoring"

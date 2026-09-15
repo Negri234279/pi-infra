@@ -1,0 +1,67 @@
+---
+# Idempotent create/update of the netdata→Graphite Reporting Exporter, driven entirely through
+# the TrueNAS middleware (`midclt`). The immutable root fs is never touched. midclt needs root,
+# so the play runs with become (see the `nas` group in inventory/hosts.yml).
+#
+# All midclt calls use `argv` (not a shell string): the JSON payload is passed as a single,
+# unsplit argument, so its spaces/quotes need no shell escaping. `midclt call` parses each arg
+# as JSON — the integer ports must stay integers, which the payload below guarantees via `| int`
+# (a value that is a single Jinja expression keeps its native type in Ansible).
+
+- name: Build the desired reporting-exporter payload
+  ansible.builtin.set_fact:
+    truenas_reporting_payload:
+      enabled: "{{ truenas_reporting_exporter_enabled | bool }}"
+      name: "{{ truenas_reporting_exporter_name }}"
+      attributes:
+        exporter_type: GRAPHITE
+        destination_ip: "{{ truenas_reporting_destination_ip }}"
+        destination_port: "{{ truenas_graphite_ingest_port | int }}"
+        prefix: "{{ truenas_reporting_prefix }}"
+        namespace: "{{ truenas_reporting_namespace }}"
+        update_every: "{{ truenas_reporting_update_every | int }}"
+        buffer_on_failures: "{{ truenas_reporting_buffer_on_failures | int }}"
+        send_names_instead_of_ids: "{{ truenas_reporting_send_names | bool }}"
+        matching_charts: "{{ truenas_reporting_matching_charts }}"
+
+- name: Query the existing reporting exporters
+  ansible.builtin.command:
+    argv: [midclt, call, reporting.exporters.query]
+  register: truenas_exporters_raw
+  changed_when: false
+
+- name: Locate our exporter by name
+  ansible.builtin.set_fact:
+    truenas_existing_exporter: >-
+      {{ (truenas_exporters_raw.stdout | from_json
+          | selectattr('name', 'equalto', truenas_reporting_exporter_name)
+          | list | first) | default({}, true) }}
+
+- name: Create the Graphite reporting exporter
+  when: truenas_existing_exporter | length == 0
+  ansible.builtin.command:
+    argv:
+      - midclt
+      - call
+      - reporting.exporters.create
+      - "{{ truenas_reporting_payload | to_json }}"
+  changed_when: true
+
+# reporting.exporters.update takes (id, data). Only fire it when something actually drifted, so
+# re-runs report changed=0. `attributes` is compared whole (both sides carry all keys).
+- name: Update the Graphite reporting exporter if it drifted
+  when:
+    - truenas_existing_exporter | length > 0
+    - (truenas_existing_exporter.enabled | bool) != (truenas_reporting_payload.enabled | bool)
+      or truenas_existing_exporter.name != truenas_reporting_payload.name
+      or truenas_existing_exporter.attributes != truenas_reporting_payload.attributes
+  ansible.builtin.command:
+    argv:
+      - midclt
+      - call
+      - reporting.exporters.update
+      - "{{ truenas_existing_exporter.id | string }}"
+      - "{{ {'enabled': truenas_reporting_payload.enabled,
+             'name': truenas_reporting_payload.name,
+             'attributes': truenas_reporting_payload.attributes} | to_json }}"
+  changed_when: true

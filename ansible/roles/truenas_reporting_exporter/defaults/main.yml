@@ -1,0 +1,14 @@
+---
+# Creates the netdata → Graphite "Reporting Exporter" on TrueNAS SCALE via the middleware
+# (`midclt call reporting.exporters.{query,create,update}`). netdata then pushes every metric
+# it collects, in the Graphite line protocol, to the graphite_exporter container running on the
+# NAS (role truenas_docker_stack), which the hub scrapes as job `truenas`.
+#
+# The site-specific values live in inventory/group_vars/nas.yml; only stable defaults are here.
+# Schema (TrueNAS 25.10): {enabled, name, attributes:{exporter_type:"GRAPHITE", destination_ip,
+# destination_port, prefix, namespace, update_every, buffer_on_failures,
+# send_names_instead_of_ids, matching_charts}}. `attributes` has "No Additional Properties", so
+# we send the full set to keep the drift comparison exact.
+truenas_reporting_exporter_enabled: true
+truenas_reporting_buffer_on_failures: 10
+truenas_reporting_send_names: true

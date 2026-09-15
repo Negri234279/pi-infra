@@ -1,0 +1,17 @@
+---
+# Deploys hosts/truenas/docker-compose.yml onto TrueNAS's NATIVE Docker engine (the Apps subsystem, which is
+# plain docker compose since Electric Eel). The Apps/Docker feature MUST already be initialised
+# with a pool in the UI — otherwise there is no engine and this role fails fast with a clear msg.
+#
+# The compose file is synced to a dataset on a real data pool (truenas_apps_dir, set in
+# inventory/group_vars/nas.yml) — never the immutable root fs.
+
+# Source (on the control node / hub) and destination (on the NAS). playbook_dir is
+# ansible/playbooks, so ../../hosts/truenas/docker-compose.yml is the repo copy — the single
+# source of truth. hosts/<host>/ (not core/) is where a non-hub machine's stack lives.
+truenas_compose_src: "{{ playbook_dir }}/../../hosts/truenas/docker-compose.yml"
+truenas_compose_dest: "{{ truenas_apps_dir }}/docker-compose.yml"
+
+# `docker compose up -d` pulls the image if absent. Flip to true for a run that force-pulls the
+# `:latest` graphite-exporter image to pick up a newer mapping.
+truenas_compose_pull: false

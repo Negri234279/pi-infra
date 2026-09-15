@@ -1,0 +1,21 @@
+---
+# Auto-generates the physical chassis map (disk ↔ bay ↔ vdev) for the truenas-chassis dashboard.
+# A helper script on the NAS joins sas3ircu (HBA enclosure slot) + lsblk (device/serial) + zpool
+# (vdev/pool), and the role rewrites the ANSIBLE-MANAGED block inside the `truenas` job's
+# metric_relabel_configs (core/prometheus/prometheus.yml on the hub). Re-run after any re-cabling
+# or disk swap: `./run.sh playbooks/bootstrap-truenas.yml --tags disk_inventory`.
+
+# LSI HBA controller index for sas3ircu (this box: 0).
+truenas_hba_controller: 0
+
+# Lanes per SFF-8643 cable = bays per chassis row. Bay is derived as
+# row = slot // cols, col = slot % cols  ->  "C{col+1}R{row+1}". 4 matches the HSW6424 (4×6).
+truenas_chassis_cols: 4
+
+# Pool whose disks are coloured as the OS group (everything else = "data").
+truenas_boot_pool_name: boot-pool
+
+# Where the generated block is written (on the control node / hub = the repo checkout).
+# playbook_dir is ansible/playbooks.
+truenas_prometheus_config: "{{ playbook_dir }}/../../core/prometheus/prometheus.yml"
+truenas_disk_map_artifact: "{{ playbook_dir }}/../../core/prometheus/truenas-disk-map.json"

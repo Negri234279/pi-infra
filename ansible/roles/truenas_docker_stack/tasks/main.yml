@@ -1,0 +1,53 @@
+---
+# Sync + bring up the NAS-side monitoring compose stack on TrueNAS's native Docker. Idempotent:
+# the compose is only re-applied when it changes or a container isn't up. Runs with become
+# (docker + midclt need root — see the `nas` group in inventory/hosts.yml).
+
+# ── Preflight: the Apps/Docker engine must be initialised with a pool ────────────
+- name: Check the TrueNAS Docker (Apps) engine status
+  ansible.builtin.command:
+    argv: [midclt, call, docker.status]
+  register: truenas_docker_status
+  changed_when: false
+
+- name: Fail if the Docker engine is not running
+  ansible.builtin.fail:
+    msg: >-
+      TrueNAS Docker engine status is
+      '{{ (truenas_docker_status.stdout | from_json).status | default("UNKNOWN") }}', expected
+      'RUNNING'. Initialise Apps with a pool first (UI → Apps → choose pool), then re-run.
+  when: (truenas_docker_status.stdout | from_json).status | default('') != 'RUNNING'
+
+# ── Sync the compose project to a dataset on the pool ────────────────────────────
+- name: Ensure the compose directory exists on the pool
+  ansible.builtin.file:
+    path: "{{ truenas_apps_dir }}"
+    state: directory
+    mode: "0755"
+
+- name: Sync compose.yml to the NAS
+  ansible.builtin.copy:
+    src: "{{ truenas_compose_src }}"
+    dest: "{{ truenas_compose_dest }}"
+    mode: "0644"
+  register: truenas_compose_file
+
+# ── Optional force-pull (picks up a newer :latest exporter/mapping) ──────────────
+- name: Pull the compose images
+  ansible.builtin.command:
+    argv: [docker, compose, -f, "{{ truenas_compose_dest }}", pull]
+  when: truenas_compose_pull | bool
+  changed_when: true
+
+# ── Converge the stack ───────────────────────────────────────────────────────────
+# `up -d` is safe to run every time; changed_when keys off compose actually doing something so
+# unchanged re-runs report changed=0. compose writes its progress to stderr.
+- name: Bring up the monitoring stack
+  ansible.builtin.command:
+    argv: [docker, compose, -f, "{{ truenas_compose_dest }}", up, -d]
+  register: truenas_compose_up
+  changed_when: >-
+    ('Started' in truenas_compose_up.stderr) or
+    ('Created' in truenas_compose_up.stderr) or
+    ('Recreated' in truenas_compose_up.stderr) or
+    ('Pulling' in truenas_compose_up.stderr)

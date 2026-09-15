@@ -1,3 +1,4 @@
-# Master playbook. Currently just the Proxmox bootstrap; add more as the fleet grows.
+# Master playbook. Add more as the fleet grows.
 ---
 - import_playbook: bootstrap-pve.yml
+- import_playbook: bootstrap-truenas.yml
