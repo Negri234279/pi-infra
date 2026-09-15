@@ -55,8 +55,14 @@ services:
       # Space-separated hostnames/IPs allowed to serve the UI. Include the LAN IP, any internal DNS
       # name, and your WireGuard subnet address if you reach it over VPN.
       NEXTCLOUD_TRUSTED_DOMAINS: ${NEXTCLOUD_TRUSTED_DOMAINS:-192.168.1.18 10.10.10.13 nas.negri.es}
-      # http for plain LAN. If you later front it with NPM+TLS, set https here + TRUSTED_PROXIES.
-      OVERWRITEPROTOCOL: ${NEXTCLOUD_OVERWRITEPROTOCOL:-http}
+      # Protocol handling. LEAVE OVERWRITEPROTOCOL EMPTY to auto-detect per request (http on the
+      # direct 10G/LAN path, https when it comes through the reverse proxy) — the image only sets
+      # these when non-empty. Set TRUSTED_PROXIES to the NPM address so Nextcloud honours the
+      # proxy's X-Forwarded-Proto (needed for https via NPM to work without breaking direct http).
+      # Only hard-set OVERWRITEPROTOCOL=https if ALL access goes through the proxy.
+      OVERWRITEPROTOCOL: ${NEXTCLOUD_OVERWRITEPROTOCOL:-}
+      TRUSTED_PROXIES: ${NEXTCLOUD_TRUSTED_PROXIES:-}
+      OVERWRITECLIURL: ${NEXTCLOUD_OVERWRITECLIURL:-}
       PHP_MEMORY_LIMIT: 1G
       PHP_UPLOAD_LIMIT: 10G
     networks: [nextcloud, default]
