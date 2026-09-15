@@ -45,16 +45,26 @@
   loop_control:
     label: "{{ item.bay }}"
 
-# ── Write the map back to the hub (control node) ────────────────────────────────
-- name: Regenerate the chassis map block in the Prometheus config
+# ── Write the generated block to a gitignored artifact on the hub (ADVISORY) ────
+# We do NOT touch the tracked prometheus.yml: editing it here would dirty the working tree and
+# make the git-pull deploy abort. Instead we emit the block for you to paste + commit.
+- name: Ensure the generated/ dir exists on the hub
   delegate_to: localhost
   become: false
   run_once: true
-  ansible.builtin.blockinfile:
-    path: "{{ truenas_prometheus_config }}"
-    marker: "      # {mark} ANSIBLE MANAGED BLOCK truenas-disk-map"
-    block: "{{ lookup('template', 'disk-map-block.j2') }}"
-  register: truenas_map_written
+  ansible.builtin.file:
+    path: "{{ truenas_disk_map_generated | dirname }}"
+    state: directory
+    mode: "0755"
+
+- name: Write the generated relabel block (paste target)
+  delegate_to: localhost
+  become: false
+  run_once: true
+  ansible.builtin.copy:
+    dest: "{{ truenas_disk_map_generated }}"
+    content: "{{ lookup('template', 'disk-map-block.j2') }}\n"
+    mode: "0644"
 
 - name: Save a JSON artifact of the inventory (reference / debugging)
   delegate_to: localhost
@@ -65,13 +75,12 @@
     content: "{{ truenas_disk_map | to_nice_json }}\n"
     mode: "0644"
 
-- name: Remind to redeploy Prometheus if the map changed
+- name: How to apply the chassis map
   delegate_to: localhost
   become: false
   run_once: true
   ansible.builtin.debug:
     msg: >-
-      Chassis map updated in {{ truenas_prometheus_config | basename }}. Apply it on the hub with
-      `./scripts/deploy.sh` (reloads Prometheus) so the truenas-chassis dashboard picks up the
-      new bay/vdev labels.
-  when: truenas_map_written is changed
+      Generated chassis map at {{ truenas_disk_map_generated }} (gitignored). If it differs from
+      the ANSIBLE-MANAGED block in core/prometheus/prometheus.yml, paste it between those markers,
+      commit, and deploy. On unchanged hardware the committed block already matches — nothing to do.

@@ -15,7 +15,10 @@ truenas_chassis_cols: 4
 # Pool whose disks are coloured as the OS group (everything else = "data").
 truenas_boot_pool_name: boot-pool
 
-# Where the generated block is written (on the control node / hub = the repo checkout).
-# playbook_dir is ansible/playbooks.
-truenas_prometheus_config: "{{ playbook_dir }}/../../core/prometheus/prometheus.yml"
-truenas_disk_map_artifact: "{{ playbook_dir }}/../../core/prometheus/truenas-disk-map.json"
+# The role is ADVISORY: it never edits the git-tracked prometheus.yml (that would dirty the
+# working tree and break the git-pull deploy). It writes the generated relabel block + a JSON
+# inventory into a gitignored dir on the hub and prints the block; you paste it between the
+# ANSIBLE-MANAGED markers in core/prometheus/prometheus.yml and commit. playbook_dir is
+# ansible/playbooks; the generated/ dir is gitignored (see .gitignore).
+truenas_disk_map_generated: "{{ playbook_dir }}/../../core/prometheus/generated/truenas-disk-map.relabel.yml"
+truenas_disk_map_artifact: "{{ playbook_dir }}/../../core/prometheus/generated/truenas-disk-map.json"

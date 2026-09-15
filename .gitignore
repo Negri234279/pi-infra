@@ -32,6 +32,11 @@ core/pve-exporter/pve.yml
 # ipmi_exporter config holds the NAS BMC's IPMI credentials — keep the real file
 # local; only ipmi.yml.example is committed (the reference format).
 core/ipmi-exporter/ipmi.yml
+# Artifacts written by the truenas_disk_inventory role on the hub (generated chassis map +
+# JSON inventory). They are advisory output ONLY — you paste the relabel block into the
+# committed prometheus.yml by hand and commit that. Never track the generated copies, or the
+# git-pull deploy would conflict with a machine-written file.
+core/prometheus/generated/
 # Local-only compose override (e.g. skip node-exporter on Docker Desktop).
 core/homepage/config
 !core/homepage/config/*.yaml
