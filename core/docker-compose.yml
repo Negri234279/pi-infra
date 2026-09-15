@@ -598,6 +598,11 @@ services:
     container_name: loki
     restart: unless-stopped
     command: ["-config.file=/etc/loki/loki-config.yaml"]
+    # 3100 published on the LAN so OFF-HOST log shippers can push (e.g. the Alloy on the NAS that
+    # ships Nextcloud's JSON log — see hosts/truenas/). LAN-only, same trust posture as the other
+    # exporters; not exposed to the internet.
+    ports:
+      - "3100:3100"
     volumes:
       - ./loki/loki-config.yaml:/etc/loki/loki-config.yaml:ro
       - ./loki/rules:/loki/rules:ro

@@ -65,6 +65,13 @@
     mode: "0600"
   register: truenas_nc_envfile
 
+- name: Sync the Alloy log-shipper config
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/../../hosts/truenas/alloy-nextcloud.config.alloy"
+    dest: "{{ truenas_nextcloud_dir }}/alloy-nextcloud.config.alloy"
+    mode: "0644"
+  register: truenas_nc_alloy
+
 - name: Pull the Nextcloud images
   ansible.builtin.command:
     argv: [docker, compose, -f, "{{ truenas_nextcloud_dir }}/docker-compose.yml", pull]
@@ -79,9 +86,36 @@
     ('Started' in truenas_nc_up.stderr) or ('Created' in truenas_nc_up.stderr) or
     ('Recreated' in truenas_nc_up.stderr) or ('Pulling' in truenas_nc_up.stderr)
 
+# ── Enable audit logging so the "Nextcloud Logs" dashboard has events ───────────
+# occ only works once first-run install has finished; wait for it. Runs as www-data.
+- name: Wait for Nextcloud to finish installing
+  ansible.builtin.command:
+    argv: [docker, exec, --user, www-data, nextcloud, php, occ, status, --output=json]
+  register: truenas_nc_status
+  changed_when: false
+  failed_when: false
+  until: (truenas_nc_status.stdout | default('{}') | from_json).installed | default(false)
+  retries: 20
+  delay: 15
+
+- name: Enable the admin_audit app (login/file/share events → nextcloud.log)
+  ansible.builtin.command:
+    argv: [docker, exec, --user, www-data, nextcloud, php, occ, app:enable, admin_audit]
+  register: truenas_nc_audit
+  changed_when: "'already enabled' not in truenas_nc_audit.stdout"
+  when: (truenas_nc_status.stdout | default('{}') | from_json).installed | default(false)
+
+- name: Set loglevel to info so audit events are recorded
+  # admin_audit logs at INFO (1); the Nextcloud default loglevel 2 (warning) would suppress them.
+  ansible.builtin.command:
+    argv: [docker, exec, --user, www-data, nextcloud, php, occ, config:system:set, loglevel, "--value=1", "--type=integer"]
+  register: truenas_nc_loglevel
+  changed_when: "'info' in truenas_nc_loglevel.stdout or 'set to' in truenas_nc_loglevel.stdout"
+  when: (truenas_nc_status.stdout | default('{}') | from_json).installed | default(false)
+
 - name: Where to reach it
   ansible.builtin.debug:
     msg: >-
-      Nextcloud is starting (first launch takes ~1 min to install). Reach it on the LAN/VPN at
-      http://{{ ansible_host }}:<NEXTCLOUD_PORT from nextcloud.env, default 8080> and log in with
-      the admin user from nextcloud.env.
+      Nextcloud up. Reach it on the LAN/VPN at http://{{ ansible_host }}:<NEXTCLOUD_PORT> (default
+      8080) — admin from nextcloud.env. Logs ship to Loki (job="nextcloud") → Grafana "Nextcloud
+      Logs" dashboard. If install hadn't finished, re-run `--tags nextcloud` to enable admin_audit.

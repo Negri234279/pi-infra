@@ -79,6 +79,29 @@ services:
     depends_on: [nextcloud-db, nextcloud-redis]
     networks: [nextcloud]
 
+  # Ships Nextcloud's JSON log to the hub's Loki for the "Nextcloud Logs" dashboard. Tails
+  # ./data/nextcloud.log (read-only) and pushes over the LAN to Loki :3100 on the hub. Config in
+  # alloy-nextcloud.config.alloy (synced alongside this file by the role).
+  nextcloud-alloy:
+    image: grafana/alloy:v1.5.1
+    container_name: nextcloud-alloy
+    restart: unless-stopped
+    command:
+      - run
+      - --server.http.listen-addr=0.0.0.0:12345
+      - --storage.path=/var/lib/alloy/data
+      - /etc/alloy/config.alloy
+    environment:
+      NEXTCLOUD_LOKI_URL: ${NEXTCLOUD_LOKI_URL:-http://192.168.1.7:3100/loki/api/v1/push}
+    volumes:
+      - ./alloy-nextcloud.config.alloy:/etc/alloy/config.alloy:ro
+      - ./data:/nextcloud-logs:ro
+      - nextcloud-alloy-data:/var/lib/alloy/data
+    networks: [default]
+
+volumes:
+  nextcloud-alloy-data:
+
 networks:
   nextcloud:
     driver: bridge

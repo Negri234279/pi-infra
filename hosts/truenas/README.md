@@ -79,7 +79,14 @@ Then reach it at `http://192.168.1.18:8080` (mgmt LAN / WireGuard) or, for **max
 the box wired to the 10G segment (which is isolated, so only the directly-connected host reaches
 it). All of `192.168.1.18`, `10.10.10.13` and `nas.negri.es` are in `NEXTCLOUD_TRUSTED_DOMAINS`.
 Log in with the admin user from `nextcloud.env`. For full 10G throughput also enable jumbo frames
-(MTU 9000) on both NICs of that point-to-point link. Compose: `hosts/truenas/nextcloud.compose.yml` (relative binds
+(MTU 9000) on both NICs of that point-to-point link.
+
+**Logs → Grafana:** the stack includes an Alloy sidecar (`nextcloud-alloy`) that tails
+`data/nextcloud.log` (JSON) and pushes it to the hub's Loki (published on `:3100`) with
+`job="nextcloud"`, `instance="truenas"`. The role enables the `admin_audit` app + `loglevel=1` so
+login/file/share events are recorded. View them in Grafana → folder **nas** → **Nextcloud Logs**
+(`core/grafana/dashboards/nas/nextcloud-logs.json`, Loki datasource). Requires the hub's Loki port
+change deployed (`core/docker-compose.yml`). Compose: `hosts/truenas/nextcloud.compose.yml` (relative binds
 `./html`, `./data`, `../nextcloud-db`). Role: `ansible/roles/truenas_nextcloud`. It is gated behind
 the `nextcloud` tag, so a normal observability bootstrap never touches it. `nextcloud.env` is
 gitignored (`hosts/**/*.env`). To later add TLS/a hostname, front it with NPM restricted to the

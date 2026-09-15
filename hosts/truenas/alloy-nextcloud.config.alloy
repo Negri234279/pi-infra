@@ -1,0 +1,28 @@
+// Alloy running ON the NAS — ships Nextcloud's JSON log to the core Loki on the hub so the
+// "Nextcloud Logs" dashboard (core/grafana/dashboards/nas/nextcloud-logs.json) has data. Deployed
+// by ansible/roles/truenas_nextcloud next to nextcloud.compose.yml.
+//
+// Nextcloud writes one JSON object per line to data/nextcloud.log (audit events come from the
+// admin_audit app, which the role enables). We ship the RAW lines with labels job/instance; the
+// dashboard parses the JSON fields (message/method/level/url/user/remoteAddr) at query time.
+// The hub's Loki isn't on this host, so we push over the LAN to its published :3100 endpoint
+// (NEXTCLOUD_LOKI_URL, set in the compose env).
+
+local.file_match "nextcloud" {
+	path_targets = [{
+		__path__ = "/nextcloud-logs/nextcloud.log",
+		job      = "nextcloud",
+		instance = "truenas",
+	}]
+}
+
+loki.source.file "nextcloud" {
+	targets    = local.file_match.nextcloud.targets
+	forward_to = [loki.write.hub.receiver]
+}
+
+loki.write "hub" {
+	endpoint {
+		url = sys.env("NEXTCLOUD_LOKI_URL")
+	}
+}
