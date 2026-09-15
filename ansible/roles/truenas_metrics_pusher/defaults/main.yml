@@ -1,0 +1,24 @@
+---
+# Feeds the graphite_exporter the metrics TrueNAS's built-in netdata does NOT collect/export
+# (per-disk SMART temperature, ZFS pool state, pool capacity), pulled from the middleware. A
+# TrueNAS-native cron job (persists in the config DB, survives updates) runs the pusher script
+# every minute; graphite_exporter keeps each sample 5 min, so 1-min refresh is plenty.
+
+# Script location (on the pool dataset the docker stack already uses).
+truenas_pusher_script_dest: "{{ truenas_apps_dir }}/truenas-metrics-pusher.py"
+
+# Where to push (the graphite_exporter's Graphite ingest port, loopback-only on the NAS).
+truenas_pusher_graphite_host: "127.0.0.1"
+truenas_pusher_graphite_port: "{{ truenas_graphite_ingest_port }}"   # 9109
+
+# Graphite path prefix = "<reporting prefix>.<namespace>", so pushed series join the ones netdata
+# already sends (observed second token is the namespace: "truenas.truenas").
+truenas_pusher_base: "{{ truenas_reporting_prefix }}.{{ truenas_reporting_namespace }}"
+
+# The command the cron job runs, and how we identify that job (idempotent create keys on this).
+truenas_pusher_command: >-
+  python3 {{ truenas_pusher_script_dest }}
+  --host {{ truenas_pusher_graphite_host }}
+  --port {{ truenas_pusher_graphite_port }}
+  --base {{ truenas_pusher_base }}
+truenas_pusher_cron_desc: "pi-infra: push disk temps + pool state/capacity to graphite_exporter"

@@ -6,6 +6,8 @@
 #      graphite_exporter container converts those metrics to Prometheus format on :9108.
 #   3. truenas_disk_inventory       — auto-generates the physical chassis map (disk↔bay↔vdev, from
 #      sas3ircu+lsblk+zpool) into the `truenas` job's metric_relabel_configs, for truenas-chassis.
+#   4. truenas_metrics_pusher       — pushes the metrics netdata does NOT export (disk_temperature,
+#      zfs_pool, disk_bytes) from midclt into graphite_exporter, via a native TrueNAS cron job.
 #
 # The hub's Prometheus then scrapes 192.168.1.18:9108 (job `truenas`, in
 # core/prometheus/prometheus.yml). Grafana dashboards live in the "nas" folder.
@@ -27,3 +29,5 @@
       tags: [docker, observability]
     - role: truenas_disk_inventory
       tags: [disk_inventory, observability]
+    - role: truenas_metrics_pusher
+      tags: [metrics_pusher, observability]

@@ -1,0 +1,64 @@
+---
+# Deploy the midclt→graphite pusher onto the NAS and schedule it with a native TrueNAS cron job.
+# Runs with become (midclt + writing to the pool dataset need root). The cron job persists in the
+# TrueNAS config DB, so it survives reboots and OS updates (unlike a systemd unit on the immutable
+# root fs).
+
+- name: Deploy the metrics-pusher script to the pool dataset
+  ansible.builtin.copy:
+    src: truenas-metrics-pusher.py
+    dest: "{{ truenas_pusher_script_dest }}"
+    mode: "0755"
+
+# Run once now so the missing metrics (disk_temperature, zfs_pool, disk_bytes) appear immediately
+# instead of waiting for the first cron tick. Needs the graphite_exporter container to be up.
+- name: Prime the metrics once
+  ansible.builtin.command:
+    argv:
+      - python3
+      - "{{ truenas_pusher_script_dest }}"
+      - "--host"
+      - "{{ truenas_pusher_graphite_host }}"
+      - "--port"
+      - "{{ truenas_pusher_graphite_port | string }}"
+      - "--base"
+      - "{{ truenas_pusher_base }}"
+  register: truenas_pusher_prime
+  changed_when: false
+
+- name: Show the prime result
+  ansible.builtin.debug:
+    msg: "{{ truenas_pusher_prime.stdout | default('') }} {{ truenas_pusher_prime.stderr | default('') }}"
+
+# ── Ensure the TrueNAS cron job exists (idempotent) ─────────────────────────────
+- name: Look for the existing cron job
+  ansible.builtin.command:
+    argv:
+      - midclt
+      - call
+      - cronjob.query
+      - "{{ [['description', '=', truenas_pusher_cron_desc]] | to_json }}"
+  register: truenas_pusher_cron_q
+  changed_when: false
+
+- name: Build the cron job payload
+  ansible.builtin.set_fact:
+    truenas_pusher_cron_payload:
+      enabled: true
+      stdout: false
+      stderr: false
+      user: root
+      command: "{{ truenas_pusher_command }}"
+      description: "{{ truenas_pusher_cron_desc }}"
+      schedule:
+        minute: "*"
+        hour: "*"
+        dom: "*"
+        month: "*"
+        dow: "*"
+
+- name: Create the cron job
+  ansible.builtin.command:
+    argv: [midclt, call, cronjob.create, "{{ truenas_pusher_cron_payload | to_json }}"]
+  when: (truenas_pusher_cron_q.stdout | from_json | length) == 0
+  changed_when: true
