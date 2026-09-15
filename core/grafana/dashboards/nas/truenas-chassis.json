@@ -34,7 +34,7 @@
       },
       "options": {
         "mode": "markdown",
-        "content": "### TrueNAS — Chasis HSW6424 (24 bahías · 4 col × 6 filas) · HBA LSI 9305-24i\nFrontal del chasis: cada casilla = una bahía. **Color = grupo de vdev**, **valor = temperatura**, nombre = serial del disco. Bahías grises = vacías. El mapa bahía→disco→vdev vive en `core/prometheus/prometheus.yml` (job `truenas`, `metric_relabel_configs`)."
+        "content": "### TrueNAS — Chasis HSW6424 (24 bahías · 4 col × 6 filas) · HBA LSI 9305-24i\nCada casilla = una bahía. **Color = grupo de vdev**, **valor = temperatura**, nombre = serial. Bahía **roja \"⚠ AUSENTE\"** = disco esperado que no reporta (extraído/fallado). Grises = vacías. Mapa bahía→disco→vdev en `core/prometheus/prometheus.yml` (job `truenas`)."
       }
     },
     {
@@ -58,7 +58,7 @@
             "type": "prometheus",
             "uid": "prometheus-infra"
           },
-          "expr": "disk_temperature{job=\"truenas\", bay=\"C1R1\"}",
+          "expr": "disk_temperature{job=\"truenas\", bay=\"C1R1\"} or vector(-1)",
           "instant": true,
           "legendFormat": "{{serial}}"
         }
@@ -70,12 +70,24 @@
           "max": 80,
           "decimals": 0,
           "displayName": "${__field.labels.serial}",
-          "noValue": "sin datos",
           "color": {
             "mode": "fixed",
             "fixedColor": "#3274D9"
           },
-          "mappings": []
+          "mappings": [
+            {
+              "type": "range",
+              "options": {
+                "from": -100000,
+                "to": -0.5,
+                "result": {
+                  "text": "⚠ AUSENTE",
+                  "color": "red",
+                  "index": 0
+                }
+              }
+            }
+          ]
         },
         "overrides": []
       },
@@ -89,9 +101,7 @@
           "calc": "lastNotNull",
           "fields": "",
           "values": false
-        },
-        "percentChangeColorMode": "standard",
-        "showPercentChange": false
+        }
       }
     },
     {
@@ -115,7 +125,7 @@
             "type": "prometheus",
             "uid": "prometheus-infra"
           },
-          "expr": "disk_temperature{job=\"truenas\", bay=\"C1R2\"}",
+          "expr": "disk_temperature{job=\"truenas\", bay=\"C1R2\"} or vector(-1)",
           "instant": true,
           "legendFormat": "{{serial}}"
         }
@@ -127,12 +137,24 @@
           "max": 80,
           "decimals": 0,
           "displayName": "${__field.labels.serial}",
-          "noValue": "sin datos",
           "color": {
             "mode": "fixed",
             "fixedColor": "#3274D9"
           },
-          "mappings": []
+          "mappings": [
+            {
+              "type": "range",
+              "options": {
+                "from": -100000,
+                "to": -0.5,
+                "result": {
+                  "text": "⚠ AUSENTE",
+                  "color": "red",
+                  "index": 0
+                }
+              }
+            }
+          ]
         },
         "overrides": []
       },
@@ -146,9 +168,7 @@
           "calc": "lastNotNull",
           "fields": "",
           "values": false
-        },
-        "percentChangeColorMode": "standard",
-        "showPercentChange": false
+        }
       }
     },
     {
@@ -172,7 +192,7 @@
             "type": "prometheus",
             "uid": "prometheus-infra"
           },
-          "expr": "disk_temperature{job=\"truenas\", bay=\"C1R3\"}",
+          "expr": "disk_temperature{job=\"truenas\", bay=\"C1R3\"} or vector(-1)",
           "instant": true,
           "legendFormat": "{{serial}}"
         }
@@ -184,12 +204,24 @@
           "max": 80,
           "decimals": 0,
           "displayName": "${__field.labels.serial}",
-          "noValue": "sin datos",
           "color": {
             "mode": "fixed",
             "fixedColor": "#3274D9"
           },
-          "mappings": []
+          "mappings": [
+            {
+              "type": "range",
+              "options": {
+                "from": -100000,
+                "to": -0.5,
+                "result": {
+                  "text": "⚠ AUSENTE",
+                  "color": "red",
+                  "index": 0
+                }
+              }
+            }
+          ]
         },
         "overrides": []
       },
@@ -203,9 +235,7 @@
           "calc": "lastNotNull",
           "fields": "",
           "values": false
-        },
-        "percentChangeColorMode": "standard",
-        "showPercentChange": false
+        }
       }
     },
     {
@@ -239,7 +269,6 @@
         "graphMode": "none",
         "justifyMode": "center",
         "textMode": "value",
-        "wideLayout": true,
         "reduceOptions": {
           "calc": "lastNotNull",
           "fields": "",
@@ -278,7 +307,6 @@
         "graphMode": "none",
         "justifyMode": "center",
         "textMode": "value",
-        "wideLayout": true,
         "reduceOptions": {
           "calc": "lastNotNull",
           "fields": "",
@@ -317,7 +345,6 @@
         "graphMode": "none",
         "justifyMode": "center",
         "textMode": "value",
-        "wideLayout": true,
         "reduceOptions": {
           "calc": "lastNotNull",
           "fields": "",
@@ -346,7 +373,7 @@
             "type": "prometheus",
             "uid": "prometheus-infra"
           },
-          "expr": "disk_temperature{job=\"truenas\", bay=\"C2R1\"}",
+          "expr": "disk_temperature{job=\"truenas\", bay=\"C2R1\"} or vector(-1)",
           "instant": true,
           "legendFormat": "{{serial}}"
         }
@@ -358,12 +385,24 @@
           "max": 80,
           "decimals": 0,
           "displayName": "${__field.labels.serial}",
-          "noValue": "sin datos",
           "color": {
             "mode": "fixed",
             "fixedColor": "#3274D9"
           },
-          "mappings": []
+          "mappings": [
+            {
+              "type": "range",
+              "options": {
+                "from": -100000,
+                "to": -0.5,
+                "result": {
+                  "text": "⚠ AUSENTE",
+                  "color": "red",
+                  "index": 0
+                }
+              }
+            }
+          ]
         },
         "overrides": []
       },
@@ -377,9 +416,7 @@
           "calc": "lastNotNull",
           "fields": "",
           "values": false
-        },
-        "percentChangeColorMode": "standard",
-        "showPercentChange": false
+        }
       }
     },
     {
@@ -403,7 +440,7 @@
             "type": "prometheus",
             "uid": "prometheus-infra"
           },
-          "expr": "disk_temperature{job=\"truenas\", bay=\"C2R2\"}",
+          "expr": "disk_temperature{job=\"truenas\", bay=\"C2R2\"} or vector(-1)",
           "instant": true,
           "legendFormat": "{{serial}}"
         }
@@ -415,12 +452,24 @@
           "max": 80,
           "decimals": 0,
           "displayName": "${__field.labels.serial}",
-          "noValue": "sin datos",
           "color": {
             "mode": "fixed",
             "fixedColor": "#3274D9"
           },
-          "mappings": []
+          "mappings": [
+            {
+              "type": "range",
+              "options": {
+                "from": -100000,
+                "to": -0.5,
+                "result": {
+                  "text": "⚠ AUSENTE",
+                  "color": "red",
+                  "index": 0
+                }
+              }
+            }
+          ]
         },
         "overrides": []
       },
@@ -434,9 +483,7 @@
           "calc": "lastNotNull",
           "fields": "",
           "values": false
-        },
-        "percentChangeColorMode": "standard",
-        "showPercentChange": false
+        }
       }
     },
     {
@@ -460,7 +507,7 @@
             "type": "prometheus",
             "uid": "prometheus-infra"
           },
-          "expr": "disk_temperature{job=\"truenas\", bay=\"C2R3\"}",
+          "expr": "disk_temperature{job=\"truenas\", bay=\"C2R3\"} or vector(-1)",
           "instant": true,
           "legendFormat": "{{serial}}"
         }
@@ -472,12 +519,24 @@
           "max": 80,
           "decimals": 0,
           "displayName": "${__field.labels.serial}",
-          "noValue": "sin datos",
           "color": {
             "mode": "fixed",
             "fixedColor": "#3274D9"
           },
-          "mappings": []
+          "mappings": [
+            {
+              "type": "range",
+              "options": {
+                "from": -100000,
+                "to": -0.5,
+                "result": {
+                  "text": "⚠ AUSENTE",
+                  "color": "red",
+                  "index": 0
+                }
+              }
+            }
+          ]
         },
         "overrides": []
       },
@@ -491,9 +550,7 @@
           "calc": "lastNotNull",
           "fields": "",
           "values": false
-        },
-        "percentChangeColorMode": "standard",
-        "showPercentChange": false
+        }
       }
     },
     {
@@ -527,7 +584,6 @@
         "graphMode": "none",
         "justifyMode": "center",
         "textMode": "value",
-        "wideLayout": true,
         "reduceOptions": {
           "calc": "lastNotNull",
           "fields": "",
@@ -566,7 +622,6 @@
         "graphMode": "none",
         "justifyMode": "center",
         "textMode": "value",
-        "wideLayout": true,
         "reduceOptions": {
           "calc": "lastNotNull",
           "fields": "",
@@ -605,7 +660,6 @@
         "graphMode": "none",
         "justifyMode": "center",
         "textMode": "value",
-        "wideLayout": true,
         "reduceOptions": {
           "calc": "lastNotNull",
           "fields": "",
@@ -644,7 +698,6 @@
         "graphMode": "none",
         "justifyMode": "center",
         "textMode": "value",
-        "wideLayout": true,
         "reduceOptions": {
           "calc": "lastNotNull",
           "fields": "",
@@ -683,7 +736,6 @@
         "graphMode": "none",
         "justifyMode": "center",
         "textMode": "value",
-        "wideLayout": true,
         "reduceOptions": {
           "calc": "lastNotNull",
           "fields": "",
@@ -722,7 +774,6 @@
         "graphMode": "none",
         "justifyMode": "center",
         "textMode": "value",
-        "wideLayout": true,
         "reduceOptions": {
           "calc": "lastNotNull",
           "fields": "",
@@ -761,7 +812,6 @@
         "graphMode": "none",
         "justifyMode": "center",
         "textMode": "value",
-        "wideLayout": true,
         "reduceOptions": {
           "calc": "lastNotNull",
           "fields": "",
@@ -800,7 +850,6 @@
         "graphMode": "none",
         "justifyMode": "center",
         "textMode": "value",
-        "wideLayout": true,
         "reduceOptions": {
           "calc": "lastNotNull",
           "fields": "",
@@ -839,7 +888,6 @@
         "graphMode": "none",
         "justifyMode": "center",
         "textMode": "value",
-        "wideLayout": true,
         "reduceOptions": {
           "calc": "lastNotNull",
           "fields": "",
@@ -868,7 +916,7 @@
             "type": "prometheus",
             "uid": "prometheus-infra"
           },
-          "expr": "disk_temperature{job=\"truenas\", bay=\"C4R1\"}",
+          "expr": "disk_temperature{job=\"truenas\", bay=\"C4R1\"} or vector(-1)",
           "instant": true,
           "legendFormat": "{{serial}}"
         }
@@ -880,12 +928,24 @@
           "max": 80,
           "decimals": 0,
           "displayName": "${__field.labels.serial}",
-          "noValue": "sin datos",
           "color": {
             "mode": "fixed",
             "fixedColor": "#56A64B"
           },
-          "mappings": []
+          "mappings": [
+            {
+              "type": "range",
+              "options": {
+                "from": -100000,
+                "to": -0.5,
+                "result": {
+                  "text": "⚠ AUSENTE",
+                  "color": "red",
+                  "index": 0
+                }
+              }
+            }
+          ]
         },
         "overrides": []
       },
@@ -899,9 +959,7 @@
           "calc": "lastNotNull",
           "fields": "",
           "values": false
-        },
-        "percentChangeColorMode": "standard",
-        "showPercentChange": false
+        }
       }
     },
     {
@@ -925,7 +983,7 @@
             "type": "prometheus",
             "uid": "prometheus-infra"
           },
-          "expr": "disk_temperature{job=\"truenas\", bay=\"C4R2\"}",
+          "expr": "disk_temperature{job=\"truenas\", bay=\"C4R2\"} or vector(-1)",
           "instant": true,
           "legendFormat": "{{serial}}"
         }
@@ -937,12 +995,24 @@
           "max": 80,
           "decimals": 0,
           "displayName": "${__field.labels.serial}",
-          "noValue": "sin datos",
           "color": {
             "mode": "fixed",
             "fixedColor": "#56A64B"
           },
-          "mappings": []
+          "mappings": [
+            {
+              "type": "range",
+              "options": {
+                "from": -100000,
+                "to": -0.5,
+                "result": {
+                  "text": "⚠ AUSENTE",
+                  "color": "red",
+                  "index": 0
+                }
+              }
+            }
+          ]
         },
         "overrides": []
       },
@@ -956,9 +1026,7 @@
           "calc": "lastNotNull",
           "fields": "",
           "values": false
-        },
-        "percentChangeColorMode": "standard",
-        "showPercentChange": false
+        }
       }
     },
     {
@@ -992,7 +1060,6 @@
         "graphMode": "none",
         "justifyMode": "center",
         "textMode": "value",
-        "wideLayout": true,
         "reduceOptions": {
           "calc": "lastNotNull",
           "fields": "",
@@ -1031,7 +1098,6 @@
         "graphMode": "none",
         "justifyMode": "center",
         "textMode": "value",
-        "wideLayout": true,
         "reduceOptions": {
           "calc": "lastNotNull",
           "fields": "",
@@ -1070,7 +1136,6 @@
         "graphMode": "none",
         "justifyMode": "center",
         "textMode": "value",
-        "wideLayout": true,
         "reduceOptions": {
           "calc": "lastNotNull",
           "fields": "",
@@ -1109,7 +1174,6 @@
         "graphMode": "none",
         "justifyMode": "center",
         "textMode": "value",
-        "wideLayout": true,
         "reduceOptions": {
           "calc": "lastNotNull",
           "fields": "",
@@ -1123,7 +1187,7 @@
       "title": "",
       "gridPos": {
         "h": 3,
-        "w": 8,
+        "w": 6,
         "x": 0,
         "y": 27
       },
@@ -1161,8 +1225,8 @@
       "title": "",
       "gridPos": {
         "h": 3,
-        "w": 8,
-        "x": 8,
+        "w": 6,
+        "x": 6,
         "y": 27
       },
       "datasource": {
@@ -1199,8 +1263,8 @@
       "title": "",
       "gridPos": {
         "h": 3,
-        "w": 8,
-        "x": 16,
+        "w": 6,
+        "x": 12,
         "y": 27
       },
       "datasource": {
@@ -1214,6 +1278,44 @@
           "color": {
             "mode": "fixed",
             "fixedColor": "#3a3a3a"
+          },
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "value",
+        "reduceOptions": {
+          "calc": "lastNotNull",
+          "fields": "",
+          "values": false
+        }
+      }
+    },
+    {
+      "id": 29,
+      "type": "stat",
+      "title": "",
+      "gridPos": {
+        "h": 3,
+        "w": 6,
+        "x": 18,
+        "y": 27
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus-infra"
+      },
+      "targets": [],
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "⚠ AUSENTE",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "red"
           },
           "mappings": []
         },
@@ -1251,6 +1353,6 @@
   "timezone": "",
   "title": "TrueNAS Scale - Chassis (HSW6424)",
   "uid": "truenas-chassis",
-  "version": 1,
+  "version": 2,
   "weekStart": ""
 }
