@@ -144,25 +144,30 @@ scrape_configs:
       # disk swap to refresh it; edit by hand only as a stop-gap. Each drive matches on either its
       # VPD serial (what netdata usually emits) or the HBA short serial, to be robust.
       # BEGIN ANSIBLE MANAGED BLOCK truenas-disk-map
-      # data pool — 6× NetApp X423 838G RAIDZ2:
       - { source_labels: [serial], regex: "(X660A085FUZ5|A085FUZ5)", target_label: bay, replacement: "C1R1" }
+      - { source_labels: [serial], regex: "(X660A085FUZ5|A085FUZ5)", target_label: pool, replacement: "tank" }
+      - { source_labels: [serial], regex: "(X660A085FUZ5|A085FUZ5)", target_label: vdev, replacement: "raidz2-0" }
       - { source_labels: [serial], regex: "(3430A022FUZ5|A022FUZ5)", target_label: bay, replacement: "C2R1" }
+      - { source_labels: [serial], regex: "(3430A022FUZ5|A022FUZ5)", target_label: pool, replacement: "tank" }
+      - { source_labels: [serial], regex: "(3430A022FUZ5|A022FUZ5)", target_label: vdev, replacement: "raidz2-0" }
       - { source_labels: [serial], regex: "(4590A00AFUZ5|A00AFUZ5)", target_label: bay, replacement: "C1R2" }
+      - { source_labels: [serial], regex: "(4590A00AFUZ5|A00AFUZ5)", target_label: pool, replacement: "tank" }
+      - { source_labels: [serial], regex: "(4590A00AFUZ5|A00AFUZ5)", target_label: vdev, replacement: "raidz2-0" }
       - { source_labels: [serial], regex: "(35M0A0XAFUZ5|A0XAFUZ5)", target_label: bay, replacement: "C2R2" }
+      - { source_labels: [serial], regex: "(35M0A0XAFUZ5|A0XAFUZ5)", target_label: pool, replacement: "tank" }
+      - { source_labels: [serial], regex: "(35M0A0XAFUZ5|A0XAFUZ5)", target_label: vdev, replacement: "raidz2-0" }
       - { source_labels: [serial], regex: "(24D0A00KFUZ5|A00KFUZ5)", target_label: bay, replacement: "C1R3" }
+      - { source_labels: [serial], regex: "(24D0A00KFUZ5|A00KFUZ5)", target_label: pool, replacement: "tank" }
+      - { source_labels: [serial], regex: "(24D0A00KFUZ5|A00KFUZ5)", target_label: vdev, replacement: "raidz2-0" }
       - { source_labels: [serial], regex: "(Y5L0A03DFUZ5|A03DFUZ5)", target_label: bay, replacement: "C2R3" }
-      # boot-pool — 2× OS SSD:
-      - { source_labels: [serial], regex: "S24ZNX0H928770Z",          target_label: bay, replacement: "C4R1" }
-      - { source_labels: [serial], regex: "50026B785401B363",         target_label: bay, replacement: "C4R2" }
-      # vdev / pool grouping (drives the tile colour):
-      - source_labels: [serial]
-        regex: "(X660A085FUZ5|A085FUZ5|3430A022FUZ5|A022FUZ5|4590A00AFUZ5|A00AFUZ5|35M0A0XAFUZ5|A0XAFUZ5|24D0A00KFUZ5|A00KFUZ5|Y5L0A03DFUZ5|A03DFUZ5)"
-        target_label: vdev
-        replacement: "data"
-      - source_labels: [serial]
-        regex: "(S24ZNX0H928770Z|50026B785401B363)"
-        target_label: vdev
-        replacement: "boot-pool"
+      - { source_labels: [serial], regex: "(Y5L0A03DFUZ5|A03DFUZ5)", target_label: pool, replacement: "tank" }
+      - { source_labels: [serial], regex: "(Y5L0A03DFUZ5|A03DFUZ5)", target_label: vdev, replacement: "raidz2-0" }
+      - { source_labels: [serial], regex: "S24ZNX0H928770Z", target_label: bay, replacement: "C4R1" }
+      - { source_labels: [serial], regex: "S24ZNX0H928770Z", target_label: pool, replacement: "boot-pool" }
+      - { source_labels: [serial], regex: "S24ZNX0H928770Z", target_label: vdev, replacement: "mirror-0" }
+      - { source_labels: [serial], regex: "50026B785401B363", target_label: bay, replacement: "C4R2" }
+      - { source_labels: [serial], regex: "50026B785401B363", target_label: pool, replacement: "boot-pool" }
+      - { source_labels: [serial], regex: "50026B785401B363", target_label: vdev, replacement: "mirror-0" }
       # END ANSIBLE MANAGED BLOCK truenas-disk-map
 
   # All containers on the Pi (reached by service DNS on the monitoring network).

@@ -1,12 +1,7 @@
 {% set lines = [] -%}
 {% for d in truenas_disk_map -%}
 {%   set _ = lines.append('      - { source_labels: [serial], regex: "' ~ d.serial_regex ~ '", target_label: bay, replacement: "' ~ d.bay ~ '" }  # slot ' ~ d.slot ~ ' ' ~ d.device ~ ' ' ~ (d.model | default('')) ) -%}
-{% endfor -%}
-{% for grp in truenas_disk_map | map(attribute='group') | unique | sort -%}
-{%   set body = truenas_disk_map | selectattr('group', 'equalto', grp) | map(attribute='serial_body') | join('|') -%}
-{%   set _ = lines.append('      - source_labels: [serial]') -%}
-{%   set _ = lines.append('        regex: "(' ~ body ~ ')"') -%}
-{%   set _ = lines.append('        target_label: vdev') -%}
-{%   set _ = lines.append('        replacement: "' ~ grp ~ '"') -%}
+{%   set _ = lines.append('      - { source_labels: [serial], regex: "' ~ d.serial_regex ~ '", target_label: pool, replacement: "' ~ (d.pool | default('unknown')) ~ '" }') -%}
+{%   set _ = lines.append('      - { source_labels: [serial], regex: "' ~ d.serial_regex ~ '", target_label: vdev, replacement: "' ~ (d.vdev | default('unknown')) ~ '" }') -%}
 {% endfor -%}
 {{ lines | join('\n') }}

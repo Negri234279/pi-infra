@@ -58,22 +58,22 @@ groups:
           summary: "ZFS pool {{ $labels.pool }} is not ONLINE"
           description: "TrueNAS pool {{ $labels.pool }} has not been ONLINE for >5m (degraded/faulted/offline) — check the pool status and disks at nas-web.negri.es."
 
-      # A disk vanished from a vdev group (pulled/failed) — disk_temperature carries a `vdev` label
-      # from the chassis relabel, so counting per group flags a missing drive independently of the
-      # pool-state alert above. !!! UPDATE the expected counts (6 data / 2 boot-pool) if the pool
-      # topology changes. `for` is generous: graphite_exporter holds each sample 5 min, so a real
-      # absence takes minutes to show and a pusher hiccup won't flap this.
+      # A disk vanished from a pool (pulled/failed) — disk_temperature carries a `pool` label from
+      # the chassis relabel, so counting per pool flags a missing drive independently of the
+      # pool-state alert above. !!! UPDATE the pool names / expected counts (tank=6, boot-pool=2)
+      # if the topology changes. `for` is generous: graphite_exporter holds each sample 5 min, so a
+      # real absence takes minutes to show and a pusher hiccup won't flap this.
       - alert: TrueNasDataDiskMissing
-        expr: count(disk_temperature{job="truenas", vdev="data"}) < 6
+        expr: count(disk_temperature{job="truenas", pool="tank"}) < 6
         for: 10m
         labels:
           severity: warning
         annotations:
-          summary: "A data-pool disk is missing"
-          description: "Only {{ $value }}/6 data-pool disks are reporting for >10m — a drive was pulled or failed. Check the chassis dashboard for the blank/red bay."
+          summary: "A data-pool (tank) disk is missing"
+          description: "Only {{ $value }}/6 tank disks are reporting for >10m — a drive was pulled or failed. Check the chassis dashboard for the red AUSENTE bay."
 
       - alert: TrueNasBootDiskMissing
-        expr: count(disk_temperature{job="truenas", vdev="boot-pool"}) < 2
+        expr: count(disk_temperature{job="truenas", pool="boot-pool"}) < 2
         for: 10m
         labels:
           severity: warning

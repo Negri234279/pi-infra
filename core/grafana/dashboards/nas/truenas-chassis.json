@@ -34,7 +34,7 @@
       },
       "options": {
         "mode": "markdown",
-        "content": "### TrueNAS — Chasis HSW6424 (24 bahías · 4 col × 6 filas) · HBA LSI 9305-24i\nCada casilla = una bahía. **Color = grupo de vdev**, **valor = temperatura**, nombre = serial. Bahía **roja \"⚠ AUSENTE\"** = disco esperado que no reporta (extraído/fallado). Grises = vacías. Mapa bahía→disco→vdev en `core/prometheus/prometheus.yml` (job `truenas`)."
+        "content": "### TrueNAS — Chasis HSW6424 (24 bahías · 4 col × 6 filas) · HBA LSI 9305-24i\n**Mapa físico:** color = grupo de vdev · valor = temperatura · nombre = serial · **rojo \"⚠ AUSENTE\"** = disco esperado que no reporta · gris = vacía. Detalle por disco (serial · pool/vdev + temperatura por rango) más abajo."
       }
     },
     {
@@ -1332,6 +1332,605 @@
           "values": false
         }
       }
+    },
+    {
+      "id": 30,
+      "type": "text",
+      "title": "",
+      "gridPos": {
+        "h": 2,
+        "w": 24,
+        "x": 0,
+        "y": 30
+      },
+      "options": {
+        "mode": "markdown",
+        "content": "### Discos — detalle (temperatura por rango)"
+      }
+    },
+    {
+      "id": 31,
+      "type": "bargauge",
+      "title": "C1R1",
+      "gridPos": {
+        "h": 4,
+        "w": 12,
+        "x": 0,
+        "y": 32
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus-infra"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus-infra"
+          },
+          "expr": "disk_temperature{job=\"truenas\", bay=\"C1R1\"}",
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "celsius",
+          "min": 0,
+          "max": 70,
+          "decimals": 0,
+          "displayName": "${__field.labels.serial} · ${__field.labels.pool}/${__field.labels.vdev}",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 42
+              },
+              {
+                "color": "orange",
+                "value": 50
+              },
+              {
+                "color": "red",
+                "value": 55
+              }
+            ]
+          },
+          "mappings": [],
+          "noValue": "sin datos / ausente"
+        },
+        "overrides": []
+      },
+      "options": {
+        "orientation": "horizontal",
+        "displayMode": "gradient",
+        "showUnfilled": true,
+        "reduceOptions": {
+          "calc": "lastNotNull",
+          "fields": "",
+          "values": false
+        },
+        "valueMode": "color"
+      }
+    },
+    {
+      "id": 32,
+      "type": "bargauge",
+      "title": "C2R1",
+      "gridPos": {
+        "h": 4,
+        "w": 12,
+        "x": 12,
+        "y": 32
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus-infra"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus-infra"
+          },
+          "expr": "disk_temperature{job=\"truenas\", bay=\"C2R1\"}",
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "celsius",
+          "min": 0,
+          "max": 70,
+          "decimals": 0,
+          "displayName": "${__field.labels.serial} · ${__field.labels.pool}/${__field.labels.vdev}",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 42
+              },
+              {
+                "color": "orange",
+                "value": 50
+              },
+              {
+                "color": "red",
+                "value": 55
+              }
+            ]
+          },
+          "mappings": [],
+          "noValue": "sin datos / ausente"
+        },
+        "overrides": []
+      },
+      "options": {
+        "orientation": "horizontal",
+        "displayMode": "gradient",
+        "showUnfilled": true,
+        "reduceOptions": {
+          "calc": "lastNotNull",
+          "fields": "",
+          "values": false
+        },
+        "valueMode": "color"
+      }
+    },
+    {
+      "id": 33,
+      "type": "bargauge",
+      "title": "C4R1",
+      "gridPos": {
+        "h": 4,
+        "w": 12,
+        "x": 0,
+        "y": 36
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus-infra"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus-infra"
+          },
+          "expr": "disk_temperature{job=\"truenas\", bay=\"C4R1\"}",
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "celsius",
+          "min": 0,
+          "max": 70,
+          "decimals": 0,
+          "displayName": "${__field.labels.serial} · ${__field.labels.pool}/${__field.labels.vdev}",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 42
+              },
+              {
+                "color": "orange",
+                "value": 50
+              },
+              {
+                "color": "red",
+                "value": 55
+              }
+            ]
+          },
+          "mappings": [],
+          "noValue": "sin datos / ausente"
+        },
+        "overrides": []
+      },
+      "options": {
+        "orientation": "horizontal",
+        "displayMode": "gradient",
+        "showUnfilled": true,
+        "reduceOptions": {
+          "calc": "lastNotNull",
+          "fields": "",
+          "values": false
+        },
+        "valueMode": "color"
+      }
+    },
+    {
+      "id": 34,
+      "type": "bargauge",
+      "title": "C1R2",
+      "gridPos": {
+        "h": 4,
+        "w": 12,
+        "x": 12,
+        "y": 36
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus-infra"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus-infra"
+          },
+          "expr": "disk_temperature{job=\"truenas\", bay=\"C1R2\"}",
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "celsius",
+          "min": 0,
+          "max": 70,
+          "decimals": 0,
+          "displayName": "${__field.labels.serial} · ${__field.labels.pool}/${__field.labels.vdev}",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 42
+              },
+              {
+                "color": "orange",
+                "value": 50
+              },
+              {
+                "color": "red",
+                "value": 55
+              }
+            ]
+          },
+          "mappings": [],
+          "noValue": "sin datos / ausente"
+        },
+        "overrides": []
+      },
+      "options": {
+        "orientation": "horizontal",
+        "displayMode": "gradient",
+        "showUnfilled": true,
+        "reduceOptions": {
+          "calc": "lastNotNull",
+          "fields": "",
+          "values": false
+        },
+        "valueMode": "color"
+      }
+    },
+    {
+      "id": 35,
+      "type": "bargauge",
+      "title": "C2R2",
+      "gridPos": {
+        "h": 4,
+        "w": 12,
+        "x": 0,
+        "y": 40
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus-infra"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus-infra"
+          },
+          "expr": "disk_temperature{job=\"truenas\", bay=\"C2R2\"}",
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "celsius",
+          "min": 0,
+          "max": 70,
+          "decimals": 0,
+          "displayName": "${__field.labels.serial} · ${__field.labels.pool}/${__field.labels.vdev}",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 42
+              },
+              {
+                "color": "orange",
+                "value": 50
+              },
+              {
+                "color": "red",
+                "value": 55
+              }
+            ]
+          },
+          "mappings": [],
+          "noValue": "sin datos / ausente"
+        },
+        "overrides": []
+      },
+      "options": {
+        "orientation": "horizontal",
+        "displayMode": "gradient",
+        "showUnfilled": true,
+        "reduceOptions": {
+          "calc": "lastNotNull",
+          "fields": "",
+          "values": false
+        },
+        "valueMode": "color"
+      }
+    },
+    {
+      "id": 36,
+      "type": "bargauge",
+      "title": "C4R2",
+      "gridPos": {
+        "h": 4,
+        "w": 12,
+        "x": 12,
+        "y": 40
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus-infra"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus-infra"
+          },
+          "expr": "disk_temperature{job=\"truenas\", bay=\"C4R2\"}",
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "celsius",
+          "min": 0,
+          "max": 70,
+          "decimals": 0,
+          "displayName": "${__field.labels.serial} · ${__field.labels.pool}/${__field.labels.vdev}",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 42
+              },
+              {
+                "color": "orange",
+                "value": 50
+              },
+              {
+                "color": "red",
+                "value": 55
+              }
+            ]
+          },
+          "mappings": [],
+          "noValue": "sin datos / ausente"
+        },
+        "overrides": []
+      },
+      "options": {
+        "orientation": "horizontal",
+        "displayMode": "gradient",
+        "showUnfilled": true,
+        "reduceOptions": {
+          "calc": "lastNotNull",
+          "fields": "",
+          "values": false
+        },
+        "valueMode": "color"
+      }
+    },
+    {
+      "id": 37,
+      "type": "bargauge",
+      "title": "C1R3",
+      "gridPos": {
+        "h": 4,
+        "w": 12,
+        "x": 0,
+        "y": 44
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus-infra"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus-infra"
+          },
+          "expr": "disk_temperature{job=\"truenas\", bay=\"C1R3\"}",
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "celsius",
+          "min": 0,
+          "max": 70,
+          "decimals": 0,
+          "displayName": "${__field.labels.serial} · ${__field.labels.pool}/${__field.labels.vdev}",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 42
+              },
+              {
+                "color": "orange",
+                "value": 50
+              },
+              {
+                "color": "red",
+                "value": 55
+              }
+            ]
+          },
+          "mappings": [],
+          "noValue": "sin datos / ausente"
+        },
+        "overrides": []
+      },
+      "options": {
+        "orientation": "horizontal",
+        "displayMode": "gradient",
+        "showUnfilled": true,
+        "reduceOptions": {
+          "calc": "lastNotNull",
+          "fields": "",
+          "values": false
+        },
+        "valueMode": "color"
+      }
+    },
+    {
+      "id": 38,
+      "type": "bargauge",
+      "title": "C2R3",
+      "gridPos": {
+        "h": 4,
+        "w": 12,
+        "x": 12,
+        "y": 44
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus-infra"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus-infra"
+          },
+          "expr": "disk_temperature{job=\"truenas\", bay=\"C2R3\"}",
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "celsius",
+          "min": 0,
+          "max": 70,
+          "decimals": 0,
+          "displayName": "${__field.labels.serial} · ${__field.labels.pool}/${__field.labels.vdev}",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 42
+              },
+              {
+                "color": "orange",
+                "value": 50
+              },
+              {
+                "color": "red",
+                "value": 55
+              }
+            ]
+          },
+          "mappings": [],
+          "noValue": "sin datos / ausente"
+        },
+        "overrides": []
+      },
+      "options": {
+        "orientation": "horizontal",
+        "displayMode": "gradient",
+        "showUnfilled": true,
+        "reduceOptions": {
+          "calc": "lastNotNull",
+          "fields": "",
+          "values": false
+        },
+        "valueMode": "color"
+      }
     }
   ],
   "refresh": "30s",
@@ -1353,6 +1952,6 @@
   "timezone": "",
   "title": "TrueNAS Scale - Chassis (HSW6424)",
   "uid": "truenas-chassis",
-  "version": 2,
+  "version": 3,
   "weekStart": ""
 }
