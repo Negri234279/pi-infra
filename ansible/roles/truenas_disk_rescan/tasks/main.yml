@@ -1,0 +1,61 @@
+---
+# On-demand recovery after a HOT-SWAP: when a drive is pulled and re-inserted, Linux gives it a
+# new device node and TrueNAS's disk catalog (disk.query / disk.temperatures) does not refresh on
+# its own, so the metrics pusher loses that disk's SMART temperature (blank/AUSENTE tile, and the
+# *DiskMissing alert stays firing) even though ZFS re-admitted it and the pool is ONLINE again.
+#
+# This re-scans the SCSI buses, re-syncs the middleware disk table, then re-primes the pusher so
+# the temperature reappears within seconds instead of waiting on a reboot. Runs with become
+# (needs root). Gated behind the `never` tag: a normal bootstrap SKIPS it; run it explicitly:
+#   ./run.sh playbooks/bootstrap-truenas.yml --tags rescan
+
+- name: Rescan the SCSI buses so the kernel re-detects hot-swapped drives
+  ansible.builtin.shell: |
+    set -e
+    for h in /sys/class/scsi_host/host*/scan; do echo "- - -" > "$h"; done
+  args:
+    executable: /bin/bash
+  changed_when: true
+
+- name: Re-sync the TrueNAS disk catalog with the actual hardware
+  # disk.sync_all rebuilds the middleware disk table (name↔serial↔pool), which disk.temperatures
+  # and the pusher rely on. This is the supported way to re-catalog after a swap.
+  ansible.builtin.command:
+    argv: [midclt, call, disk.sync_all]
+  changed_when: true
+
+- name: Re-prime the metrics pusher so disk temps repopulate immediately
+  # Script + ports come from group_vars/nas.yml (in scope for the whole play). Without this we'd
+  # wait up to a minute for the cron tick.
+  ansible.builtin.command:
+    argv:
+      - python3
+      - "{{ truenas_apps_dir }}/truenas-metrics-pusher.py"
+      - "--host"
+      - "127.0.0.1"
+      - "--port"
+      - "{{ truenas_graphite_ingest_port | string }}"
+      - "--base"
+      - "{{ truenas_reporting_prefix }}.{{ truenas_reporting_namespace }}"
+  register: truenas_rescan_prime
+  changed_when: false
+
+# ── Verify every catalogued disk now reports a temperature ──────────────────────
+- name: Read the disk temperatures back
+  ansible.builtin.command:
+    argv: [midclt, call, disk.temperatures, "[]"]
+  register: truenas_rescan_temps
+  changed_when: false
+  # Give the middleware a few seconds to settle after the sync; retry until no disk reads null.
+  until: >-
+    (truenas_rescan_temps.stdout | from_json).values() | reject('none') | list | length
+    == (truenas_rescan_temps.stdout | from_json) | length
+  retries: 6
+  delay: 5
+
+- name: Report the recovered temperatures
+  ansible.builtin.debug:
+    msg: >-
+      {{ (truenas_rescan_temps.stdout | from_json)
+         | dict2items | map(attribute='key') | list | length }} disks reporting temperature:
+      {{ truenas_rescan_temps.stdout | from_json }}

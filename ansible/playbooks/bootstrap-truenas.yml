@@ -8,6 +8,8 @@
 #      sas3ircu+lsblk+zpool) into the `truenas` job's metric_relabel_configs, for truenas-chassis.
 #   4. truenas_metrics_pusher       — pushes the metrics netdata does NOT export (disk_temperature,
 #      zfs_pool, disk_bytes) from midclt into graphite_exporter, via a native TrueNAS cron job.
+#   5. truenas_disk_rescan          — ON-DEMAND ONLY (tag `rescan`): after a hot-swap, rescan the
+#      SCSI buses + disk.sync_all + re-prime the pusher so a re-inserted disk's temp reappears.
 #
 # The hub's Prometheus then scrapes 192.168.1.18:9108 (job `truenas`, in
 # core/prometheus/prometheus.yml). Grafana dashboards live in the "nas" folder.
@@ -15,9 +17,10 @@
 # Prereqs (see hosts/truenas/README.md): SSH enabled on TrueNAS with the hub's key; Apps/Docker
 # initialised with a pool; truenas_apps_dir set in inventory/group_vars/nas.yml.
 #
-#   ./run.sh playbooks/bootstrap-truenas.yml                    # everything
+#   ./run.sh playbooks/bootstrap-truenas.yml                    # everything (rescan is SKIPPED)
 #   ./run.sh playbooks/bootstrap-truenas.yml --tags reporting   # just the netdata exporter
 #   ./run.sh playbooks/bootstrap-truenas.yml --tags docker      # just the container
+#   ./run.sh playbooks/bootstrap-truenas.yml --tags rescan      # after a hot-swap: re-detect disk
 ---
 - name: Bootstrap TrueNAS observability
   hosts: nas
@@ -31,3 +34,6 @@
       tags: [disk_inventory, observability]
     - role: truenas_metrics_pusher
       tags: [metrics_pusher, observability]
+    # `never` keeps this out of normal runs; it fires only with `--tags rescan`.
+    - role: truenas_disk_rescan
+      tags: [rescan, never]
