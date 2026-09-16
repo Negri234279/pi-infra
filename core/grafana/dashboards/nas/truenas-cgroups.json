@@ -19,7 +19,20 @@
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
   "id": null,
-  "links": [],
+  "links": [
+    {
+      "asDropdown": true,
+      "icon": "external link",
+      "includeVars": true,
+      "keepTime": true,
+      "tags": [
+        "nas"
+      ],
+      "targetBlank": false,
+      "title": "NAS",
+      "type": "dashboards"
+    }
+  ],
   "panels": [
     {
       "datasource": {
@@ -1165,6 +1178,7 @@
   "refresh": "10s",
   "schemaVersion": 40,
   "tags": [
+    "nas",
     "truenas"
   ],
   "templating": {

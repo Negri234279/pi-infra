@@ -27,7 +27,20 @@
   "gnetId": 17821,
   "graphTooltip": 0,
   "id": null,
-  "links": [],
+  "links": [
+    {
+      "asDropdown": true,
+      "icon": "external link",
+      "includeVars": true,
+      "keepTime": true,
+      "tags": [
+        "nas"
+      ],
+      "targetBlank": false,
+      "title": "NAS",
+      "type": "dashboards"
+    }
+  ],
   "liveNow": false,
   "panels": [
     {
@@ -4856,6 +4869,7 @@
   "refresh": false,
   "schemaVersion": 39,
   "tags": [
+    "nas",
     "nextcloud",
     "loki"
   ],

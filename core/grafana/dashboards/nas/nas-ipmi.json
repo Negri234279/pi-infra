@@ -1,292 +1,1156 @@
 {
-  "annotations": { "list": [] },
+  "annotations": {
+    "list": []
+  },
   "editable": true,
   "graphTooltip": 1,
   "schemaVersion": 39,
-  "tags": ["nas", "ipmi", "bmc", "supermicro", "hardware"],
+  "tags": [
+    "nas",
+    "ipmi",
+    "bmc",
+    "supermicro",
+    "hardware"
+  ],
   "links": [
-    { "title": "IPMI web (nas-remote)", "type": "link", "icon": "external link", "url": "https://192.168.1.17", "targetBlank": true }
+    {
+      "asDropdown": true,
+      "icon": "external link",
+      "includeVars": true,
+      "keepTime": true,
+      "tags": [
+        "nas"
+      ],
+      "targetBlank": false,
+      "title": "NAS",
+      "type": "dashboards"
+    },
+    {
+      "title": "IPMI web (nas-remote)",
+      "type": "link",
+      "icon": "external link",
+      "url": "https://192.168.1.17",
+      "targetBlank": true
+    }
   ],
   "title": "NAS · IPMI / BMC (Supermicro X10SRL-F)",
   "uid": "nas-ipmi-core",
-  "time": { "from": "now-6h", "to": "now" },
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
   "timezone": "browser",
   "refresh": "1m",
-  "templating": { "list": [] },
+  "templating": {
+    "list": []
+  },
   "description": "Salud hardware del NAS (Supermicro X10SRL-F) leída del BMC vía ipmi_exporter en modo remoto (job ipmi, BMC 192.168.1.17). Temperaturas, ventiladores y voltajes por sensor con el estado que marca el propio BMC, estado de chasis y System Event Log. (El X10SRL-F no expone consumo por DCMI.)",
   "panels": [
     {
       "id": 1,
       "type": "stat",
       "title": "Estado del chasis",
-      "gridPos": { "h": 4, "w": 4, "x": 0, "y": 0 },
-      "datasource": { "type": "prometheus", "uid": "prometheus-infra" },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 0,
+        "y": 0
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus-infra"
+      },
       "fieldConfig": {
         "defaults": {
           "unit": "short",
-          "color": { "mode": "thresholds" },
-          "mappings": [ { "type": "value", "options": { "0": { "text": "Apagado", "color": "red" }, "1": { "text": "Encendido", "color": "green" } } } ],
-          "thresholds": { "mode": "absolute", "steps": [ { "color": "red", "value": null }, { "color": "green", "value": 1 } ] }
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "Apagado",
+                  "color": "red"
+                },
+                "1": {
+                  "text": "Encendido",
+                  "color": "green"
+                }
+              }
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          }
         },
         "overrides": []
       },
-      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "" }, "colorMode": "background", "graphMode": "none", "textMode": "value" },
-      "targets": [ { "refId": "A", "datasource": { "type": "prometheus", "uid": "prometheus-infra" }, "expr": "ipmi_chassis_power_state{job=\"ipmi\"}", "instant": true } ]
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "value"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus-infra"
+          },
+          "expr": "ipmi_chassis_power_state{job=\"ipmi\"}",
+          "instant": true
+        }
+      ]
     },
     {
       "id": 2,
       "type": "stat",
       "title": "IPMI alcanzable",
-      "gridPos": { "h": 4, "w": 4, "x": 4, "y": 0 },
-      "datasource": { "type": "prometheus", "uid": "prometheus-infra" },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 4,
+        "y": 0
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus-infra"
+      },
       "fieldConfig": {
         "defaults": {
           "unit": "short",
-          "color": { "mode": "thresholds" },
-          "mappings": [ { "type": "value", "options": { "0": { "text": "NO", "color": "red" }, "1": { "text": "SÍ", "color": "green" } } } ],
-          "thresholds": { "mode": "absolute", "steps": [ { "color": "red", "value": null }, { "color": "green", "value": 1 } ] }
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "NO",
+                  "color": "red"
+                },
+                "1": {
+                  "text": "SÍ",
+                  "color": "green"
+                }
+              }
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          }
         },
         "overrides": []
       },
-      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "" }, "colorMode": "background", "graphMode": "none", "textMode": "value" },
-      "targets": [ { "refId": "A", "datasource": { "type": "prometheus", "uid": "prometheus-infra" }, "expr": "up{job=\"ipmi\"}", "instant": true } ]
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "value"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus-infra"
+          },
+          "expr": "up{job=\"ipmi\"}",
+          "instant": true
+        }
+      ]
     },
     {
       "id": 3,
       "type": "stat",
       "title": "Sensores en alerta",
-      "gridPos": { "h": 4, "w": 4, "x": 8, "y": 0 },
-      "datasource": { "type": "prometheus", "uid": "prometheus-infra" },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 8,
+        "y": 0
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus-infra"
+      },
       "fieldConfig": {
         "defaults": {
           "unit": "short",
-          "color": { "mode": "thresholds" },
-          "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "red", "value": 1 } ] }
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          }
         },
         "overrides": []
       },
-      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "" }, "colorMode": "background", "graphMode": "none", "textMode": "value" },
-      "targets": [ { "refId": "A", "datasource": { "type": "prometheus", "uid": "prometheus-infra" }, "expr": "count({__name__=~\"ipmi_(temperature|fan_speed|voltage|sensor)_state\", job=\"ipmi\"} > 0) or vector(0)", "instant": true } ]
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "value"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus-infra"
+          },
+          "expr": "count({__name__=~\"ipmi_(temperature|fan_speed|voltage|sensor)_state\", job=\"ipmi\"} > 0) or vector(0)",
+          "instant": true
+        }
+      ]
     },
     {
       "id": 4,
       "type": "stat",
       "title": "Temp máx",
-      "gridPos": { "h": 4, "w": 4, "x": 12, "y": 0 },
-      "datasource": { "type": "prometheus", "uid": "prometheus-infra" },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 12,
+        "y": 0
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus-infra"
+      },
       "fieldConfig": {
         "defaults": {
           "unit": "celsius",
-          "color": { "mode": "thresholds" },
-          "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "yellow", "value": 60 }, { "color": "orange", "value": 75 }, { "color": "red", "value": 85 } ] }
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 60
+              },
+              {
+                "color": "orange",
+                "value": 75
+              },
+              {
+                "color": "red",
+                "value": 85
+              }
+            ]
+          }
         },
         "overrides": []
       },
-      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "" }, "colorMode": "background", "graphMode": "area", "textMode": "value" },
-      "targets": [ { "refId": "A", "datasource": { "type": "prometheus", "uid": "prometheus-infra" }, "expr": "max(ipmi_temperature_celsius{job=\"ipmi\"})", "instant": true } ]
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        },
+        "colorMode": "background",
+        "graphMode": "area",
+        "textMode": "value"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus-infra"
+          },
+          "expr": "max(ipmi_temperature_celsius{job=\"ipmi\"})",
+          "instant": true
+        }
+      ]
     },
     {
       "id": 5,
       "type": "stat",
       "title": "Ventiladores girando",
-      "gridPos": { "h": 4, "w": 4, "x": 16, "y": 0 },
-      "datasource": { "type": "prometheus", "uid": "prometheus-infra" },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 16,
+        "y": 0
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus-infra"
+      },
       "fieldConfig": {
         "defaults": {
           "unit": "short",
-          "color": { "mode": "thresholds" },
-          "thresholds": { "mode": "absolute", "steps": [ { "color": "red", "value": null }, { "color": "green", "value": 1 } ] }
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          }
         },
         "overrides": []
       },
-      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "" }, "colorMode": "value", "graphMode": "none", "textMode": "value" },
-      "targets": [ { "refId": "A", "datasource": { "type": "prometheus", "uid": "prometheus-infra" }, "expr": "count(ipmi_fan_speed_rpm{job=\"ipmi\"} > 0) or vector(0)", "instant": true } ]
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "value"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus-infra"
+          },
+          "expr": "count(ipmi_fan_speed_rpm{job=\"ipmi\"} > 0) or vector(0)",
+          "instant": true
+        }
+      ]
     },
     {
       "id": 6,
       "type": "stat",
       "title": "Refrigeración",
-      "gridPos": { "h": 4, "w": 4, "x": 20, "y": 0 },
-      "datasource": { "type": "prometheus", "uid": "prometheus-infra" },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 20,
+        "y": 0
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus-infra"
+      },
       "description": "ipmi_chassis_cooling_fault_state: 1 = sin fallo (OK), 0 = fallo de ventilación.",
       "fieldConfig": {
         "defaults": {
           "unit": "short",
-          "color": { "mode": "thresholds" },
-          "mappings": [ { "type": "value", "options": { "0": { "text": "FALLO", "color": "red" }, "1": { "text": "OK", "color": "green" } } } ],
-          "thresholds": { "mode": "absolute", "steps": [ { "color": "red", "value": null }, { "color": "green", "value": 1 } ] }
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "FALLO",
+                  "color": "red"
+                },
+                "1": {
+                  "text": "OK",
+                  "color": "green"
+                }
+              }
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          }
         },
         "overrides": []
       },
-      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "" }, "colorMode": "background", "graphMode": "none", "textMode": "value" },
-      "targets": [ { "refId": "A", "datasource": { "type": "prometheus", "uid": "prometheus-infra" }, "expr": "ipmi_chassis_cooling_fault_state{job=\"ipmi\"}", "instant": true } ]
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "value"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus-infra"
+          },
+          "expr": "ipmi_chassis_cooling_fault_state{job=\"ipmi\"}",
+          "instant": true
+        }
+      ]
     },
     {
       "id": 7,
       "type": "stat",
       "title": "SEL — eventos",
-      "gridPos": { "h": 4, "w": 8, "x": 0, "y": 4 },
-      "datasource": { "type": "prometheus", "uid": "prometheus-infra" },
+      "gridPos": {
+        "h": 4,
+        "w": 8,
+        "x": 0,
+        "y": 4
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus-infra"
+      },
       "description": "Entradas en el System Event Log del BMC. Un salto indica un evento hardware nuevo (revisar en nas-remote.negri.es).",
-      "fieldConfig": { "defaults": { "unit": "short", "color": { "mode": "fixed", "fixedColor": "text" } }, "overrides": [] },
-      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "" }, "colorMode": "none", "graphMode": "area", "textMode": "value" },
-      "targets": [ { "refId": "A", "datasource": { "type": "prometheus", "uid": "prometheus-infra" }, "expr": "ipmi_sel_logs_count{job=\"ipmi\"}", "instant": false } ]
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "text"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        },
+        "colorMode": "none",
+        "graphMode": "area",
+        "textMode": "value"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus-infra"
+          },
+          "expr": "ipmi_sel_logs_count{job=\"ipmi\"}",
+          "instant": false
+        }
+      ]
     },
     {
       "id": 8,
       "type": "stat",
       "title": "Discos (fault flag)",
-      "gridPos": { "h": 4, "w": 8, "x": 8, "y": 4 },
-      "datasource": { "type": "prometheus", "uid": "prometheus-infra" },
+      "gridPos": {
+        "h": 4,
+        "w": 8,
+        "x": 8,
+        "y": 4
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus-infra"
+      },
       "description": "ipmi_chassis_drive_fault_state: 1 = sin fallo (OK), 0 = fallo de disco/backplane.",
       "fieldConfig": {
         "defaults": {
           "unit": "short",
-          "color": { "mode": "thresholds" },
-          "mappings": [ { "type": "value", "options": { "0": { "text": "FALLO", "color": "red" }, "1": { "text": "OK", "color": "green" } } } ],
-          "thresholds": { "mode": "absolute", "steps": [ { "color": "red", "value": null }, { "color": "green", "value": 1 } ] }
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "FALLO",
+                  "color": "red"
+                },
+                "1": {
+                  "text": "OK",
+                  "color": "green"
+                }
+              }
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          }
         },
         "overrides": []
       },
-      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "" }, "colorMode": "background", "graphMode": "none", "textMode": "value" },
-      "targets": [ { "refId": "A", "datasource": { "type": "prometheus", "uid": "prometheus-infra" }, "expr": "ipmi_chassis_drive_fault_state{job=\"ipmi\"}", "instant": true } ]
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "value"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus-infra"
+          },
+          "expr": "ipmi_chassis_drive_fault_state{job=\"ipmi\"}",
+          "instant": true
+        }
+      ]
     },
     {
       "id": 9,
       "type": "stat",
       "title": "Colectores OK",
-      "gridPos": { "h": 4, "w": 8, "x": 16, "y": 4 },
-      "datasource": { "type": "prometheus", "uid": "prometheus-infra" },
+      "gridPos": {
+        "h": 4,
+        "w": 8,
+        "x": 16,
+        "y": 4
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus-infra"
+      },
       "description": "Colectores IPMI activos y respondiendo (bmc, ipmi, chassis, sel).",
       "fieldConfig": {
         "defaults": {
           "unit": "short",
-          "color": { "mode": "thresholds" },
-          "thresholds": { "mode": "absolute", "steps": [ { "color": "red", "value": null }, { "color": "green", "value": 4 } ] }
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 4
+              }
+            ]
+          }
         },
         "overrides": []
       },
-      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "" }, "colorMode": "value", "graphMode": "none", "textMode": "value" },
-      "targets": [ { "refId": "A", "datasource": { "type": "prometheus", "uid": "prometheus-infra" }, "expr": "count(ipmi_up{job=\"ipmi\"} == 1) or vector(0)", "instant": true } ]
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "value"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus-infra"
+          },
+          "expr": "count(ipmi_up{job=\"ipmi\"} == 1) or vector(0)",
+          "instant": true
+        }
+      ]
     },
     {
       "id": 10,
       "type": "table",
       "title": "Temperaturas por sensor",
-      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 8 },
-      "datasource": { "type": "prometheus", "uid": "prometheus-infra" },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 0,
+        "y": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus-infra"
+      },
       "fieldConfig": {
         "defaults": {
           "unit": "celsius",
           "decimals": 0,
-          "color": { "mode": "thresholds" },
-          "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "yellow", "value": 60 }, { "color": "orange", "value": 75 }, { "color": "red", "value": 85 } ] },
-          "custom": { "align": "auto", "filterable": true }
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 60
+              },
+              {
+                "color": "orange",
+                "value": 75
+              },
+              {
+                "color": "red",
+                "value": 85
+              }
+            ]
+          },
+          "custom": {
+            "align": "auto",
+            "filterable": true
+          }
         },
         "overrides": [
-          { "matcher": { "id": "byName", "options": "°C" }, "properties": [ { "id": "custom.cellOptions", "value": { "type": "color-background" } }, { "id": "custom.width", "value": 110 } ] }
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "°C"
+            },
+            "properties": [
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-background"
+                }
+              },
+              {
+                "id": "custom.width",
+                "value": 110
+              }
+            ]
+          }
         ]
       },
-      "options": { "showHeader": true, "sortBy": [ { "displayName": "°C", "desc": true } ] },
+      "options": {
+        "showHeader": true,
+        "sortBy": [
+          {
+            "displayName": "°C",
+            "desc": true
+          }
+        ]
+      },
       "transformations": [
-        { "id": "organize", "options": { "excludeByName": { "Time": true, "__name__": true, "id": true, "instance": true, "job": true }, "renameByName": { "name": "Sensor", "Value": "°C" } } }
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "__name__": true,
+              "id": true,
+              "instance": true,
+              "job": true
+            },
+            "renameByName": {
+              "name": "Sensor",
+              "Value": "°C"
+            }
+          }
+        }
       ],
-      "targets": [ { "refId": "A", "datasource": { "type": "prometheus", "uid": "prometheus-infra" }, "expr": "ipmi_temperature_celsius{job=\"ipmi\"}", "instant": true, "format": "table" } ]
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus-infra"
+          },
+          "expr": "ipmi_temperature_celsius{job=\"ipmi\"}",
+          "instant": true,
+          "format": "table"
+        }
+      ]
     },
     {
       "id": 11,
       "type": "timeseries",
       "title": "Temperaturas — tendencia",
-      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 8 },
-      "datasource": { "type": "prometheus", "uid": "prometheus-infra" },
-      "fieldConfig": { "defaults": { "unit": "celsius", "custom": { "drawStyle": "line", "lineWidth": 1, "fillOpacity": 6, "showPoints": "never", "spanNulls": true } }, "overrides": [] },
-      "options": { "legend": { "displayMode": "table", "placement": "right", "calcs": ["lastNotNull", "max"] }, "tooltip": { "mode": "multi", "sort": "desc" } },
-      "targets": [ { "refId": "A", "datasource": { "type": "prometheus", "uid": "prometheus-infra" }, "expr": "ipmi_temperature_celsius{job=\"ipmi\"}", "legendFormat": "{{name}}" } ]
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 12,
+        "y": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus-infra"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "celsius",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 6,
+            "showPoints": "never",
+            "spanNulls": true
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus-infra"
+          },
+          "expr": "ipmi_temperature_celsius{job=\"ipmi\"}",
+          "legendFormat": "{{name}}"
+        }
+      ]
     },
     {
       "id": 12,
       "type": "bargauge",
       "title": "Ventiladores — RPM ahora",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 17 },
-      "datasource": { "type": "prometheus", "uid": "prometheus-infra" },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 17
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus-infra"
+      },
       "fieldConfig": {
         "defaults": {
           "unit": "rotrpm",
           "min": 0,
           "max": 2000,
-          "color": { "mode": "thresholds" },
-          "thresholds": { "mode": "absolute", "steps": [ { "color": "red", "value": null }, { "color": "orange", "value": 1 }, { "color": "green", "value": 400 } ] }
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 1
+              },
+              {
+                "color": "green",
+                "value": 400
+              }
+            ]
+          }
         },
         "overrides": []
       },
-      "options": { "orientation": "horizontal", "displayMode": "gradient", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "" } },
-      "targets": [ { "refId": "A", "datasource": { "type": "prometheus", "uid": "prometheus-infra" }, "expr": "ipmi_fan_speed_rpm{job=\"ipmi\"}", "legendFormat": "{{name}}", "instant": true } ]
+      "options": {
+        "orientation": "horizontal",
+        "displayMode": "gradient",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus-infra"
+          },
+          "expr": "ipmi_fan_speed_rpm{job=\"ipmi\"}",
+          "legendFormat": "{{name}}",
+          "instant": true
+        }
+      ]
     },
     {
       "id": 13,
       "type": "timeseries",
       "title": "Ventiladores — tendencia",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 17 },
-      "datasource": { "type": "prometheus", "uid": "prometheus-infra" },
-      "fieldConfig": { "defaults": { "unit": "rotrpm", "min": 0, "custom": { "drawStyle": "line", "lineWidth": 1, "fillOpacity": 10, "showPoints": "never", "spanNulls": true } }, "overrides": [] },
-      "options": { "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["lastNotNull", "min", "max"] }, "tooltip": { "mode": "multi", "sort": "desc" } },
-      "targets": [ { "refId": "A", "datasource": { "type": "prometheus", "uid": "prometheus-infra" }, "expr": "ipmi_fan_speed_rpm{job=\"ipmi\"}", "legendFormat": "{{name}}" } ]
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 17
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus-infra"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "rotrpm",
+          "min": 0,
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "spanNulls": true
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull",
+            "min",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus-infra"
+          },
+          "expr": "ipmi_fan_speed_rpm{job=\"ipmi\"}",
+          "legendFormat": "{{name}}"
+        }
+      ]
     },
     {
       "id": 14,
       "type": "table",
       "title": "Voltajes por raíl",
-      "gridPos": { "h": 10, "w": 12, "x": 0, "y": 25 },
-      "datasource": { "type": "prometheus", "uid": "prometheus-infra" },
+      "gridPos": {
+        "h": 10,
+        "w": 12,
+        "x": 0,
+        "y": 25
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus-infra"
+      },
       "description": "Valor de cada raíl. El veredicto OK/warning/critical lo da el BMC (ipmi_voltage_state) — ver la tabla de estado de sensores abajo; un umbral fijo no vale porque conviven raíles de 12V/5V/3.3V/1.05V.",
       "fieldConfig": {
         "defaults": {
           "unit": "volt",
           "decimals": 2,
-          "color": { "mode": "fixed", "fixedColor": "text" },
-          "custom": { "align": "auto", "filterable": true }
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "text"
+          },
+          "custom": {
+            "align": "auto",
+            "filterable": true
+          }
         },
         "overrides": [
-          { "matcher": { "id": "byName", "options": "V" }, "properties": [ { "id": "custom.width", "value": 110 } ] }
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "V"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 110
+              }
+            ]
+          }
         ]
       },
-      "options": { "showHeader": true, "sortBy": [ { "displayName": "V", "desc": true } ] },
+      "options": {
+        "showHeader": true,
+        "sortBy": [
+          {
+            "displayName": "V",
+            "desc": true
+          }
+        ]
+      },
       "transformations": [
-        { "id": "organize", "options": { "excludeByName": { "Time": true, "__name__": true, "id": true, "instance": true, "job": true }, "renameByName": { "name": "Raíl", "Value": "V" } } }
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "__name__": true,
+              "id": true,
+              "instance": true,
+              "job": true
+            },
+            "renameByName": {
+              "name": "Raíl",
+              "Value": "V"
+            }
+          }
+        }
       ],
-      "targets": [ { "refId": "A", "datasource": { "type": "prometheus", "uid": "prometheus-infra" }, "expr": "ipmi_voltage_volts{job=\"ipmi\"}", "instant": true, "format": "table" } ]
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus-infra"
+          },
+          "expr": "ipmi_voltage_volts{job=\"ipmi\"}",
+          "instant": true,
+          "format": "table"
+        }
+      ]
     },
     {
       "id": 15,
       "type": "timeseries",
       "title": "Voltajes — tendencia",
-      "gridPos": { "h": 10, "w": 12, "x": 12, "y": 25 },
-      "datasource": { "type": "prometheus", "uid": "prometheus-infra" },
-      "fieldConfig": { "defaults": { "unit": "volt", "custom": { "drawStyle": "line", "lineWidth": 1, "fillOpacity": 0, "showPoints": "never", "spanNulls": true } }, "overrides": [] },
-      "options": { "legend": { "displayMode": "table", "placement": "right", "calcs": ["lastNotNull"] }, "tooltip": { "mode": "multi", "sort": "desc" } },
-      "targets": [ { "refId": "A", "datasource": { "type": "prometheus", "uid": "prometheus-infra" }, "expr": "ipmi_voltage_volts{job=\"ipmi\"}", "legendFormat": "{{name}}" } ]
+      "gridPos": {
+        "h": 10,
+        "w": 12,
+        "x": 12,
+        "y": 25
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus-infra"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "volt",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 0,
+            "showPoints": "never",
+            "spanNulls": true
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus-infra"
+          },
+          "expr": "ipmi_voltage_volts{job=\"ipmi\"}",
+          "legendFormat": "{{name}}"
+        }
+      ]
     },
     {
       "id": 16,
       "type": "table",
       "title": "Sensores en warning / critical",
-      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 35 },
-      "datasource": { "type": "prometheus", "uid": "prometheus-infra" },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 35
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus-infra"
+      },
       "description": "Solo sensores cuyo estado reportado por el BMC no es nominal (1 = warning, 2 = critical). Vacío = todo nominal.",
       "fieldConfig": {
         "defaults": {
-          "custom": { "align": "auto", "filterable": true },
-          "mappings": [ { "type": "value", "options": { "1": { "text": "WARNING", "color": "yellow" }, "2": { "text": "CRITICAL", "color": "red" } } } ]
+          "custom": {
+            "align": "auto",
+            "filterable": true
+          },
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "1": {
+                  "text": "WARNING",
+                  "color": "yellow"
+                },
+                "2": {
+                  "text": "CRITICAL",
+                  "color": "red"
+                }
+              }
+            }
+          ]
         },
         "overrides": [
-          { "matcher": { "id": "byName", "options": "Estado" }, "properties": [ { "id": "custom.cellOptions", "value": { "type": "color-background" } }, { "id": "custom.width", "value": 130 } ] }
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Estado"
+            },
+            "properties": [
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-background"
+                }
+              },
+              {
+                "id": "custom.width",
+                "value": 130
+              }
+            ]
+          }
         ]
       },
-      "options": { "showHeader": true, "sortBy": [ { "displayName": "Estado", "desc": true } ] },
+      "options": {
+        "showHeader": true,
+        "sortBy": [
+          {
+            "displayName": "Estado",
+            "desc": true
+          }
+        ]
+      },
       "transformations": [
-        { "id": "organize", "options": { "excludeByName": { "Time": true, "id": true, "instance": true, "job": true }, "renameByName": { "__name__": "Métrica", "name": "Sensor", "type": "Tipo", "Value": "Estado" } } }
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "id": true,
+              "instance": true,
+              "job": true
+            },
+            "renameByName": {
+              "__name__": "Métrica",
+              "name": "Sensor",
+              "type": "Tipo",
+              "Value": "Estado"
+            }
+          }
+        }
       ],
-      "targets": [ { "refId": "A", "datasource": { "type": "prometheus", "uid": "prometheus-infra" }, "expr": "{__name__=~\"ipmi_(temperature|fan_speed|voltage|sensor)_state\", job=\"ipmi\"} > 0", "instant": true, "format": "table" } ]
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus-infra"
+          },
+          "expr": "{__name__=~\"ipmi_(temperature|fan_speed|voltage|sensor)_state\", job=\"ipmi\"} > 0",
+          "instant": true,
+          "format": "table"
+        }
+      ]
     }
   ]
 }
