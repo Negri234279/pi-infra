@@ -47,6 +47,10 @@ services:
     volumes:
       - ./html:/var/www/html
       - ./data:/var/www/html/data
+      # External storage dataset (bind-mounted so Nextcloud's "External storage / Local" can use it).
+      # SAME dataset you share over SMB → files reachable BOTH ways (see README). www-data (UID 33)
+      # inside the container needs rwx on it (set the dataset ACL to grant UID 33 + your SMB user).
+      - ${NEXTCLOUD_EXTERNAL_HOST_PATH:-/mnt/tank/negri-data}:/external/negri-data
     environment:
       POSTGRES_HOST: nextcloud-db
       POSTGRES_DB: nextcloud
@@ -78,6 +82,7 @@ services:
     volumes:
       - ./html:/var/www/html
       - ./data:/var/www/html/data
+      - ${NEXTCLOUD_EXTERNAL_HOST_PATH:-/mnt/tank/negri-data}:/external/negri-data
     entrypoint: /cron.sh
     depends_on: [nextcloud-db, nextcloud-redis]
     networks: [nextcloud]

@@ -107,6 +107,13 @@
   changed_when: "'already enabled' not in truenas_nc_audit.stdout"
   when: truenas_nc_status.stdout is search('"installed"\s*:\s*true')
 
+- name: Enable the files_external app (for the External storage / Local mount)
+  ansible.builtin.command:
+    argv: [docker, exec, --user, www-data, nextcloud, php, occ, app:enable, files_external]
+  register: truenas_nc_extapp
+  changed_when: "'already enabled' not in truenas_nc_extapp.stdout"
+  when: truenas_nc_status.stdout is search('"installed"\s*:\s*true')
+
 - name: Set loglevel to info so audit events are recorded
   # admin_audit logs at INFO (1); the Nextcloud default loglevel 2 (warning) would suppress them.
   ansible.builtin.command:
