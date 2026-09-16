@@ -50,6 +50,7 @@
       enabled: true
   when: (truenas_backup_nfs_q.stdout | from_json | length) == 0
   changed_when: true
+  register: truenas_backup_nfs_create
 
 # ── Make sure the NFS service is enabled + running ─────────────────────────────────
 - name: Query the NFS service state
@@ -77,6 +78,16 @@
   ansible.builtin.command:
     argv: [midclt, call, service.start, nfs]
   when: (truenas_backup_nfs_svc.stdout | from_json | first).state | default('STOPPED') != 'RUNNING'
+  changed_when: true
+
+# A freshly created export is NOT picked up by rpc.mountd until the service reloads. Without this,
+# an NFSv3 client gets "connection refused" on mount even though nfsd (2049) + rpcbind (111) are up
+# and `sharing.nfs.create` succeeded — mountd simply isn't serving the new export yet (confirmed
+# live 2026-09-17 on the first deploy). Only restart when we actually created the export.
+- name: Restart NFS so rpc.mountd registers the new export
+  ansible.builtin.command:
+    argv: [midclt, call, service.restart, nfs]
+  when: truenas_backup_nfs_create is defined and (truenas_backup_nfs_create is changed)
   changed_when: true
 
 # ── Periodic Snapshot Task (native Data Protection) ────────────────────────────────
