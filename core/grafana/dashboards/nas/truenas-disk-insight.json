@@ -67,7 +67,7 @@
           "calcs": [
             "lastNotNull"
           ],
-          "fields": "/^sophie$/",
+          "fields": "",
           "values": false
         },
         "showPercentChange": false,
@@ -84,7 +84,7 @@
           "editorMode": "code",
           "expr": "uptime{instance=~\"$instance\"}",
           "instant": false,
-          "legendFormat": "{{instance}}",
+          "legendFormat": "{{host}}",
           "range": true,
           "refId": "A"
         }
@@ -238,7 +238,7 @@
             "uid": "prometheus-infra"
           },
           "editorMode": "code",
-          "expr": "disk_utilization{instance=~\"$instance\"}",
+          "expr": "disk_busy{instance=~\"$instance\"} / 10",
           "instant": false,
           "legendFormat": "{{disk}}",
           "range": true,
@@ -340,7 +340,7 @@
             "uid": "prometheus-infra"
           },
           "editorMode": "code",
-          "expr": "disk_utilization{instance=~\"$instance\"}",
+          "expr": "disk_busy{instance=~\"$instance\"} / 10",
           "instant": false,
           "legendFormat": "{{disk}}",
           "range": true,
@@ -560,9 +560,9 @@
             "uid": "prometheus-infra"
           },
           "editorMode": "code",
-          "expr": "abs(disk_iotime{instance=~\"$instance\", disk=~\"$disk\"})",
+          "expr": "disk_busy{instance=~\"$instance\", disk=~\"$disk\"}",
           "instant": false,
-          "legendFormat": "{{op}}",
+          "legendFormat": "busy",
           "range": true,
           "refId": "A"
         }
@@ -779,233 +779,14 @@
             "uid": "prometheus-infra"
           },
           "editorMode": "code",
-          "expr": "abs(disk_await{instance=~\"$instance\", disk=~\"$disk\"})",
+          "expr": "sum by(disk)(disk_busy{instance=~\"$instance\", disk=~\"$disk\"}) / sum by(disk)(disk_io_ops{instance=~\"$instance\", disk=~\"$disk\"})",
           "instant": false,
-          "legendFormat": "{{op}}",
+          "legendFormat": "await",
           "range": true,
           "refId": "A"
         }
       ],
       "title": "Disk await - $disk",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus-infra"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisBorderShow": false,
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 10,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "insertNulls": false,
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "auto",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "fieldMinMax": false,
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green"
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          },
-          "unit": "ms"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 9,
-        "w": 4,
-        "x": 0,
-        "y": 100
-      },
-      "id": 15,
-      "maxPerRow": 6,
-      "options": {
-        "legend": {
-          "calcs": [
-            "min",
-            "max",
-            "mean"
-          ],
-          "displayMode": "table",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "repeat": "disk",
-      "repeatDirection": "h",
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus-infra"
-          },
-          "editorMode": "code",
-          "expr": "disk_io_backlog{instance=~\"$instance\", disk=~\"$disk\"}",
-          "instant": false,
-          "legendFormat": "backlog",
-          "range": true,
-          "refId": "A"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus-infra"
-          },
-          "editorMode": "code",
-          "expr": "disk_busy{instance=~\"$instance\", disk=~\"$disk\"}",
-          "hide": false,
-          "instant": false,
-          "legendFormat": "busy",
-          "range": true,
-          "refId": "B"
-        }
-      ],
-      "title": "Disk backlog + busy - $disk",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus-infra"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisBorderShow": false,
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 10,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "insertNulls": false,
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "auto",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "fieldMinMax": false,
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green"
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          },
-          "unit": "short"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 9,
-        "w": 4,
-        "x": 0,
-        "y": 118
-      },
-      "id": 27,
-      "maxPerRow": 6,
-      "options": {
-        "legend": {
-          "calcs": [
-            "min",
-            "max",
-            "mean"
-          ],
-          "displayMode": "table",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "repeat": "disk",
-      "repeatDirection": "h",
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus-infra"
-          },
-          "editorMode": "code",
-          "expr": "disk_qops{instance=~\"$instance\", disk=~\"$disk\"}",
-          "instant": false,
-          "legendFormat": "value",
-          "range": true,
-          "refId": "A"
-        }
-      ],
-      "title": "Disk active operations - $disk",
       "type": "timeseries"
     },
     {
@@ -1101,9 +882,9 @@
             "uid": "prometheus-infra"
           },
           "editorMode": "code",
-          "expr": "abs(disk_io_size{instance=~\"$instance\", disk=~\"$disk\"})",
+          "expr": "sum by(disk)(disk_io{instance=~\"$instance\", disk=~\"$disk\"}) / sum by(disk)(disk_io_ops{instance=~\"$instance\", disk=~\"$disk\"})",
           "instant": false,
-          "legendFormat": "{{op}}",
+          "legendFormat": "avg size",
           "range": true,
           "refId": "A"
         }
