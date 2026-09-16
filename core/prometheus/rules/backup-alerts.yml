@@ -1,0 +1,48 @@
+# Alert rules for the nightly restic backup (core/backup/). The backup.sh script writes
+# node-exporter textfile metrics (pi_backup_*) into /var/lib/node_exporter/textfile, which
+# node-exporter exposes on job=node — so these ride the existing scrape, no new target.
+#
+# Metrics:
+#   pi_backup_last_success_timestamp_seconds — unix time of the last FULLY successful run
+#   pi_backup_success                        — 1 if the last run fully succeeded, else 0
+#   pi_backup_warnings                       — non-fatal issues in the last run (skipped dump)
+#   pi_backup_last_duration_seconds          — duration of the last run
+#   pi_backup_repo_size_bytes / _snapshots_total — repo raw size + snapshot count
+#
+# The dead-man's switch is really the healthchecks.io check backup.sh pings (fires even if
+# the Pi/textfile is gone); these give in-Grafana visibility + Discord routing. Same
+# severity labels as every other alert.
+groups:
+  - name: backup
+    rules:
+      - alert: BackupTooOld
+        # More than ~26h since the last successful backup (a daily job at 23:00 + slack for a
+        # slow run). Catches silent failure of the schedule itself.
+        expr: time() - pi_backup_last_success_timestamp_seconds > 26 * 3600
+        for: 15m
+        labels:
+          severity: critical
+        annotations:
+          summary: "No successful backup in over 26h"
+          description: "The last fully successful restic backup was {{ $value | humanizeDuration }} ago. Check the `backup` container logs (docker logs backup) and the NAS NFS mount. See docs/backups.md."
+
+      - alert: BackupMetricsAbsent
+        # The textfile metric vanished entirely — the backup container never ran, or can't
+        # write the textfile dir. up==stale can't catch a metric that simply isn't produced.
+        expr: absent(pi_backup_last_success_timestamp_seconds)
+        for: 2h
+        labels:
+          severity: warning
+        annotations:
+          summary: "Backup metrics are missing"
+          description: "No `pi_backup_last_success_timestamp_seconds` series for >2h — the `backup` service may be down or has never completed a run. See docs/backups.md."
+
+      - alert: BackupLastRunFailed
+        # The most recent run ended in failure OR finished but skipped a dump (warnings>0).
+        expr: pi_backup_success == 0 or pi_backup_warnings > 0
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Last backup run failed or was degraded"
+          description: "The latest backup run failed (restic error) or finished with warnings (a DB dump was skipped) — pi_backup_success=0 or pi_backup_warnings>0. Check `docker logs backup`. See docs/backups.md."

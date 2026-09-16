@@ -590,6 +590,60 @@ services:
   # scrapes it over the LAN at 192.168.1.15:9221 — see core/prometheus/prometheus.yml
   # (job `pve`) and core/pve-exporter/README.md.
 
+  # ── Daily backups → NAS (restic) ─────────────────────────────────────────
+  # Backs up the WHOLE stack every night into a restic repo on the NAS (mounted
+  # here as the NFS-backed `nas-backup` volume) and prunes it with a GFS policy.
+  # Locally built (no multi-arch restic+docker-cli+sqlite image upstream) — same
+  # pattern as smartctl-exporter. Full design + restore runbook: docs/backups.md
+  # and core/backup/README.md.
+  #
+  #   monitoring : reach nothing external — it's here only for uniformity.
+  #   docker.sock: `docker exec` into postgres/redis for consistent dumps.
+  #   /repo (ro) : the on-disk repo tree = every gitignored secret + NPM data/certs.
+  #   /volumes/* : the app data volumes, read-only, captured as files.
+  #   /coreforge : coreforge's SQLite volume, RW so sqlite can take an online backup.
+  #   textfile   : node-exporter textfile dir → pi_backup_* metrics for Grafana/alerts.
+  backup:
+    build:
+      context: ./backup
+      args:
+        RESTIC_VERSION: "0.18.0"
+    image: pi-infra/backup:0.18.0
+    container_name: backup
+    restart: unless-stopped
+    environment:
+      - TZ=Europe/Madrid
+      - RESTIC_REPOSITORY=/backup/restic
+      - RESTIC_PASSWORD=${RESTIC_PASSWORD:?set RESTIC_PASSWORD in .env}
+      - BACKUP_HOST=rpi5
+      - BACKUP_CRON=${BACKUP_CRON:-0 23 * * *}
+      - BACKUP_ON_START=${BACKUP_ON_START:-false}
+      - KEEP_DAILY=${BACKUP_KEEP_DAILY:-14}
+      - KEEP_WEEKLY=${BACKUP_KEEP_WEEKLY:-8}
+      - KEEP_MONTHLY=${BACKUP_KEEP_MONTHLY:-6}
+      - BACKUP_HEALTHCHECK_URL=${BACKUP_HEALTHCHECK_URL:-}
+    volumes:
+      # Repo target on the NAS (NFS docker volume, defined below).
+      - nas-backup:/backup
+      # Staging area for the DB dumps (kept off the container's writable layer).
+      - backup-dumps:/dump
+      # `docker exec` for pg_dumpall / redis SAVE (RW socket needed for exec).
+      - /var/run/docker.sock:/var/run/docker.sock
+      # The whole repo checkout, read-only: secrets, NPM data + certs, configs.
+      - ../:/repo:ro
+      # App data volumes captured as files (read-only).
+      - rust-stats-data:/volumes/rust-stats-data:ro
+      - wol-data-prod:/volumes/wol-data-prod:ro
+      - wg-easy-data:/volumes/wg-easy-data:ro
+      - grafana-data:/volumes/grafana-data:ro
+      - powerlog-redis-data:/volumes/powerlog-redis-data:ro
+      # coreforge SQLite volume — RW so `sqlite3 .backup` can run online.
+      - coreforge-data:/coreforge
+      # node-exporter textfile collector dir on the host (same one rpi-throttled uses).
+      - /var/lib/node_exporter/textfile:/textfile
+    networks:
+      - monitoring
+
   # Core Loki: infra logs (currently the router's remote syslog). Its ruler
   # evaluates core/loki/rules/ and pushes log-based alerts to the same
   # Alertmanager as the metric alerts. Queried by Grafana as the `Loki` datasource.
@@ -666,6 +720,28 @@ volumes:
   postgres-data:
   pgbouncer-secrets:
   wg-easy-data:
+
+  # ── Backup ──────────────────────────────────────────────────────────────────
+  # The app data volumes the `backup` service reads (rust-stats-data, wol-data-prod,
+  # powerlog-redis-data, coreforge-data) are NOT redeclared here on purpose: they're
+  # provided by the app composes via the root `include:`, and referencing them BY KEY
+  # guarantees the backup mounts the SAME volume the app uses (a stale hardcoded
+  # `name:` could silently back up an empty volume). See [[deploy-compose-from-root]].
+  #
+  # Staging for the DB dumps before they enter the restic snapshot.
+  backup-dumps:
+  # The restic repo target: an NFS mount of the NAS dataset tank/backups/rpi5, done by
+  # Docker's local driver (no host fstab needed). The dataset + export are created by
+  # the Ansible role truenas_backup_target. Override addr/export via .env if they move.
+  nas-backup:
+    driver: local
+    driver_opts:
+      type: nfs
+      # NFSv3 = TrueNAS's default (no protocol reconfig needed). restic manages its
+      # own lock files, so v3 is fine; set NAS_BACKUP_NFS_OPTS to switch to 4.1 if you
+      # enable NFSv4 on the NAS. `hard` so a NAS blip retries instead of corrupting.
+      o: "${NAS_BACKUP_NFS_OPTS:-addr=${NAS_BACKUP_ADDR:-192.168.1.18},rw,nfsvers=3,hard,timeo=600,retrans=2}"
+      device: ":${NAS_BACKUP_EXPORT:-/mnt/tank/backups/rpi5}"
 
     # Shared, cross-app network. Declared external so each app's compose (under ../apps/,
     # or in its own repo) can join the SAME network (`networks: [monitoring]` +

@@ -39,3 +39,11 @@ truenas_pool: tank
 truenas_apps_dataset_name: pi-infra-monitoring
 truenas_apps_dataset: "{{ truenas_pool }}/{{ truenas_apps_dataset_name }}"   # ZFS dataset name
 truenas_apps_dir: "/mnt/{{ truenas_apps_dataset }}"                          # its mountpoint
+
+# ── Backup target (role truenas_backup_target, tag `backup`) ──────────────────
+# Makes the NAS the Pi's restic backup destination: dataset {{ truenas_pool }}/backups/rpi5,
+# an NFS export locked to the Pi, and a native periodic ZFS snapshot task (immutability
+# layer for the restic repo). The Pi side is the `backup` service in core/ — see
+# docs/backups.md. Defaults (retention/schedule/hosts) live in the role; override here.
+# The Pi's LAN IP that the NFS export is restricted to:
+truenas_backup_nfs_hosts: ["192.168.1.7"]

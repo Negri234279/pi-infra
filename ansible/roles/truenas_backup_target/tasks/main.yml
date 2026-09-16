@@ -1,0 +1,119 @@
+---
+# Provision the NAS-side restic backup target. Runs with become (midclt needs root).
+# Everything is query-then-create so re-runs report changed=0.
+
+# ── ZFS datasets (parent then child; single-level creates only) ────────────────────
+- name: Check whether the backup datasets exist
+  ansible.builtin.command:
+    argv: [midclt, call, pool.dataset.get_instance, "{{ item }}"]
+  loop:
+    - "{{ truenas_backup_parent_dataset }}"
+    - "{{ truenas_backup_dataset }}"
+  register: truenas_backup_ds
+  changed_when: false
+  failed_when: false
+
+- name: Create the missing backup datasets (parent first — the loop order is preserved)
+  ansible.builtin.command:
+    argv: [midclt, call, pool.dataset.create, "{{ {'name': item.item} | to_json }}"]
+  loop: "{{ truenas_backup_ds.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+  when: item.rc != 0
+  changed_when: true
+
+# ── NFS export (restricted to the Pi) ──────────────────────────────────────────────
+- name: Look up any existing NFS share for the backup path
+  ansible.builtin.command:
+    argv:
+      - midclt
+      - call
+      - sharing.nfs.query
+      - "{{ [['path', '=', truenas_backup_dir]] | to_json }}"
+  register: truenas_backup_nfs_q
+  changed_when: false
+
+- name: Create the NFS export for the backup dataset
+  ansible.builtin.command:
+    argv:
+      - midclt
+      - call
+      - sharing.nfs.create
+      - "{{ nfs_payload | to_json }}"
+  vars:
+    nfs_payload:
+      path: "{{ truenas_backup_dir }}"
+      comment: "{{ truenas_backup_nfs_comment }}"
+      hosts: "{{ truenas_backup_nfs_hosts }}"
+      maproot_user: "{{ truenas_backup_nfs_maproot_user }}"
+      maproot_group: "{{ truenas_backup_nfs_maproot_group }}"
+      enabled: true
+  when: (truenas_backup_nfs_q.stdout | from_json | length) == 0
+  changed_when: true
+
+# ── Make sure the NFS service is enabled + running ─────────────────────────────────
+- name: Query the NFS service state
+  ansible.builtin.command:
+    argv:
+      - midclt
+      - call
+      - service.query
+      - "{{ [['service', '=', 'nfs']] | to_json }}"
+  register: truenas_backup_nfs_svc
+  changed_when: false
+
+- name: Enable the NFS service (start on boot)
+  ansible.builtin.command:
+    argv:
+      - midclt
+      - call
+      - service.update
+      - nfs
+      - "{{ {'enable': true} | to_json }}"
+  when: not ((truenas_backup_nfs_svc.stdout | from_json | first).enable | default(false))
+  changed_when: true
+
+- name: Start the NFS service
+  ansible.builtin.command:
+    argv: [midclt, call, service.start, nfs]
+  when: (truenas_backup_nfs_svc.stdout | from_json | first).state | default('STOPPED') != 'RUNNING'
+  changed_when: true
+
+# ── Periodic Snapshot Task (native Data Protection) ────────────────────────────────
+- name: Look up any existing periodic snapshot task for the backup dataset
+  ansible.builtin.command:
+    argv:
+      - midclt
+      - call
+      - pool.snapshottask.query
+      - "{{ [['dataset', '=', truenas_backup_dataset]] | to_json }}"
+  register: truenas_backup_snap_q
+  changed_when: false
+
+- name: Create the periodic ZFS snapshot task on the backup dataset
+  ansible.builtin.command:
+    argv:
+      - midclt
+      - call
+      - pool.snapshottask.create
+      - "{{ snap_payload | to_json }}"
+  vars:
+    snap_payload:
+      dataset: "{{ truenas_backup_dataset }}"
+      recursive: false
+      lifetime_value: "{{ truenas_backup_snapshot_lifetime_value }}"
+      lifetime_unit: "{{ truenas_backup_snapshot_lifetime_unit }}"
+      naming_schema: "{{ truenas_backup_snapshot_naming }}"
+      schedule: "{{ truenas_backup_snapshot_schedule }}"
+      allow_empty: true
+      enabled: true
+  when: (truenas_backup_snap_q.stdout | from_json | length) == 0
+  changed_when: true
+
+- name: Show the backup target summary
+  ansible.builtin.debug:
+    msg:
+      - "Dataset:  {{ truenas_backup_dir }}"
+      - "NFS:      {{ truenas_backup_dir }} → hosts {{ truenas_backup_nfs_hosts | join(', ') }} (maproot={{ truenas_backup_nfs_maproot_user }})"
+      - "Snapshot: {{ truenas_backup_snapshot_naming }} @ {{ truenas_backup_snapshot_schedule.hour }}:{{ '%02d' | format(truenas_backup_snapshot_schedule.minute | int) }}, keep {{ truenas_backup_snapshot_lifetime_value }} {{ truenas_backup_snapshot_lifetime_unit }}"
+      - "Next: on the Pi set RESTIC_PASSWORD in .env, then ./scripts/deploy.sh"

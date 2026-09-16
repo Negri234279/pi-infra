@@ -85,6 +85,12 @@ if changed '^core/smartctl-exporter/'; then
   log "smartctl-exporter context changed -> rebuilding it"
   BUILD_ARG="--build"
 fi
+# backup is the other locally-built service (restic + docker-cli + sqlite): rebuild
+# it only when its build context changes, same rationale as smartctl-exporter above.
+if changed '^core/backup/'; then
+  log "backup image context changed -> rebuilding it"
+  BUILD_ARG="--build"
+fi
 log "applying compose"
 docker compose up -d --remove-orphans $BUILD_ARG
 

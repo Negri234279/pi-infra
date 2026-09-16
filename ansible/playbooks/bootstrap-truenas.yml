@@ -13,6 +13,9 @@
 #   6. truenas_nextcloud            — OPT-IN (tag `nextcloud`): private Drive on the NAS
 #      (self-contained Nextcloud + Postgres + Redis on ZFS datasets, LAN/VPN only). Needs
 #      hosts/truenas/nextcloud.env (copy from .example). Not part of the observability bootstrap.
+#   7. truenas_backup_target        — OPT-IN (tag `backup`): make the NAS the Pi's restic
+#      backup target — dataset tank/backups/rpi5 + NFS export (Pi only) + a native periodic
+#      ZFS snapshot task. Pairs with the `backup` service in core/ (see docs/backups.md).
 #
 # The hub's Prometheus then scrapes 192.168.1.18:9108 (job `truenas`, in
 # core/prometheus/prometheus.yml). Grafana dashboards live in the "nas" folder.
@@ -43,3 +46,7 @@
     # Opt-in service (private Drive). `never` → only with `--tags nextcloud`.
     - role: truenas_nextcloud
       tags: [nextcloud, never]
+    # Backup target for the Pi: dataset + NFS export + periodic ZFS snapshot task.
+    # `never` → only with `--tags backup` (not part of the observability bootstrap).
+    - role: truenas_backup_target
+      tags: [backup, never]

@@ -1,0 +1,36 @@
+---
+# Prepare the NAS to be the restic backup target for the Pi (rpi5):
+#   1. a dedicated ZFS dataset (so it shows in Storage → Datasets, quota'd + snapshotted),
+#   2. an NFS export restricted to the Pi (the `backup` container mounts it as a volume),
+#   3. a native Periodic Snapshot Task on that dataset = the immutability layer that
+#      protects the restic repo itself (the "2" of 3-2-1; offsite "1" is future work).
+#
+# All idempotent, driven through the middleware (midclt) — same posture as the other
+# truenas_* roles ([[nas-truenas-os-integration]]). Run with:
+#   ./run.sh playbooks/bootstrap-truenas.yml --tags backup
+
+# ── Datasets (nested: <pool>/backups/rpi5, parent created first if missing) ───────
+truenas_backup_parent_dataset: "{{ truenas_pool }}/backups"
+truenas_backup_dataset: "{{ truenas_pool }}/backups/rpi5"
+truenas_backup_dir: "/mnt/{{ truenas_backup_dataset }}"
+
+# ── NFS export ────────────────────────────────────────────────────────────────────
+# Restrict the share to the Pi only. maproot=root so the container (root) can create
+# and own the restic repo files on this dedicated dataset.
+truenas_backup_nfs_hosts: ["192.168.1.7"]      # the rpi5 hub; add more only if needed
+truenas_backup_nfs_maproot_user: root
+truenas_backup_nfs_maproot_group: root
+truenas_backup_nfs_comment: "pi-infra rpi5 restic backups"
+
+# ── Periodic Snapshot Task (native TrueNAS Data Protection) ───────────────────────
+# Daily at 01:00 — deliberately OFFSET 2h after the Pi's 23:00 backup window so the
+# snapshot captures the repo at rest. Keeps ~2 weeks of daily repo snapshots.
+truenas_backup_snapshot_naming: "restic-auto-%Y-%m-%d_%H-%M"
+truenas_backup_snapshot_lifetime_value: 2
+truenas_backup_snapshot_lifetime_unit: WEEK        # WEEK | DAY | MONTH | YEAR
+truenas_backup_snapshot_schedule:
+  minute: "0"
+  hour: "1"
+  dom: "*"
+  month: "*"
+  dow: "*"
