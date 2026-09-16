@@ -87,8 +87,19 @@ docker compose exec backup restic snapshots           # should list one snapshot
 docker compose exec backup restic check               # repo integrity
 ```
 
-Grafana/Prometheus: `pi_backup_*` metrics appear on job=node; alerts `BackupTooOld` /
-`BackupLastRunFailed` / `BackupMetricsAbsent` live in `core/prometheus/rules/backup-alerts.yml`.
+### Visibility (Grafana)
+
+- **Dashboard "Pi · backups"** (`core/grafana/dashboards/pi-backups.json`, folder Infra): last
+  backup age / result / warnings / duration, restic repo size + snapshot count, the NAS ZFS
+  snapshot age + count, trend charts, and the live `backup` container logs (Loki).
+- **Pi metrics** `pi_backup_*` come from node-exporter's textfile collector (job=node); restic
+  has no live‑progress metric — watch the logs panel for that.
+- **NAS snapshot metrics** (age/count of `tank/backups/rpi5`) are pushed by
+  `truenas_metrics_pusher` into the graphite_exporter and land on job=truenas as a passthrough
+  (matched by `__name__` regex). ⚠ VERIFY the exact metric name after the first scrape.
+- **Alerts** (`core/prometheus/rules/backup-alerts.yml`): `BackupTooOld`, `BackupLastRunFailed`,
+  `BackupMetricsAbsent` (Pi side) and `BackupNasSnapshotStale`, `BackupNasSnapshotMetricAbsent`
+  (NAS side) → same Discord routing as everything else.
 
 ---
 

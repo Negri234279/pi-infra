@@ -1,0 +1,149 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "graphTooltip": 1,
+  "schemaVersion": 39,
+  "tags": ["backups", "restic", "pi", "nas"],
+  "links": [
+    { "asDropdown": false, "icon": "external link", "includeVars": false, "keepTime": true, "tags": ["pi"], "targetBlank": false, "title": "Pi", "tooltip": "", "type": "dashboards", "url": "" }
+  ],
+  "title": "Pi · backups",
+  "uid": "pi-backups-core",
+  "description": "Estado del backup nocturno (restic → NAS): última copia, resultado, tamaño del repo, retención, y la capa de snapshots ZFS del dataset en el NAS. Métricas pi_backup_* (job=node) + snapshot del NAS (job=truenas) + logs Loki del contenedor backup.",
+  "time": { "from": "now-7d", "to": "now" },
+  "timezone": "browser",
+  "refresh": "5m",
+  "templating": { "list": [] },
+  "panels": [
+    {
+      "id": 1, "type": "stat", "title": "Último backup correcto (hace)",
+      "gridPos": { "h": 5, "w": 6, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus-infra" },
+      "fieldConfig": { "defaults": {
+        "unit": "s", "decimals": 0,
+        "color": { "mode": "thresholds" },
+        "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "yellow", "value": 86400 }, { "color": "red", "value": 93600 } ] }
+      }, "overrides": [] },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "" }, "colorMode": "background", "graphMode": "none", "textMode": "value" },
+      "targets": [ { "refId": "A", "datasource": { "type": "prometheus", "uid": "prometheus-infra" }, "expr": "time() - pi_backup_last_success_timestamp_seconds" } ]
+    },
+    {
+      "id": 2, "type": "stat", "title": "Resultado última corrida",
+      "gridPos": { "h": 5, "w": 6, "x": 6, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus-infra" },
+      "fieldConfig": { "defaults": {
+        "color": { "mode": "thresholds" },
+        "thresholds": { "mode": "absolute", "steps": [ { "color": "red", "value": null }, { "color": "green", "value": 1 } ] },
+        "mappings": [ { "type": "value", "options": { "0": { "text": "FALLO" }, "1": { "text": "OK" } } } ]
+      }, "overrides": [] },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "" }, "colorMode": "background", "graphMode": "none", "textMode": "value" },
+      "targets": [ { "refId": "A", "datasource": { "type": "prometheus", "uid": "prometheus-infra" }, "expr": "pi_backup_success" } ]
+    },
+    {
+      "id": 3, "type": "stat", "title": "Warnings última corrida",
+      "gridPos": { "h": 5, "w": 6, "x": 12, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus-infra" },
+      "fieldConfig": { "defaults": {
+        "color": { "mode": "thresholds" },
+        "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "red", "value": 1 } ] }
+      }, "overrides": [] },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "" }, "colorMode": "background", "graphMode": "none", "textMode": "value" },
+      "targets": [ { "refId": "A", "datasource": { "type": "prometheus", "uid": "prometheus-infra" }, "expr": "pi_backup_warnings" } ]
+    },
+    {
+      "id": 4, "type": "stat", "title": "Duración última corrida",
+      "gridPos": { "h": 5, "w": 6, "x": 18, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus-infra" },
+      "fieldConfig": { "defaults": {
+        "unit": "s", "decimals": 0,
+        "color": { "mode": "thresholds" },
+        "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "yellow", "value": 600 }, { "color": "red", "value": 1800 } ] }
+      }, "overrides": [] },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "" }, "colorMode": "value", "graphMode": "area", "textMode": "value" },
+      "targets": [ { "refId": "A", "datasource": { "type": "prometheus", "uid": "prometheus-infra" }, "expr": "pi_backup_last_duration_seconds" } ]
+    },
+    {
+      "id": 5, "type": "stat", "title": "Tamaño repo (dedup)",
+      "gridPos": { "h": 5, "w": 6, "x": 0, "y": 5 },
+      "datasource": { "type": "prometheus", "uid": "prometheus-infra" },
+      "fieldConfig": { "defaults": { "unit": "bytes", "color": { "mode": "fixed", "fixedColor": "blue" } }, "overrides": [] },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "" }, "colorMode": "value", "graphMode": "area", "textMode": "value" },
+      "targets": [ { "refId": "A", "datasource": { "type": "prometheus", "uid": "prometheus-infra" }, "expr": "pi_backup_repo_size_bytes" } ]
+    },
+    {
+      "id": 6, "type": "stat", "title": "Snapshots restic (puntos de restauración)",
+      "gridPos": { "h": 5, "w": 6, "x": 6, "y": 5 },
+      "datasource": { "type": "prometheus", "uid": "prometheus-infra" },
+      "fieldConfig": { "defaults": { "color": { "mode": "fixed", "fixedColor": "purple" } }, "overrides": [] },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "" }, "colorMode": "value", "graphMode": "none", "textMode": "value" },
+      "targets": [ { "refId": "A", "datasource": { "type": "prometheus", "uid": "prometheus-infra" }, "expr": "pi_backup_snapshots_total" } ]
+    },
+    {
+      "id": 7, "type": "stat", "title": "Snapshot ZFS NAS (hace)",
+      "gridPos": { "h": 5, "w": 6, "x": 12, "y": 5 },
+      "datasource": { "type": "prometheus", "uid": "prometheus-infra" },
+      "fieldConfig": { "defaults": {
+        "unit": "s", "decimals": 0,
+        "color": { "mode": "thresholds" },
+        "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "yellow", "value": 86400 }, { "color": "red", "value": 93600 } ] },
+        "mappings": [ { "type": "range", "options": { "from": -1e9, "to": -0.5, "result": { "text": "SIN SNAPSHOT", "color": "red" } } } ]
+      }, "overrides": [] },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "" }, "colorMode": "background", "graphMode": "none", "textMode": "value" },
+      "targets": [ { "refId": "A", "datasource": { "type": "prometheus", "uid": "prometheus-infra" }, "expr": "max({__name__=~\".+backup_snapshot.+age_seconds\", job=\"truenas\"})" } ]
+    },
+    {
+      "id": 8, "type": "stat", "title": "Nº snapshots ZFS NAS",
+      "gridPos": { "h": 5, "w": 6, "x": 18, "y": 5 },
+      "datasource": { "type": "prometheus", "uid": "prometheus-infra" },
+      "fieldConfig": { "defaults": { "color": { "mode": "fixed", "fixedColor": "purple" } }, "overrides": [] },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "" }, "colorMode": "value", "graphMode": "none", "textMode": "value" },
+      "targets": [ { "refId": "A", "datasource": { "type": "prometheus", "uid": "prometheus-infra" }, "expr": "max({__name__=~\".+backup_snapshot.+count\", job=\"truenas\"})" } ]
+    },
+    {
+      "id": 9, "type": "timeseries", "title": "Edad del último backup correcto",
+      "description": "Cae a ~0 cada noche cuando el backup termina; una rampa continua hacia arriba = los backups han dejado de completarse.",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 10 },
+      "datasource": { "type": "prometheus", "uid": "prometheus-infra" },
+      "fieldConfig": { "defaults": {
+        "unit": "s", "custom": { "drawStyle": "line", "fillOpacity": 10, "lineWidth": 2, "showPoints": "never" },
+        "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "red", "value": 93600 } ] }
+      }, "overrides": [] },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "single" } },
+      "targets": [ { "refId": "A", "datasource": { "type": "prometheus", "uid": "prometheus-infra" }, "expr": "time() - pi_backup_last_success_timestamp_seconds", "legendFormat": "edad backup" } ]
+    },
+    {
+      "id": 10, "type": "timeseries", "title": "Tamaño del repo restic",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 10 },
+      "datasource": { "type": "prometheus", "uid": "prometheus-infra" },
+      "fieldConfig": { "defaults": { "unit": "bytes", "custom": { "drawStyle": "line", "fillOpacity": 15, "lineWidth": 2, "showPoints": "never" } }, "overrides": [] },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "single" } },
+      "targets": [ { "refId": "A", "datasource": { "type": "prometheus", "uid": "prometheus-infra" }, "expr": "pi_backup_repo_size_bytes", "legendFormat": "repo (dedup)" } ]
+    },
+    {
+      "id": 11, "type": "timeseries", "title": "Duración del backup",
+      "gridPos": { "h": 7, "w": 12, "x": 0, "y": 18 },
+      "datasource": { "type": "prometheus", "uid": "prometheus-infra" },
+      "fieldConfig": { "defaults": { "unit": "s", "custom": { "drawStyle": "bars", "fillOpacity": 60, "lineWidth": 1, "showPoints": "never" } }, "overrides": [] },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "single" } },
+      "targets": [ { "refId": "A", "datasource": { "type": "prometheus", "uid": "prometheus-infra" }, "expr": "pi_backup_last_duration_seconds", "legendFormat": "duración" } ]
+    },
+    {
+      "id": 12, "type": "timeseries", "title": "Puntos de restauración (restic vs snapshots ZFS NAS)",
+      "gridPos": { "h": 7, "w": 12, "x": 12, "y": 18 },
+      "datasource": { "type": "prometheus", "uid": "prometheus-infra" },
+      "fieldConfig": { "defaults": { "custom": { "drawStyle": "line", "fillOpacity": 10, "lineWidth": 2, "showPoints": "never" } }, "overrides": [] },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "refId": "A", "datasource": { "type": "prometheus", "uid": "prometheus-infra" }, "expr": "pi_backup_snapshots_total", "legendFormat": "restic" },
+        { "refId": "B", "datasource": { "type": "prometheus", "uid": "prometheus-infra" }, "expr": "max({__name__=~\".+backup_snapshot.+count\", job=\"truenas\"})", "legendFormat": "ZFS NAS" }
+      ]
+    },
+    {
+      "id": 13, "type": "logs", "title": "Logs del contenedor backup",
+      "gridPos": { "h": 11, "w": 24, "x": 0, "y": 25 },
+      "datasource": { "type": "loki", "uid": "loki-infra" },
+      "options": { "showTime": true, "wrapLogMessage": true, "prettifyLogMessage": false, "enableLogDetails": true, "dedupStrategy": "none", "sortOrder": "Descending" },
+      "targets": [ { "refId": "A", "datasource": { "type": "loki", "uid": "loki-infra" }, "expr": "{container=\"backup\"}" } ]
+    }
+  ]
+}

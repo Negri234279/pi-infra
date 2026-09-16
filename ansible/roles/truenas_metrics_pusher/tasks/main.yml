@@ -23,6 +23,8 @@
       - "{{ truenas_pusher_graphite_port | string }}"
       - "--base"
       - "{{ truenas_pusher_base }}"
+      - "--snapshot-datasets"
+      - "{{ truenas_pusher_snapshot_datasets }}"
   register: truenas_pusher_prime
   changed_when: false
 

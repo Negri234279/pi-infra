@@ -9,6 +9,14 @@ already sends, so these join the existing series ):
   {base}.smart.log.smart.disktemp.<serial>.temp      -> disk_temperature{serial}   (°C)
   {base}.zfspool.state_<pool>.<state>                 -> zfs_pool{pool,state}       (1/0)
   {base}.disk_space.<mountpoint>.used|avail           -> disk_bytes_used|avail{mountpoint} (GiB)
+  {base}.backup_snapshot.<ds>.age_seconds|count       -> passthrough (see below)   (s / count)
+
+The last one is for the backup dataset's ZFS Periodic Snapshot Task (see role truenas_backup_target
++ docs/backups.md): its age/count aren't on any netdata chart. These paths have NO mapping rule, so
+graphite_exporter passes them through with the dotted path underscored, e.g.
+`truenas_truenas_backup_snapshot_tank_backups_rpi5_age_seconds` (job="truenas"). The Backups
+dashboard matches them by __name__ regex, so the exact mangling doesn't matter. age_seconds=-1 when
+the dataset has no snapshots yet.
 
 The chassis relabel in prometheus.yml tags disk_temperature by serial -> bay/vdev, so these
 light up the truenas-chassis dashboard and the pool/capacity alerts. Exits 0 even on partial
@@ -117,16 +125,62 @@ def pool_lines(base, ts):
     return lines
 
 
+def _to_epoch(v):
+    """Coerce a TrueNAS `properties.creation` value to a unix epoch (int) or None. `.parsed` is
+    usually already an epoch int; fall back to a numeric string (rawvalue) or an ISO datetime."""
+    if isinstance(v, (int, float)):
+        return int(v)
+    if isinstance(v, str):
+        s = v.strip()
+        if s.isdigit():
+            return int(s)
+        try:
+            from datetime import datetime
+            return int(datetime.fromisoformat(s).timestamp())
+        except Exception:  # noqa: BLE001
+            return None
+    return None
+
+
+def snapshot_lines(base, ts, datasets):
+    """Age (s) since the newest ZFS snapshot + snapshot count, per backup dataset. Feeds the
+    Backups dashboard's NAS-side tiles (the restic repo's immutability layer). Never fatal."""
+    lines = []
+    for ds in datasets:
+        ds = ds.strip()
+        if not ds:
+            continue
+        token = re.sub(r"[^a-zA-Z0-9]", "_", ds)
+        snaps = midclt("zfs.snapshot.query",
+                       json.dumps([["dataset", "=", ds]]),
+                       json.dumps({"extra": {"properties": ["creation"]}}))
+        snaps = snaps if isinstance(snaps, list) else []
+        newest = 0
+        for s in snaps:
+            epoch = _to_epoch(((s.get("properties") or {}).get("creation") or {}).get("parsed")
+                              or ((s.get("properties") or {}).get("creation") or {}).get("rawvalue"))
+            if epoch and epoch > newest:
+                newest = epoch
+        age = (ts - newest) if newest else -1
+        lines.append((f"{base}.backup_snapshot.{token}.count", len(snaps), ts))
+        lines.append((f"{base}.backup_snapshot.{token}.age_seconds", age, ts))
+    return lines
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--host", default="127.0.0.1")
     ap.add_argument("--port", type=int, default=9109)
     ap.add_argument("--base", default="truenas.truenas",
                     help="Graphite path prefix = <reporting prefix>.<namespace>")
+    ap.add_argument("--snapshot-datasets", default="",
+                    help="comma-separated ZFS datasets to report snapshot age/count for")
     args = ap.parse_args()
 
     ts = int(time.time())
-    lines = disk_temp_lines(args.base, ts) + pool_lines(args.base, ts)
+    snap_datasets = [d for d in args.snapshot_datasets.split(",") if d.strip()]
+    lines = (disk_temp_lines(args.base, ts) + pool_lines(args.base, ts)
+             + snapshot_lines(args.base, ts, snap_datasets))
     if not lines:
         print("warn: nothing to push (all midclt calls failed?)", file=sys.stderr)
         return 0

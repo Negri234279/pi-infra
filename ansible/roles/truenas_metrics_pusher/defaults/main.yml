@@ -15,10 +15,16 @@ truenas_pusher_graphite_port: "{{ truenas_graphite_ingest_port }}"   # 9109
 # already sends (observed second token is the namespace: "truenas.truenas").
 truenas_pusher_base: "{{ truenas_reporting_prefix }}.{{ truenas_reporting_namespace }}"
 
+# ZFS dataset(s) whose Periodic Snapshot Task age/count the pusher also reports (comma-separated),
+# for the Backups dashboard's NAS-side tiles. Defaults to the rpi5 restic-repo dataset (role
+# truenas_backup_target). Harmless before the dataset exists (age=-1, count=0).
+truenas_pusher_snapshot_datasets: "{{ truenas_pool }}/backups/rpi5"
+
 # The command the cron job runs, and how we identify that job (idempotent create keys on this).
 truenas_pusher_command: >-
   python3 {{ truenas_pusher_script_dest }}
   --host {{ truenas_pusher_graphite_host }}
   --port {{ truenas_pusher_graphite_port }}
   --base {{ truenas_pusher_base }}
+  --snapshot-datasets {{ truenas_pusher_snapshot_datasets }}
 truenas_pusher_cron_desc: "pi-infra: push disk temps + pool state/capacity to graphite_exporter"
