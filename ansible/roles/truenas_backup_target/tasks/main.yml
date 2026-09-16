@@ -101,6 +101,10 @@
   register: truenas_backup_snap_q
   changed_when: false
 
+- name: Note the existing snapshot task (if any)
+  ansible.builtin.set_fact:
+    truenas_backup_snap_existing: "{{ (truenas_backup_snap_q.stdout | from_json | first) | default({}) }}"
+
 - name: Create the periodic ZFS snapshot task on the backup dataset
   ansible.builtin.command:
     argv:
@@ -118,7 +122,24 @@
       schedule: "{{ truenas_backup_snapshot_schedule }}"
       allow_empty: true
       enabled: true
-  when: (truenas_backup_snap_q.stdout | from_json | length) == 0
+  when: truenas_backup_snap_existing == {}
+  changed_when: true
+
+# Reconcile the SCHEDULE of an already-existing task (create-only would leave a re-run unable to
+# change the time). Only fires when hour/minute drift from the desired values, so unchanged re-runs
+# report changed=0. Retention/naming changes are rarer → adjust those in the TrueNAS UI if needed.
+- name: Update the snapshot task's time if it drifted
+  ansible.builtin.command:
+    argv:
+      - midclt
+      - call
+      - pool.snapshottask.update
+      - "{{ truenas_backup_snap_existing.id | int }}"
+      - "{{ {'schedule': truenas_backup_snapshot_schedule} | to_json }}"
+  when:
+    - truenas_backup_snap_existing != {}
+    - (truenas_backup_snap_existing.schedule.hour | default('') | string != truenas_backup_snapshot_schedule.hour | string)
+      or (truenas_backup_snap_existing.schedule.minute | default('') | string != truenas_backup_snapshot_schedule.minute | string)
   changed_when: true
 
 - name: Show the backup target summary

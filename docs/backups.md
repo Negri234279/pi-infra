@@ -8,8 +8,8 @@ a second machine exists (then: `restic copy` to it / to Backblaze B2 — see *Fu
 ```
                  ┌── restic (Capa A: retención lógica de puntos de restauración)
  rpi5 ──nightly──┤
- (23:00)         └─► NFS ─► tank/backups/rpi5 ──ZFS snapshots (Capa B: inmutabilidad)
-                                (NAS, RAIDZ2)      01:00, keep 2w   [solo desde el NAS]
+ (00:00)         └─► NFS ─► tank/backups/rpi5 ──ZFS snapshots (Capa B: inmutabilidad)
+                                (NAS, RAIDZ2)      00:30, keep 2w   [solo desde el NAS]
 ```
 
 - **Capa A — restic `forget --prune`**: how many restore points exist in the repo
@@ -61,7 +61,7 @@ cd ansible
 
 Idempotent (midclt). Creates `tank/backups/rpi5`, the NFS export for `192.168.1.7`
 (`maproot=root` so restic owns its files), ensures the NFS service is up, and a daily
-01:00 snapshot task keeping 2 weeks. Tune in `ansible/roles/truenas_backup_target/defaults`.
+00:30 snapshot task keeping 2 weeks. Tune in `ansible/roles/truenas_backup_target/defaults`.
 
 **2. Pi side** — fill `.env` (see `.env.example`, "Backups" section):
 
@@ -192,7 +192,7 @@ the **dataset** back to a NAS snapshot — done entirely on the NAS, the Pi can'
 
 ```bash
 # On the NAS (UI: Datasets → tank/backups/rpi5 → Snapshots → Rollback, or:)
-midclt call zfs.snapshot.rollback tank/backups/rpi5@restic-auto-YYYY-MM-DD_01-00
+midclt call zfs.snapshot.rollback tank/backups/rpi5@restic-auto-YYYY-MM-DD_00-30
 ```
 
 Then restore normally (A/B/C) from the rolled‑back repo.
@@ -207,9 +207,9 @@ Then restore normally (A/B/C) from the rolled‑back repo.
 - **Integrity check (monthly is plenty):** `docker compose exec backup restic check --read-data-subset=5%`.
 - **Retention** is applied every run by `forget --prune`; the NAS snapshot retention is
   separate (role default 2 weeks) — they don't need to match.
-- **Timing:** Pi backup 23:00, NAS snapshot 01:00 — the 2h offset lets the snapshot
-  capture the repo at rest. restic tolerates a snapshot taken mid‑run anyway (it looks
-  like an interrupted backup — the repo stays valid).
+- **Timing:** Pi backup 00:00, NAS snapshot 00:30 — the 30‑min offset lets the snapshot
+  capture the repo at rest (the backup runs in seconds). restic tolerates a snapshot taken
+  mid‑run anyway (it looks like an interrupted backup — the repo stays valid).
 
 ## Future (the offsite "1" of 3‑2‑1)
 

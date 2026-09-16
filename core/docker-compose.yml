@@ -616,7 +616,7 @@ services:
       - RESTIC_REPOSITORY=/backup/restic
       - RESTIC_PASSWORD=${RESTIC_PASSWORD:?set RESTIC_PASSWORD in .env}
       - BACKUP_HOST=rpi5
-      - BACKUP_CRON=${BACKUP_CRON:-0 23 * * *}
+      - BACKUP_CRON=${BACKUP_CRON:-0 0 * * *}
       - BACKUP_ON_START=${BACKUP_ON_START:-false}
       - KEEP_DAILY=${BACKUP_KEEP_DAILY:-14}
       - KEEP_WEEKLY=${BACKUP_KEEP_WEEKLY:-8}

@@ -23,14 +23,14 @@ truenas_backup_nfs_maproot_group: root
 truenas_backup_nfs_comment: "pi-infra rpi5 restic backups"
 
 # ── Periodic Snapshot Task (native TrueNAS Data Protection) ───────────────────────
-# Daily at 01:00 — deliberately OFFSET 2h after the Pi's 23:00 backup window so the
-# snapshot captures the repo at rest. Keeps ~2 weeks of daily repo snapshots.
+# Daily at 00:30 — OFFSET 30 min after the Pi's 00:00 backup window (the backup takes seconds,
+# so a short gap captures the repo at rest). Keeps ~2 weeks of daily repo snapshots.
 truenas_backup_snapshot_naming: "restic-auto-%Y-%m-%d_%H-%M"
 truenas_backup_snapshot_lifetime_value: 2
 truenas_backup_snapshot_lifetime_unit: WEEK        # WEEK | DAY | MONTH | YEAR
 truenas_backup_snapshot_schedule:
-  minute: "0"
-  hour: "1"
+  minute: "30"
+  hour: "0"
   dom: "*"
   month: "*"
   dow: "*"

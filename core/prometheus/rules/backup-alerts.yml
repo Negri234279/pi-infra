@@ -16,7 +16,7 @@ groups:
   - name: backup
     rules:
       - alert: BackupTooOld
-        # More than ~26h since the last successful backup (a daily job at 23:00 + slack for a
+        # More than ~26h since the last successful backup (a daily job at 00:00 + slack for a
         # slow run). Catches silent failure of the schedule itself.
         expr: time() - pi_backup_last_success_timestamp_seconds > 26 * 3600
         for: 15m
