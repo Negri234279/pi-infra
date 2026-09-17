@@ -126,8 +126,12 @@ def pool_lines(base, ts):
 
 
 def _to_epoch(v):
-    """Coerce a TrueNAS `properties.creation` value to a unix epoch (int) or None. `.parsed` is
-    usually already an epoch int; fall back to a numeric string (rawvalue) or an ISO datetime."""
+    """Coerce a TrueNAS `properties.creation` value to a unix epoch (int) or None. On 25.10
+    `.parsed` is a dict {"$date": <ms>} (milliseconds!); `.rawvalue` is an epoch-seconds string.
+    Also tolerate a bare int/float or an ISO datetime string."""
+    if isinstance(v, dict):                      # {"$date": milliseconds}
+        ms = v.get("$date")
+        return int(ms // 1000) if isinstance(ms, (int, float)) else None
     if isinstance(v, (int, float)):
         return int(v)
     if isinstance(v, str):
@@ -157,8 +161,9 @@ def snapshot_lines(base, ts, datasets):
         snaps = snaps if isinstance(snaps, list) else []
         newest = 0
         for s in snaps:
-            epoch = _to_epoch(((s.get("properties") or {}).get("creation") or {}).get("parsed")
-                              or ((s.get("properties") or {}).get("creation") or {}).get("rawvalue"))
+            creation = (s.get("properties") or {}).get("creation") or {}
+            # Try .parsed ({"$date": ms}) first, then fall back to .rawvalue (epoch-seconds string).
+            epoch = _to_epoch(creation.get("parsed")) or _to_epoch(creation.get("rawvalue"))
             if epoch and epoch > newest:
                 newest = epoch
         age = (ts - newest) if newest else -1

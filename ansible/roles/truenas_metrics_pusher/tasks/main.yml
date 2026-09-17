@@ -64,3 +64,19 @@
     argv: [midclt, call, cronjob.create, "{{ truenas_pusher_cron_payload | to_json }}"]
   when: (truenas_pusher_cron_q.stdout | from_json | length) == 0
   changed_when: true
+
+# Reconcile the COMMAND of an existing cron (create-only would leave a re-run unable to change it —
+# e.g. adding --snapshot-datasets never reached the running cron). Only fires when it drifts, so
+# unchanged re-runs report changed=0.
+- name: Update the cron command if it drifted
+  ansible.builtin.command:
+    argv:
+      - midclt
+      - call
+      - cronjob.update
+      - "{{ (truenas_pusher_cron_q.stdout | from_json | first).id | int }}"
+      - "{{ {'command': truenas_pusher_command} | to_json }}"
+  when:
+    - (truenas_pusher_cron_q.stdout | from_json | length) > 0
+    - (truenas_pusher_cron_q.stdout | from_json | first).command != truenas_pusher_command
+  changed_when: true
