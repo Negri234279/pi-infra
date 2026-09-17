@@ -25,7 +25,16 @@ log() { echo "[deploy $(date '+%Y-%m-%dT%H:%M:%S%z')] $*"; }
 # --ignore-buildable choking on a locally-built service (smartctl-exporter) whose
 # build guard only exists in the new script.
 if [ -z "${DEPLOY_REEXEC:-}" ]; then
-  git fetch --quiet origin
+  # Fetch with a few retries: pulls from GitHub over HTTPS occasionally hit a transient TLS
+  # handshake drop ("GnuTLS ... The TLS connection was non-properly terminated"), which used
+  # to fail the whole deploy. Retry before giving up.
+  fetched=0
+  for attempt in 1 2 3; do
+    if git fetch --quiet origin; then fetched=1; break; fi
+    log "git fetch failed (attempt $attempt/3); retrying in 5s…"
+    sleep 5
+  done
+  [ "$fetched" = 1 ] || { log "git fetch failed after 3 attempts — aborting"; exit 1; }
 
   OLD="$(git rev-parse HEAD)"
   REMOTE="$(git rev-parse '@{u}')"
@@ -35,7 +44,9 @@ if [ -z "${DEPLOY_REEXEC:-}" ]; then
   fi
 
   log "updating $OLD -> $REMOTE"
-  git pull --ff-only
+  # Fast-forward from the ref we JUST fetched — a local merge, no second network round trip
+  # (git pull would re-fetch and can flake on the same TLS blip described above).
+  git merge --ff-only "$REMOTE"
   NEW="$(git rev-parse HEAD)"
 
   DEPLOY_REEXEC=1 DEPLOY_OLD="$OLD" DEPLOY_NEW="$NEW" exec "$0" "$@"
