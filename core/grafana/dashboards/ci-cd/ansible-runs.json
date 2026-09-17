@@ -14,14 +14,14 @@
   "editable": true,
   "graphTooltip": 1,
   "schemaVersion": 39,
-  "tags": ["loki", "ansible", "ci-cd"],
+  "tags": ["prometheus", "loki", "ansible", "ci-cd"],
   "links": [
     { "asDropdown": false, "icon": "external link", "includeVars": false, "keepTime": true, "tags": ["ci-cd"], "targetBlank": false, "title": "CI/CD", "tooltip": "", "type": "dashboards", "url": "" }
   ],
   "title": "CI/CD · Ansible runs",
   "uid": "ansible-runs-cicd",
-  "description": "Ansible playbook runs from the rpi5 control node. Logs come from the systemd journal (tagged `ansible` by scripts/../run.sh) shipped to Loki by Alloy; the purple annotations are the community.grafana grafana_annotations callback (tag `ansible`).",
-  "time": { "from": "now-24h", "to": "now" },
+  "description": "Ansible playbook runs from the control node. STATUS (top row) is real Prometheus data: the prometheus_textfile callback (ansible/callback_plugins) writes per-playbook metrics to the node-exporter textfile collector, scraped by the `node` job (prometheus-infra). LOGS (bottom) come from the systemd journal tagged `ansible` by run.sh, shipped to Loki by Alloy ({identifier=\"ansible\"}). Purple annotations = the community.grafana grafana_annotations callback.",
+  "time": { "from": "now-7d", "to": "now" },
   "timezone": "browser",
   "refresh": "30s",
   "templating": {
@@ -38,17 +38,119 @@
   },
   "panels": [
     {
+      "id": 200,
+      "type": "row",
+      "title": "Estado — Ansible (Prometheus)",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "collapsed": false
+    },
+    {
+      "id": 10,
+      "type": "stat",
+      "title": "Resultado último run",
+      "description": "ansible_playbook_last_run_success — 1 = OK, 0 = falló (failures/unreachable > 0). Un mosaico por playbook.",
+      "gridPos": { "h": 5, "w": 6, "x": 0, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "prometheus-infra" },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            { "type": "value", "options": { "0": { "text": "FALLO", "color": "red", "index": 0 }, "1": { "text": "OK", "color": "green", "index": 1 } } }
+          ],
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [ { "color": "red", "value": null }, { "color": "green", "value": 1 } ] }
+        },
+        "overrides": []
+      },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "" }, "colorMode": "background", "graphMode": "none", "textMode": "value_and_name", "justifyMode": "auto" },
+      "targets": [
+        { "refId": "A", "datasource": { "type": "prometheus", "uid": "prometheus-infra" }, "expr": "ansible_playbook_last_run_success", "legendFormat": "{{playbook}}", "instant": true }
+      ]
+    },
+    {
+      "id": 11,
+      "type": "stat",
+      "title": "Hace (último run)",
+      "description": "Tiempo desde la última ejecución de cada playbook.",
+      "gridPos": { "h": 5, "w": 6, "x": 6, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "prometheus-infra" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "yellow", "value": 2592000 }, { "color": "red", "value": 7776000 } ] }
+        },
+        "overrides": []
+      },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "" }, "colorMode": "value", "graphMode": "none", "textMode": "value_and_name", "justifyMode": "auto" },
+      "targets": [
+        { "refId": "A", "datasource": { "type": "prometheus", "uid": "prometheus-infra" }, "expr": "time() - ansible_playbook_last_run_timestamp_seconds", "legendFormat": "{{playbook}}", "instant": true }
+      ]
+    },
+    {
+      "id": 12,
+      "type": "stat",
+      "title": "Duración último run",
+      "gridPos": { "h": 5, "w": 6, "x": 12, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "prometheus-infra" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "color": { "mode": "continuous-BlPu" }
+        },
+        "overrides": []
+      },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "" }, "colorMode": "value", "graphMode": "none", "textMode": "value_and_name", "justifyMode": "auto" },
+      "targets": [
+        { "refId": "A", "datasource": { "type": "prometheus", "uid": "prometheus-infra" }, "expr": "ansible_playbook_duration_seconds", "legendFormat": "{{playbook}}", "instant": true }
+      ]
+    },
+    {
+      "id": 13,
+      "type": "bargauge",
+      "title": "Tareas del último run",
+      "description": "ansible_playbook_tasks por resultado (ok/changed/failures/unreachable/skipped), sumado entre hosts.",
+      "gridPos": { "h": 5, "w": 6, "x": 18, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "prometheus-infra" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [ { "color": "blue", "value": null } ] }
+        },
+        "overrides": [
+          { "matcher": { "id": "byRegexp", "options": ".*failures.*|.*unreachable.*" }, "properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "red" } } ] },
+          { "matcher": { "id": "byRegexp", "options": ".*changed.*" }, "properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "yellow" } } ] }
+        ]
+      },
+      "options": { "orientation": "horizontal", "displayMode": "gradient", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "" }, "showUnfilled": true },
+      "targets": [
+        { "refId": "A", "datasource": { "type": "prometheus", "uid": "prometheus-infra" }, "expr": "ansible_playbook_tasks{result=~\"ok|changed|failures|unreachable\"}", "legendFormat": "{{playbook}} · {{result}}", "instant": true }
+      ]
+    },
+    {
+      "id": 14,
+      "type": "timeseries",
+      "title": "Duración por ejecución (histórico)",
+      "description": "Cada escalón es el valor del gauge tras un run; los saltos marcan ejecuciones nuevas.",
+      "gridPos": { "h": 6, "w": 24, "x": 0, "y": 6 },
+      "datasource": { "type": "prometheus", "uid": "prometheus-infra" },
+      "fieldConfig": { "defaults": { "unit": "s", "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 10, "pointSize": 6, "showPoints": "always", "spanNulls": false } }, "overrides": [] },
+      "options": { "legend": { "showLegend": true, "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "desc" } },
+      "targets": [
+        { "refId": "A", "datasource": { "type": "prometheus", "uid": "prometheus-infra" }, "expr": "ansible_playbook_duration_seconds", "legendFormat": "{{playbook}}" }
+      ]
+    },
+    {
       "id": 100,
       "type": "row",
-      "title": "Runs — Ansible (journald → Loki)",
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "title": "Salida de los runs (journald → Loki)",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 12 },
       "collapsed": false
     },
     {
       "id": 1,
       "type": "stat",
       "title": "Líneas (rango)",
-      "gridPos": { "h": 4, "w": 8, "x": 0, "y": 1 },
+      "gridPos": { "h": 4, "w": 8, "x": 0, "y": 13 },
       "datasource": { "type": "loki", "uid": "loki-infra" },
       "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "thresholds": { "steps": [ { "color": "blue", "value": null } ] } }, "overrides": [] },
       "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "value", "graphMode": "area" },
@@ -60,7 +162,7 @@
       "id": 2,
       "type": "stat",
       "title": "Fallos (failed / fatal / unreachable)",
-      "gridPos": { "h": 4, "w": 8, "x": 8, "y": 1 },
+      "gridPos": { "h": 4, "w": 8, "x": 8, "y": 13 },
       "datasource": { "type": "loki", "uid": "loki-infra" },
       "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "thresholds": { "steps": [ { "color": "green", "value": null }, { "color": "red", "value": 1 } ] } }, "overrides": [] },
       "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "none" },
@@ -72,7 +174,7 @@
       "id": 3,
       "type": "stat",
       "title": "Cambios (changed)",
-      "gridPos": { "h": 4, "w": 8, "x": 16, "y": 1 },
+      "gridPos": { "h": 4, "w": 8, "x": 16, "y": 13 },
       "datasource": { "type": "loki", "uid": "loki-infra" },
       "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "thresholds": { "steps": [ { "color": "yellow", "value": null } ] } }, "overrides": [] },
       "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "value", "graphMode": "area" },
@@ -84,7 +186,7 @@
       "id": 4,
       "type": "timeseries",
       "title": "Actividad (líneas)",
-      "gridPos": { "h": 6, "w": 24, "x": 0, "y": 5 },
+      "gridPos": { "h": 6, "w": 24, "x": 0, "y": 17 },
       "datasource": { "type": "loki", "uid": "loki-infra" },
       "fieldConfig": { "defaults": { "custom": { "drawStyle": "bars", "fillOpacity": 40, "lineWidth": 1 }, "color": { "mode": "fixed", "fixedColor": "blue" } }, "overrides": [] },
       "options": { "legend": { "showLegend": false }, "tooltip": { "mode": "single" } },
@@ -96,7 +198,7 @@
       "id": 5,
       "type": "logs",
       "title": "Salida de los runs",
-      "gridPos": { "h": 13, "w": 24, "x": 0, "y": 11 },
+      "gridPos": { "h": 13, "w": 24, "x": 0, "y": 23 },
       "datasource": { "type": "loki", "uid": "loki-infra" },
       "options": { "showTime": true, "showLabels": false, "wrapLogMessage": true, "prettifyLogMessage": false, "enableLogDetails": true, "dedupStrategy": "none", "sortOrder": "Descending" },
       "targets": [
