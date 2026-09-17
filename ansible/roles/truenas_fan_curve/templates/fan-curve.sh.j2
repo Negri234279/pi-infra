@@ -1,0 +1,64 @@
+#!/bin/bash
+# pi-infra — Supermicro X10 fan curve. MANAGED BY ANSIBLE (role truenas_fan_curve); do not edit
+# in place — change the role vars and re-run `./run.sh playbooks/bootstrap-truenas.yml --tags fan`.
+#
+# Idempotent: every run converges the BMC to the same state, so it is safe both as the POSTINIT
+# Init/Shutdown Script and when run by hand. IPMI raw writes and threshold writes are naturally
+# idempotent (setting the same value again is a no-op to the hardware).
+#
+# Why the threshold writes: in Full mode the BMC forces every zone to 100% if any fan reads below
+# its lower threshold; at this duty the fans sit below the factory value, so we relax it first.
+
+set -u
+
+LOG="{{ truenas_fan_script_dest | dirname }}/fan-curve.log"
+IPMI=/usr/bin/ipmitool
+
+# Duty % — an explicit first arg wins (handy for manual testing), else the Ansible-managed default.
+DUTY_PCT="${1:-{{ truenas_fan_duty_pct }}}"
+
+# Lower thresholds (rpm): Lower-NonRecoverable / Lower-Critical / Lower-NonCritical.
+LOW_LNR={{ truenas_fan_low_lnr }}
+LOW_LCR={{ truenas_fan_low_lcr }}
+LOW_LNC={{ truenas_fan_low_lnc }}
+
+# Fan sensors to relax (non-existent ones fail harmlessly).
+FANS="{{ truenas_fan_names | join(' ') }}"
+
+log() { echo "$(date) - $*" >> "$LOG"; }
+
+# Percent → single-byte hex operand for the raw duty command (45 → 0x2D).
+DUTY_HEX=$(printf '0x%02X' "$DUTY_PCT")
+
+log "fan-curve.sh start (duty=${DUTY_PCT}% ${DUTY_HEX})"
+
+# 1) Wait for the LOCAL IPMI interface. The BMC keeps standby power across the nightly soft
+#    shutdowns (so it's usually instant), but /dev/ipmi0 loads a few seconds into boot, and after
+#    a real mains loss the BMC itself needs time to come up — this covers both without a fixed sleep.
+ready=0
+for i in $(seq 1 30); do
+    if "$IPMI" mc info >/dev/null 2>&1; then ready=1; break; fi
+    sleep 2
+done
+log "ipmi ready=${ready} after $((i * 2))s"
+
+# 2) Relax the fan lower-thresholds so the chosen duty won't trip the BMC's 100% failsafe.
+#    (These reset to factory only on a BMC cold reset / mains loss — hence re-applied every boot.)
+for f in $FANS; do
+    "$IPMI" sensor thresh "$f" lower "$LOW_LNR" "$LOW_LCR" "$LOW_LNC" >/dev/null 2>&1
+done
+log "lower thresholds set to ${LOW_LNR}/${LOW_LCR}/${LOW_LNC} on: ${FANS}"
+
+# 3) Full mode (manual fan control).
+"$IPMI" raw 0x30 0x45 0x01 0x01 >>"$LOG" 2>&1
+log "full mode (exit: $?)"
+sleep 2
+
+# 4) Apply the duty to both zones (0 = CPU/chassis, 1 = peripheral).
+"$IPMI" raw 0x30 0x70 0x66 0x01 0x00 "$DUTY_HEX" >>"$LOG" 2>&1
+z0=$?
+"$IPMI" raw 0x30 0x70 0x66 0x01 0x01 "$DUTY_HEX" >>"$LOG" 2>&1
+z1=$?
+log "zones 0/1 at ${DUTY_PCT}% (exit: ${z0}/${z1})"
+
+log "fan-curve.sh done"

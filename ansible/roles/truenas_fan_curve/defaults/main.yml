@@ -1,0 +1,40 @@
+---
+# Force the Supermicro BMC into manual (Full) fan control at a fixed duty on every boot, and
+# lower the fans' lower-thresholds so that duty does NOT trip the BMC's 100% failsafe. Delivered
+# as a native TrueNAS Init/Shutdown Script (POSTINIT), which persists in the config DB and
+# survives reboots + OS updates (unlike anything written to the immutable root fs).
+#
+# Root cause this fixes: in Full mode the X10 BMC forces ALL zones to 100% if any fan drops below
+# its lower-critical / lower-non-recoverable threshold. At 45% duty the fans spin ~900 rpm, below
+# the factory threshold → failsafe → back to 100% (the classic "dips then 100% again"). Relaxing
+# the lower thresholds lets the low duty hold. See [[nas-truenas-os-integration]].
+#
+#   ./run.sh playbooks/bootstrap-truenas.yml --tags fan
+
+# ── ZFS dataset for host scripts (shows in Storage → Datasets, snapshot/quota-able) ─
+truenas_fan_scripts_dataset: "{{ truenas_pool }}/scripts"
+truenas_fan_scripts_dir: "/mnt/{{ truenas_fan_scripts_dataset }}"
+truenas_fan_script_dest: "{{ truenas_fan_scripts_dir }}/fan-curve.sh"
+
+# ── Fan curve ───────────────────────────────────────────────────────────────────────
+# Duty cycle (%) applied to both zones (0 = CPU/chassis, 1 = peripheral).
+truenas_fan_duty_pct: 45
+
+# Lower thresholds (rpm) written to every fan: Lower-NonRecoverable / Lower-Critical /
+# Lower-NonCritical (must be ascending). Low enough that the chosen duty stays above them.
+# Trade-off: the BMC won't warn on a genuinely failing fan below these — watch rpm in Grafana
+# (job `ipmi`) instead if you want that alert back.
+truenas_fan_low_lnr: 100
+truenas_fan_low_lcr: 200
+truenas_fan_low_lnc: 300
+
+# Fan sensor names to relax. Non-existent ones fail harmlessly (only FAN1/FAN5 are populated
+# on this chassis today, but keep the full X10 set so the script is portable).
+truenas_fan_names: [FAN1, FAN2, FAN3, FAN4, FANA, FANB, FAN5]
+
+# ── Init/Shutdown Script registration (native midclt object) ─────────────────────────
+truenas_fan_init_when: POSTINIT          # PREINIT | POSTINIT | SHUTDOWN
+truenas_fan_init_enabled: true
+truenas_fan_init_timeout: 90             # seconds; must exceed the in-script IPMI-ready wait
+# The comment is the idempotency key we query on — keep it stable.
+truenas_fan_init_comment: "pi-infra: Supermicro fan curve (Full mode + fixed duty, relaxed thresholds)"

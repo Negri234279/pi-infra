@@ -1,0 +1,97 @@
+---
+# Provision the Supermicro fan curve on the NAS: a ZFS dataset for host scripts, the templated
+# fan-curve.sh, and a native POSTINIT Init/Shutdown Script that runs it every boot. Runs with
+# become (midclt + writing to the pool + ipmitool all need root). Everything is query-then-act so
+# re-runs report changed=0 — same posture as the other truenas_* roles ([[nas-truenas-os-integration]]).
+
+# ── ZFS dataset for scripts (tank/scripts — single level under the existing pool) ───
+- name: Check whether the scripts dataset exists
+  ansible.builtin.command:
+    argv: [midclt, call, pool.dataset.get_instance, "{{ truenas_fan_scripts_dataset }}"]
+  register: truenas_fan_ds
+  changed_when: false
+  failed_when: false
+
+- name: Create the scripts dataset if missing
+  ansible.builtin.command:
+    argv: [midclt, call, pool.dataset.create, "{{ {'name': truenas_fan_scripts_dataset} | to_json }}"]
+  when: truenas_fan_ds.rc != 0
+  changed_when: true
+
+# ── Deploy the fan-curve script (duty + thresholds templated from role vars) ─────────
+- name: Deploy the fan-curve script to the scripts dataset
+  ansible.builtin.template:
+    src: fan-curve.sh.j2
+    dest: "{{ truenas_fan_script_dest }}"
+    mode: "0755"
+
+# ── Native Init/Shutdown Script (POSTINIT) — persists in the config DB ──────────────
+- name: Look for the existing init/shutdown script
+  ansible.builtin.command:
+    argv:
+      - midclt
+      - call
+      - initshutdownscript.query
+      - "{{ [['comment', '=', truenas_fan_init_comment]] | to_json }}"
+  register: truenas_fan_init_q
+  changed_when: false
+
+- name: Note the existing init/shutdown script (if any)
+  ansible.builtin.set_fact:
+    truenas_fan_init_existing: "{{ (truenas_fan_init_q.stdout | from_json | first) | default({}) }}"
+
+- name: Create the POSTINIT init/shutdown script
+  ansible.builtin.command:
+    argv: [midclt, call, initshutdownscript.create, "{{ init_payload | to_json }}"]
+  vars:
+    init_payload:
+      type: SCRIPT
+      script: "{{ truenas_fan_script_dest }}"
+      when: "{{ truenas_fan_init_when }}"
+      enabled: "{{ truenas_fan_init_enabled }}"
+      timeout: "{{ truenas_fan_init_timeout }}"
+      comment: "{{ truenas_fan_init_comment }}"
+  when: truenas_fan_init_existing == {}
+  changed_when: true
+
+# Reconcile an already-existing entry (create-only would leave a re-run unable to fix the script
+# path / when / enabled / timeout). Only fires when one of those drifts, so unchanged re-runs are
+# changed=0. The comment is the identity key, so it's not touched here.
+- name: Reconcile the init/shutdown script if it drifted
+  ansible.builtin.command:
+    argv:
+      - midclt
+      - call
+      - initshutdownscript.update
+      - "{{ truenas_fan_init_existing.id | int }}"
+      - "{{ init_update | to_json }}"
+  vars:
+    init_update:
+      type: SCRIPT
+      script: "{{ truenas_fan_script_dest }}"
+      when: "{{ truenas_fan_init_when }}"
+      enabled: "{{ truenas_fan_init_enabled }}"
+      timeout: "{{ truenas_fan_init_timeout }}"
+  when:
+    - truenas_fan_init_existing != {}
+    - (truenas_fan_init_existing.script | default('') != truenas_fan_script_dest)
+      or (truenas_fan_init_existing.when | default('') != truenas_fan_init_when)
+      or ((truenas_fan_init_existing.enabled | default(false) | bool) != (truenas_fan_init_enabled | bool))
+      or ((truenas_fan_init_existing.timeout | default(0) | int) != (truenas_fan_init_timeout | int))
+  changed_when: true
+
+# ── Apply now so it takes effect without waiting for a reboot ────────────────────────
+# Converge-only (idempotent): keep re-runs green even though it does poke the hardware.
+- name: Apply the fan curve now
+  ansible.builtin.command:
+    argv: [bash, "{{ truenas_fan_script_dest }}"]
+  register: truenas_fan_run
+  changed_when: false
+
+- name: Show the fan-curve summary
+  ansible.builtin.debug:
+    msg:
+      - "Dataset:  {{ truenas_fan_scripts_dir }}  (script: {{ truenas_fan_script_dest }})"
+      - "Init:     {{ truenas_fan_init_when }} script, enabled={{ truenas_fan_init_enabled }}, timeout={{ truenas_fan_init_timeout }}s"
+      - "Duty:     {{ truenas_fan_duty_pct }}% both zones; lower thresholds {{ truenas_fan_low_lnr }}/{{ truenas_fan_low_lcr }}/{{ truenas_fan_low_lnc }} rpm on {{ truenas_fan_names | join(', ') }}"
+      - "Log:      {{ truenas_fan_scripts_dir }}/fan-curve.log  (verify rpm hold in Grafana, job ipmi)"

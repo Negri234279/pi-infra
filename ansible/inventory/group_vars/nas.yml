@@ -47,3 +47,10 @@ truenas_apps_dir: "/mnt/{{ truenas_apps_dataset }}"                          # i
 # docs/backups.md. Defaults (retention/schedule/hosts) live in the role; override here.
 # The Pi's LAN IP that the NFS export is restricted to:
 truenas_backup_nfs_hosts: ["192.168.1.7"]
+
+# ── Fan curve (role truenas_fan_curve, tag `fan`) ─────────────────────────────
+# Forces the Supermicro BMC into Full mode at a fixed duty on every boot via a native POSTINIT
+# Init/Shutdown Script (dataset {{ truenas_pool }}/scripts + fan-curve.sh), relaxing the fans'
+# lower-thresholds so the low duty holds instead of tripping the BMC's 100% failsafe. All
+# tunables (duty %, thresholds, fan list) live in the role defaults; override here if needed, e.g.:
+#   truenas_fan_duty_pct: 45

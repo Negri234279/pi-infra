@@ -16,6 +16,10 @@
 #   7. truenas_backup_target        — OPT-IN (tag `backup`): make the NAS the Pi's restic
 #      backup target — dataset tank/backups/rpi5 + NFS export (Pi only) + a native periodic
 #      ZFS snapshot task. Pairs with the `backup` service in core/ (see docs/backups.md).
+#   8. truenas_fan_curve            — OPT-IN (tag `fan`): force the Supermicro BMC into Full
+#      fan mode at a fixed duty on every boot (dataset tank/scripts + fan-curve.sh + a native
+#      POSTINIT Init/Shutdown Script), relaxing fan lower-thresholds so the low duty holds
+#      instead of tripping the BMC's 100% failsafe.
 #
 # The hub's Prometheus then scrapes 192.168.1.18:9108 (job `truenas`, in
 # core/prometheus/prometheus.yml). Grafana dashboards live in the "nas" folder.
@@ -50,3 +54,7 @@
     # `never` → only with `--tags backup` (not part of the observability bootstrap).
     - role: truenas_backup_target
       tags: [backup, never]
+    # Supermicro fan curve: dataset + fan-curve.sh + POSTINIT Init/Shutdown Script.
+    # `never` → only with `--tags fan` (not part of the observability bootstrap).
+    - role: truenas_fan_curve
+      tags: [fan, never]
