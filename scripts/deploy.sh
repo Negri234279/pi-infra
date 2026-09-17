@@ -145,6 +145,34 @@ if changed '^core/snmp-exporter/'; then
   log "snmp-exporter config changed -> recreate snmp-exporter"
   docker compose up -d --force-recreate snmp-exporter
 fi
+if changed '^core/alloy/'; then
+  # config.alloy is a single-FILE bind mount, so `docker compose up -d` never recreates alloy on a
+  # content-only change (the definition is unchanged) AND a plain `restart` keeps the container
+  # bound to the OLD inode (git replaces the file on pull). Alloy also has no hot-reload enabled.
+  # Recreate so it re-binds and loads the new config. This is why a relabel-rule change (e.g. the
+  # journal `identifier` label) silently never took effect in prod until a manual recreate.
+  log "alloy config changed -> recreate alloy"
+  docker compose up -d --force-recreate alloy
+fi
+if changed '^core/loki/loki-config\.yaml$'; then
+  # loki-config.yaml is a single-FILE bind mount with no hot-reload → same recreate rationale as
+  # alloy/snmp above. Scoped to the config file ONLY: `core/loki/rules` changes are picked up by
+  # the ruler's own poll interval, so a rules edit needs no restart.
+  log "loki config changed -> recreate loki"
+  docker compose up -d --force-recreate loki
+fi
+if changed '^core/mktxp/'; then
+  # mktxp reads its config only at startup and has no reload. It's a DIRECTORY bind mount (stable
+  # inode), so a plain restart re-reads the new files — no force-recreate needed.
+  log "mktxp config changed -> restart mktxp"
+  docker compose restart mktxp
+fi
+if changed '^core/pgbouncer/'; then
+  # pgbouncer.ini is a single-FILE bind mount and pgbouncer only reloads on demand → recreate so it
+  # re-binds the new inode and reads it (brief connection blip, only when the .ini actually changes).
+  log "pgbouncer config changed -> recreate pgbouncer"
+  docker compose up -d --force-recreate pgbouncer
+fi
 # NOTE: pve-exporter is no longer a hub service — it runs in an LXC on the pve node
 # (ansible/roles/pve_exporter_lxc) and its pve.yml is managed there by Ansible, not by
 # this script. A stale container from the old Docker setup is cleaned up by the
