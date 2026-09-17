@@ -8,14 +8,24 @@
 #
 # Why the threshold writes: in Full mode the BMC forces every zone to 100% if any fan reads below
 # its lower threshold; at this duty the fans sit below the factory value, so we relax it first.
+#
+# Why the (conditional) cold reset: a fan reconnected while the BMC was running comes back as
+# "No Reading" — the BMC has not re-scanned the SDR, so its threshold writes are rejected and, in
+# Full mode, a header it can't read keeps the whole zone pinned at 100%. If any *expected* fan is
+# in that state we do one `mc reset cold` to force a fresh SDR scan, then reapply everything. A
+# marker + cooldown stops a genuinely-dead expected fan from resetting the BMC every run.
 
 set -u
 
-LOG="{{ truenas_fan_script_dest | dirname }}/fan-curve.log"
+SCRIPT_DIR="{{ truenas_fan_script_dest | dirname }}"
+LOG="$SCRIPT_DIR/fan-curve.log"
 IPMI=/usr/bin/ipmitool
+RESET_MARKER="$SCRIPT_DIR/.fan-curve-last-reset"
+RESET_COOLDOWN={{ truenas_fan_reset_cooldown }}
 
-# Duty % — an explicit first arg wins (handy for manual testing), else the Ansible-managed default.
-DUTY_PCT="${1:-{{ truenas_fan_duty_pct }}}"
+# Optional first arg overrides EVERY fan to this duty % (handy for manual testing), else each
+# fan uses its Ansible-managed per-fan default below.
+OVERRIDE="${1:-}"
 
 # Lower thresholds (rpm): Lower-NonRecoverable / Lower-Critical / Lower-NonCritical.
 LOW_LNR={{ truenas_fan_low_lnr }}
@@ -25,40 +35,119 @@ LOW_LNC={{ truenas_fan_low_lnc }}
 # Fan sensors to relax (non-existent ones fail harmlessly).
 FANS="{{ truenas_fan_names | join(' ') }}"
 
+# Fans that must report a reading; drives the conditional cold reset.
+EXPECTED=( {{ truenas_fan_expected | join(' ') }} )
+
+# Per-fan requested duty % (the BMC controls per zone; we reconcile to max-per-zone below).
+declare -A FAN_DUTY=(
+{% for fan, duty in truenas_fan_duties.items() %}
+    [{{ fan }}]={{ duty }}
+{% endfor %}
+)
+
+# Fan → zone map.
+declare -A FAN_ZONE=(
+{% for zone, fans in truenas_fan_zones.items() %}
+{% for fan in fans %}
+    [{{ fan }}]={{ zone }}
+{% endfor %}
+{% endfor %}
+)
+
 log() { echo "$(date) - $*" >> "$LOG"; }
 
-# Percent → single-byte hex operand for the raw duty command (45 → 0x2D).
-DUTY_HEX=$(printf '0x%02X' "$DUTY_PCT")
+# True when the fan currently reports a numeric rpm (i.e. the BMC has it enumerated and reading).
+reading_ok() {
+    "$IPMI" sdr get "$1" 2>/dev/null | grep -i 'Sensor Reading' | grep -qiE ':[[:space:]]*[0-9]+'
+}
 
-log "fan-curve.sh start (duty=${DUTY_PCT}% ${DUTY_HEX})"
+# Block until the local IPMI interface answers, up to $1 seconds (in 2s steps). Echoes 1/0.
+wait_ipmi() {
+    local max="$1" i
+    for i in $(seq 1 $(( max / 2 ))); do
+        if "$IPMI" mc info >/dev/null 2>&1; then echo 1; return; fi
+        sleep 2
+    done
+    echo 0
+}
+
+log "fan-curve.sh start (override='${OVERRIDE:-none}')"
 
 # 1) Wait for the LOCAL IPMI interface. The BMC keeps standby power across the nightly soft
 #    shutdowns (so it's usually instant), but /dev/ipmi0 loads a few seconds into boot, and after
 #    a real mains loss the BMC itself needs time to come up — this covers both without a fixed sleep.
-ready=0
-for i in $(seq 1 30); do
-    if "$IPMI" mc info >/dev/null 2>&1; then ready=1; break; fi
-    sleep 2
-done
-log "ipmi ready=${ready} after $((i * 2))s"
+ready=$(wait_ipmi 60)
+log "ipmi ready=${ready}"
 
-# 2) Relax the fan lower-thresholds so the chosen duty won't trip the BMC's 100% failsafe.
-#    (These reset to factory only on a BMC cold reset / mains loss — hence re-applied every boot.)
+# 2) If an expected (populated) fan reads nothing, the BMC probably hasn't re-enumerated a
+#    hot-reconnected header — one cold reset forces a fresh SDR scan. Guarded by a cooldown so a
+#    truly dead fan can't reset the BMC on every run.
+if [ "$ready" = 1 ]; then
+    need_reset=0
+    for f in "${EXPECTED[@]}"; do
+        if ! reading_ok "$f"; then
+            log "expected fan $f is not reading"
+            need_reset=1
+        fi
+    done
+
+    if [ "$need_reset" = 1 ]; then
+        now=$(date +%s)
+        last=0
+        [ -f "$RESET_MARKER" ] && last=$(cat "$RESET_MARKER" 2>/dev/null || echo 0)
+        if [ $(( now - last )) -ge "$RESET_COOLDOWN" ]; then
+            echo "$now" > "$RESET_MARKER"
+            log "cold-resetting BMC to re-enumerate hot-plugged fan(s)"
+            "$IPMI" mc reset cold >>"$LOG" 2>&1
+            sleep 10                       # local interface drops during the reset
+            ready=$(wait_ipmi 90)
+            log "bmc back after cold reset (ready=${ready})"
+        else
+            log "skip cold reset — last was $(( now - last ))s ago (< ${RESET_COOLDOWN}s cooldown)"
+        fi
+    fi
+fi
+
+# 3) Relax the fan lower-thresholds so the chosen duty won't trip the BMC's 100% failsafe.
+#    (These reset to factory on a BMC cold reset / mains loss — hence re-applied every run, and
+#    in particular after step 2 wiped them.)
 for f in $FANS; do
     "$IPMI" sensor thresh "$f" lower "$LOW_LNR" "$LOW_LCR" "$LOW_LNC" >/dev/null 2>&1
 done
 log "lower thresholds set to ${LOW_LNR}/${LOW_LCR}/${LOW_LNC} on: ${FANS}"
 
-# 3) Full mode (manual fan control).
+# 4) Reconcile the per-fan duties down to one duty per zone (the BMC's real granularity): each
+#    zone runs at the fastest duty requested among its fans, so nothing runs slower than asked.
+declare -A ZONE_DUTY=()
+for f in "${!FAN_DUTY[@]}"; do
+    z="${FAN_ZONE[$f]:-}"
+    [ -z "$z" ] && continue            # fan not mapped to a zone → threshold-relaxed only
+    d="${FAN_DUTY[$f]}"
+    [ -n "$OVERRIDE" ] && d="$OVERRIDE"
+    if [ -z "${ZONE_DUTY[$z]:-}" ] || [ "$d" -gt "${ZONE_DUTY[$z]}" ]; then
+        ZONE_DUTY[$z]="$d"
+    fi
+done
+
+# 5) Full mode (manual fan control).
 "$IPMI" raw 0x30 0x45 0x01 0x01 >>"$LOG" 2>&1
 log "full mode (exit: $?)"
 sleep 2
 
-# 4) Apply the duty to both zones (0 = CPU/chassis, 1 = peripheral).
-"$IPMI" raw 0x30 0x70 0x66 0x01 0x00 "$DUTY_HEX" >>"$LOG" 2>&1
-z0=$?
-"$IPMI" raw 0x30 0x70 0x66 0x01 0x01 "$DUTY_HEX" >>"$LOG" 2>&1
-z1=$?
-log "zones 0/1 at ${DUTY_PCT}% (exit: ${z0}/${z1})"
+# 6) Apply the resolved duty to each zone. Percent → single-byte hex operand (45 → 0x2D).
+for z in "${!ZONE_DUTY[@]}"; do
+    pct="${ZONE_DUTY[$z]}"
+    duty_hex=$(printf '0x%02X' "$pct")
+    zone_hex=$(printf '0x%02X' "$z")
+    "$IPMI" raw 0x30 0x70 0x66 0x01 "$zone_hex" "$duty_hex" >>"$LOG" 2>&1
+    log "zone ${z} at ${pct}% (${duty_hex}) exit=$?"
+done
 
 log "fan-curve.sh done"
+
+# ── Reference: duty % → single-byte hex operand for `raw 0x30 0x70 0x66 0x01 <zone> <duty>` ──
+#   0% = 0x00    25% = 0x19    50% = 0x32    75% = 0x4B   100% = 0x64
+#   5% = 0x05    30% = 0x1E    55% = 0x37    80% = 0x50
+#  10% = 0x0A    35% = 0x23    60% = 0x3C    85% = 0x55
+#  15% = 0x0F    40% = 0x28    65% = 0x41    90% = 0x5A
+#  20% = 0x14    45% = 0x2D    70% = 0x46    95% = 0x5F

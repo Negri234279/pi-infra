@@ -93,5 +93,6 @@
     msg:
       - "Dataset:  {{ truenas_fan_scripts_dir }}  (script: {{ truenas_fan_script_dest }})"
       - "Init:     {{ truenas_fan_init_when }} script, enabled={{ truenas_fan_init_enabled }}, timeout={{ truenas_fan_init_timeout }}s"
-      - "Duty:     {{ truenas_fan_duty_pct }}% both zones; lower thresholds {{ truenas_fan_low_lnr }}/{{ truenas_fan_low_lcr }}/{{ truenas_fan_low_lnc }} rpm on {{ truenas_fan_names | join(', ') }}"
+      - "Duty:     per-fan {{ truenas_fan_duties }} (max-per-zone); lower thresholds {{ truenas_fan_low_lnr }}/{{ truenas_fan_low_lcr }}/{{ truenas_fan_low_lnc }} rpm on {{ truenas_fan_names | join(', ') }}"
+      - "Reset:    cold-reset if any of {{ truenas_fan_expected | join(', ') }} reads nothing (cooldown {{ truenas_fan_reset_cooldown }}s)"
       - "Log:      {{ truenas_fan_scripts_dir }}/fan-curve.log  (verify rpm hold in Grafana, job ipmi)"

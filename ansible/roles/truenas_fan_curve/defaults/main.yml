@@ -17,8 +17,36 @@ truenas_fan_scripts_dir: "/mnt/{{ truenas_fan_scripts_dataset }}"
 truenas_fan_script_dest: "{{ truenas_fan_scripts_dir }}/fan-curve.sh"
 
 # ── Fan curve ───────────────────────────────────────────────────────────────────────
-# Duty cycle (%) applied to both zones (0 = CPU/chassis, 1 = peripheral).
-truenas_fan_duty_pct: 45
+# Per-fan requested duty (%). HARDWARE NOTE: the X10 BMC only controls duty per ZONE, not
+# per fan (see truenas_fan_zones below), so fans sharing a zone all spin at the *fastest*
+# duty requested among them — the script takes the max per zone. Set a fan lower than its
+# zone-mates freely; it will simply be raised to match the fastest fan in its zone.
+# First pass: everything at 45%; bump individual fans later as needed (e.g. FAN2: 60).
+truenas_fan_duties:
+  FAN1: 45
+  FAN2: 45
+  FAN3: 45
+  FAN4: 45
+  FAN5: 45
+  FANA: 45
+  FANB: 45
+
+# Fan → zone map for the raw duty command (arg byte 0x00 = zone 0, 0x01 = zone 1). On the
+# X10 the numbered headers are the CPU/chassis zone and the lettered headers the peripheral
+# zone. A fan not listed here is threshold-relaxed but gets no duty command.
+truenas_fan_zones:
+  0: [FAN1, FAN2, FAN3, FAN4, FAN5]   # CPU / chassis
+  1: [FANA, FANB]                     # peripheral
+
+# Fans that SHOULD report an rpm reading (i.e. physically connected). If any of these reads
+# "No Reading"/"Disabled" the BMC most likely hasn't re-enumerated a hot-reconnected fan, so
+# the script does ONE `mc reset cold` to force a fresh SDR scan, then reapplies everything.
+# Keep this to headers you have actually populated so empty headers never trigger a reset.
+truenas_fan_expected: [FAN1, FAN2, FAN3]
+
+# Minimum seconds between cold resets (a marker file guards it). Stops back-to-back manual
+# runs — or a genuinely dead "expected" fan — from cold-resetting the BMC in a tight loop.
+truenas_fan_reset_cooldown: 300
 
 # Lower thresholds (rpm) written to every fan: Lower-NonRecoverable / Lower-Critical /
 # Lower-NonCritical (must be ascending). Low enough that the chosen duty stays above them.
@@ -28,13 +56,13 @@ truenas_fan_low_lnr: 100
 truenas_fan_low_lcr: 200
 truenas_fan_low_lnc: 300
 
-# Fan sensor names to relax. Non-existent ones fail harmlessly (only FAN1/FAN5 are populated
-# on this chassis today, but keep the full X10 set so the script is portable).
+# Fan sensor names to relax. Non-existent ones fail harmlessly (FAN1/FAN2/FAN3 are the
+# populated headers on this chassis today, but keep the full X10 set so the script is portable).
 truenas_fan_names: [FAN1, FAN2, FAN3, FAN4, FANA, FANB, FAN5]
 
 # ── Init/Shutdown Script registration (native midclt object) ─────────────────────────
 truenas_fan_init_when: POSTINIT          # PREINIT | POSTINIT | SHUTDOWN
 truenas_fan_init_enabled: true
-truenas_fan_init_timeout: 90             # seconds; must exceed the in-script IPMI-ready wait
+truenas_fan_init_timeout: 180            # seconds; must exceed IPMI-ready wait + a possible cold reset
 # The comment is the idempotency key we query on — keep it stable.
 truenas_fan_init_comment: "pi-infra: Supermicro fan curve (Full mode + fixed duty, relaxed thresholds)"

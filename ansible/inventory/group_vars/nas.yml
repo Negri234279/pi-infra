@@ -52,5 +52,6 @@ truenas_backup_nfs_hosts: ["192.168.1.7"]
 # Forces the Supermicro BMC into Full mode at a fixed duty on every boot via a native POSTINIT
 # Init/Shutdown Script (dataset {{ truenas_pool }}/scripts + fan-curve.sh), relaxing the fans'
 # lower-thresholds so the low duty holds instead of tripping the BMC's 100% failsafe. All
-# tunables (duty %, thresholds, fan list) live in the role defaults; override here if needed, e.g.:
-#   truenas_fan_duty_pct: 45
+# tunables (per-fan duties, zones, thresholds, fan list) live in the role defaults; override
+# here if needed, e.g. bump one fan (raises its whole zone to the max requested in that zone):
+#   truenas_fan_duties: { FAN1: 45, FAN2: 60, FAN3: 60, FAN4: 45, FAN5: 45, FANA: 45, FANB: 45 }
