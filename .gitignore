@@ -48,3 +48,7 @@ ansible/*.retry
 ansible/**/*.retry
 ansible/collections/
 ansible/.vault_pass
+
+# Python bytecode cache (e.g. from running/compiling the role helper scripts locally).
+__pycache__/
+*.pyc
