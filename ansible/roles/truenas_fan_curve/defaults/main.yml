@@ -42,7 +42,7 @@ truenas_fan_zones:
 # "No Reading"/"Disabled" the BMC most likely hasn't re-enumerated a hot-reconnected fan, so
 # the script does ONE `mc reset cold` to force a fresh SDR scan, then reapplies everything.
 # Keep this to headers you have actually populated so empty headers never trigger a reset.
-truenas_fan_expected: [FAN1, FAN2, FAN3]
+truenas_fan_expected: [FAN1, FAN2, FAN3, FAN4]
 
 # Minimum seconds between cold resets (a marker file guards it). Stops back-to-back manual
 # runs — or a genuinely dead "expected" fan — from cold-resetting the BMC in a tight loop.
@@ -56,8 +56,8 @@ truenas_fan_low_lnr: 100
 truenas_fan_low_lcr: 200
 truenas_fan_low_lnc: 300
 
-# Fan sensor names to relax. Non-existent ones fail harmlessly (FAN1/FAN2/FAN3 are the
-# populated headers on this chassis today, but keep the full X10 set so the script is portable).
+# Fan sensor names to relax. Non-existent ones fail harmlessly (FAN1–FAN4 are the populated
+# headers on this chassis today, but keep the full X10 set so the script is portable).
 truenas_fan_names: [FAN1, FAN2, FAN3, FAN4, FANA, FANB, FAN5]
 
 # ── Init/Shutdown Script registration (native midclt object) ─────────────────────────
