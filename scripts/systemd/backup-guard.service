@@ -1,0 +1,13 @@
+# Ensures the `backup` container is running and republishes its up/down metric.
+# Triggered by backup-guard.timer. Runs as root (needs the Docker socket and write
+# access under /var/lib/node_exporter). Adjust the ExecStart path to your clone.
+# See scripts/systemd/README.md and docs/backups.md.
+[Unit]
+Description=Guard the restic backup container (restart it after a NAS outage)
+Wants=docker.service
+After=docker.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/home/negri/pi-infra
+ExecStart=/home/negri/pi-infra/scripts/backup-guard.sh

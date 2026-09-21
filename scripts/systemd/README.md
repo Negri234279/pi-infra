@@ -65,3 +65,29 @@ sudo systemctl enable --now rpi-throttled.timer
 
 Alerts `HostUnderVoltage` / `HostThrottled` fire on the live bits. Runs as root
 (needs `vcgencmd` and write access under `/var/lib/node_exporter`).
+
+## Also here: backup-container guard
+
+`backup-guard.timer` runs [`../backup-guard.sh`](../backup-guard.sh) every 5 minutes
+to make sure the `backup` container is running, and publishes
+`pi_backup_container_running` as a node-exporter textfile metric.
+
+Why it exists: the `backup` container mounts the NAS restic repo as a docker `local`
+NFS volume, mounted at container-**create** time with `hard`. If the NAS is
+unreachable right then (it reboots or powers off for a while), the mount fails, the
+container exits 255, and docker's restart policy does **not** retry a create-time
+mount failure — so it stays dead until someone runs `docker start`. On 2026-09-18 the
+rpi5 rebooted while the NAS was off and three nightly backups were silently missed.
+This guard brings the container back automatically the moment the NAS is reachable
+again (see [`docs/backups.md`](../../docs/backups.md)).
+
+```bash
+# adjust the ExecStart path in backup-guard.service to your clone, then:
+sudo cp scripts/systemd/backup-guard.service /etc/systemd/system/
+sudo cp scripts/systemd/backup-guard.timer   /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now backup-guard.timer
+```
+
+Runs as root (needs the Docker socket and write access under `/var/lib/node_exporter`).
+Alert `BackupContainerDown` fires if the container stays down for >6h.

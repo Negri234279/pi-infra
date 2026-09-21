@@ -98,8 +98,30 @@ docker compose exec backup restic check               # repo integrity
   `truenas_metrics_pusher` into the graphite_exporter and land on job=truenas as a passthrough
   (matched by `__name__` regex). ⚠ VERIFY the exact metric name after the first scrape.
 - **Alerts** (`core/prometheus/rules/backup-alerts.yml`): `BackupTooOld`, `BackupLastRunFailed`,
-  `BackupMetricsAbsent` (Pi side) and `BackupNasSnapshotStale`, `BackupNasSnapshotMetricAbsent`
-  (NAS side) → same Discord routing as everything else.
+  `BackupMetricsAbsent`, `BackupContainerDown` (Pi side) and `BackupNasSnapshotStale`,
+  `BackupNasSnapshotMetricAbsent` (NAS side). All go to Discord; **critical** ones (e.g.
+  `BackupTooOld`) also go to **email** via Alertmanager's Gmail smarthost — set `SMTP_PASSWORD`
+  in `.env` (a Gmail *app password*). See `core/alertmanager/alertmanager.yml`.
+
+### ⚠ Failure mode: NAS unreachable at container start (auto-recovered)
+
+The `backup` container mounts the NAS repo as a docker `local` NFS volume, mounted at
+container-**create** time with `hard`. If the NAS is unreachable right then — it reboots, or
+powers off for a while — the mount fails with `no route to host`, the container exits 255, and
+docker's `restart: unless-stopped` does **not** retry a create-time mount failure. It then stays
+dead until restarted by hand.
+
+This bit us **2026-09-18 → 09-21**: the rpi5 rebooted at ~19:45 while the NAS was off, the mount
+failed, and three nightly backups were silently missed (only `BackupTooOld` caught it, 26h later,
+on Discord — which went unwatched). Two mitigations are now in place:
+
+- **`backup-guard.timer`** (`scripts/backup-guard.sh`, install via `scripts/systemd/README.md`)
+  runs every 5 min, `docker start`s the container the moment the NAS is reachable again, and
+  publishes `pi_backup_container_running` → alert `BackupContainerDown` (>6h).
+- **Email** on critical alerts, so a missed backup reaches a channel you actually read.
+
+If the container is down *now*: `docker start backup` (once the NAS is up) — or just wait ≤5 min
+for the guard. To run the skipped backup immediately: `docker exec backup /usr/local/bin/backup.sh`.
 
 ---
 

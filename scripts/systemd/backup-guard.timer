@@ -1,0 +1,14 @@
+# Checks the backup container every 5 minutes (and 2 min after boot) so a NAS
+# outage that killed it is repaired automatically, without waiting for a human.
+# See scripts/systemd/README.md.
+[Unit]
+Description=Periodically guard the restic backup container
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=5min
+Persistent=true
+Unit=backup-guard.service
+
+[Install]
+WantedBy=timers.target

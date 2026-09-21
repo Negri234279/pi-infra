@@ -353,10 +353,11 @@ services:
     command:
       - "sh"
       - "-c"
-      - 'printf "%s" "$$DISCORD_WEBHOOK_URL" > /secrets/discord_webhook_url && printf "%s" "$$HEARTBEAT_URL" > /secrets/heartbeat_url && echo "wrote alertmanager secrets"'
+      - 'printf "%s" "$$DISCORD_WEBHOOK_URL" > /secrets/discord_webhook_url && printf "%s" "$$HEARTBEAT_URL" > /secrets/heartbeat_url && printf "%s" "$$SMTP_PASSWORD" > /secrets/smtp_password && echo "wrote alertmanager secrets"'
     environment:
       - DISCORD_WEBHOOK_URL=${DISCORD_WEBHOOK_URL:-}
       - HEARTBEAT_URL=${HEARTBEAT_URL:-}
+      - SMTP_PASSWORD=${SMTP_PASSWORD:-}
     volumes:
       - infra-alertmanager-secrets:/secrets
     restart: "no"

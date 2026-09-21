@@ -47,6 +47,21 @@ groups:
           summary: "Last backup run failed or was degraded"
           description: "The latest backup run failed (restic error) or finished with warnings (a DB dump was skipped) — pi_backup_success=0 or pi_backup_warnings>0. Check `docker logs backup`. See docs/backups.md."
 
+      - alert: BackupContainerDown
+        # Direct signal that the backup container isn't running, published every 5m by
+        # the backup-guard timer (scripts/backup-guard.sh). More specific and ~20h faster
+        # than BackupTooOld, which only trips 26h after the last *successful* run. The
+        # `for` is deliberately long: the NAS can be off for a while (the container can't
+        # mount its NFS repo then and stays down until the guard restarts it), and that is
+        # normal — only a container that stays down for hours is worth paging about.
+        expr: pi_backup_container_running == 0
+        for: 6h
+        labels:
+          severity: warning
+        annotations:
+          summary: "Backup container has been down for >6h"
+          description: "`pi_backup_container_running` has been 0 for over 6h — backup-guard can't start the `backup` container (NAS NFS repo unreachable, or the container is broken). Check `docker logs backup` and the NAS. See docs/backups.md."
+
       # ── NAS-side: the ZFS snapshot task on the restic-repo dataset (immutability layer).
       # Metric is a graphite_exporter passthrough from truenas_metrics_pusher; matched by
       # __name__ regex so the exact mangled name doesn't matter. age_seconds=-1 ⇒ no snapshot yet.
