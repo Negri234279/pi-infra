@@ -50,8 +50,10 @@ groups:
           description: "mktxp has exported no metrics for the router for >3m — its API is unreachable (wrong credentials, api service off, or the gateway is down)."
 
       # A monitored interface that was up went down. `interface` collector.
+      # ether2–ether5 are excluded: they're unused LAN ports (permanently down), so
+      # they'd fire constantly. Keeps ether1 (WAN uplink) and bridge1 covered.
       - alert: RouterInterfaceDown
-        expr: mktxp_interface_running == 0
+        expr: mktxp_interface_running{name!~"ether[2-5]"} == 0
         for: 2m
         labels:
           severity: warning
@@ -73,18 +75,10 @@ groups:
   # ── Switch (snmp-exporter / IF-MIB) ──────────────────────────────────────
   - name: switch
     rules:
-      # A port that is administratively enabled but operationally down. Tune the
-      # ifName regex to your uplinks if the per-port noise is too much.
-      - alert: SwitchPortDown
-        expr: |
-          ifOperStatus{job="switch-snmp"} == 2
-            and ifAdminStatus{job="switch-snmp"} == 1
-        for: 3m
-        labels:
-          severity: warning
-        annotations:
-          summary: "Switch port down"
-          description: "Port {{ $labels.ifName }} ({{ $labels.ifAlias }}) on the CSS326 is admin-up but link-down for >3m."
+      # NOTE: no SwitchPortDown (port admin-up but link-down) alert on purpose — the
+      # CSS326 runs SwOS with many unused ports left admin-up, so their permanent
+      # link-down is noise, not an incident. SwitchInterfaceErrors below still watches
+      # for cabling/duplex/SFP faults on the ports that are actually in use.
 
       # Rising interface error rate — cabling / duplex / SFP issues.
       - alert: SwitchInterfaceErrors
@@ -101,17 +95,9 @@ groups:
   # ── Sodola SL-SWTGW3C8F (snmp-exporter / IF-MIB) ─────────────────────────
   - name: switch-sodola
     rules:
-      - alert: SodolaPortDown
-        expr: |
-          ifOperStatus{job="switch-sodola-snmp"} == 2
-            and ifAdminStatus{job="switch-sodola-snmp"} == 1
-        for: 3m
-        labels:
-          severity: warning
-        annotations:
-          summary: "Sodola switch port down"
-          description: "Port {{ $labels.ifName }} ({{ $labels.ifAlias }}) on the Sodola is admin-up but link-down for >3m."
-
+      # NOTE: no SodolaPortDown (port admin-up but link-down) alert on purpose —
+      # same rationale as the CSS326: unused ports left admin-up make link-down noise,
+      # not an incident. SodolaInterfaceErrors below still watches for cabling/SFP+ faults.
       - alert: SodolaInterfaceErrors
         expr: |
           rate(ifInErrors{job="switch-sodola-snmp"}[5m])
