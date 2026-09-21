@@ -2,22 +2,21 @@
 #   • host-pve — the box itself via node-exporter (job=node-pve), mirroring the
 #     host / host-rpi3 groups. Thresholds tuned for a real server (10900KF).
 #   • pve      — cluster/guest/storage via pve-exporter (job=pve).
-# Same severity labels → same Discord routing as every other alert. Blackbox probes
-# (pve-ssh, pve-web) are covered by the generic ProbeDown rule in alerts.yml. The 10G
-# NIC is on an isolated net the hub can't reach → watched here via PveTenGLinkDown.
+# Same severity labels → same Discord routing as every other alert. Reachability of the
+# box (node-pve/pve scrapes + the pve-ssh/pve-web blackbox probes) is intentionally NOT
+# alerted — it's powered off on purpose — so pve/node-pve are excluded from TargetDown
+# and pve-ssh/pve-web from ProbeDown in alerts.yml. The 10G NIC is on an isolated net the
+# hub can't reach → watched here via PveTenGLinkDown (only while the box is up).
 groups:
   # ── Host: Proxmox node (job=node-pve) ────────────────────────────────────
   - name: host-pve
     rules:
-      - alert: PveDown
-        expr: up{job="node-pve"} == 0
-        for: 2m
-        labels:
-          severity: critical
-        annotations:
-          summary: "Proxmox node-exporter is down"
-          description: "No host metrics from pve (192.168.1.14) for >2m — the host or its exporter is unreachable."
-
+      # NOTE: there is deliberately NO "pve node-exporter down" (up{job=node-pve}==0)
+      # alert, and pve/node-pve are excluded from the generic TargetDown/ProbeDown in
+      # alerts.yml — the Proxmox box (192.168.1.14) is powered off on purpose, so its
+      # targets going unreachable is expected, not an incident. The health alerts below
+      # only fire while it IS up. PveNodeExporterAbsent stays: it catches the target
+      # being removed/renamed (series absent), which is a config mistake, not a power-off.
       - alert: PveNodeExporterAbsent
         # Catches the exporter target vanishing entirely (removed/renamed), which a
         # plain up==0 can't evaluate. Mirrors the rpi5 deadman NodeExporterAbsent.
@@ -99,15 +98,10 @@ groups:
   # ── Proxmox cluster / guests / storage (job=pve, pve-exporter) ───────────
   - name: pve
     rules:
-      - alert: PveExporterDown
-        expr: up{job="pve"} == 0
-        for: 5m
-        labels:
-          severity: warning
-        annotations:
-          summary: "pve-exporter scrape is failing"
-          description: "No Proxmox API metrics for >5m (job=pve) — pve-exporter down, the API token is wrong/expired, or the node is unreachable."
-
+      # NOTE: no "pve-exporter scrape failing" (up{job=pve}==0) alert on purpose — the
+      # exporter runs in an LXC on the Proxmox box, which is powered off deliberately,
+      # so the scrape failing is expected (see the host-pve note above). PveNodeOffline
+      # below only evaluates while the exporter IS up (it needs the pve_up series).
       - alert: PveNodeOffline
         # pve_up is 1/0 per PVE object; the node object going 0 means the API reports
         # the node itself offline (distinct from the scrape failing above).

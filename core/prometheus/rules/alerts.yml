@@ -115,7 +115,9 @@ groups:
       - alert: TargetDown
         # wg-easy is excluded: its metrics are opt-in (enabled in the UI), so it has
         # its own longer-fused alert in the `vpn` group below to avoid false positives.
-        expr: up{job!="wg-easy"} == 0
+        # pve/node-pve are excluded too: the Proxmox box (192.168.1.14) is powered off
+        # on purpose, so its scrape targets going down is expected, not an incident.
+        expr: up{job!~"wg-easy|pve|node-pve"} == 0
         for: 5m
         labels:
           severity: warning
@@ -290,7 +292,9 @@ groups:
   - name: probes
     rules:
       - alert: ProbeDown
-        expr: probe_success == 0
+        # pve-ssh / pve-web are excluded: they probe the Proxmox box (192.168.1.14),
+        # which is powered off on purpose, so those probes failing is expected.
+        expr: probe_success{name!~"pve-ssh|pve-web"} == 0
         for: 3m
         labels:
           severity: critical
