@@ -38,11 +38,16 @@ truenas_fan_zones:
   0: [FAN1, FAN2, FAN3, FAN4, FAN5]   # CPU / chassis
   1: [FANA, FANB]                     # peripheral
 
-# Fans that SHOULD report an rpm reading (i.e. physically connected). If any of these reads
-# "No Reading"/"Disabled" the BMC most likely hasn't re-enumerated a hot-reconnected fan, so
-# the script does ONE `mc reset cold` to force a fresh SDR scan, then reapplies everything.
-# Keep this to headers you have actually populated so empty headers never trigger a reset.
-truenas_fan_expected: [FAN1, FAN2, FAN3, FAN4]
+# Fans that SHOULD report an rpm reading. If any of these reads "No Reading"/"Disabled" the
+# BMC may not have re-enumerated a hot-reconnected fan, so the script does ONE `mc reset cold`
+# to force a fresh SDR scan, then reapplies everything.
+#
+# Only FAN1 is listed: a manual `mc reset cold` was verified NOT to bring FAN2/3/4 back (they
+# spin but report no tach), so cold-resetting for them every boot would be pure cost with no
+# recovery. PWM control is independent of the tach reading, so FAN2/3/4 still run at their zone
+# duty — we just can't monitor their rpm. Re-add a fan here only if a full AC power-cycle (drain
+# standby) makes it read again, i.e. once a reset can actually recover it.
+truenas_fan_expected: [FAN1]
 
 # Minimum seconds between cold resets (a marker file guards it). Stops back-to-back manual
 # runs — or a genuinely dead "expected" fan — from cold-resetting the BMC in a tight loop.
