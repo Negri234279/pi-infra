@@ -1,0 +1,1123 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "graphTooltip": 1,
+  "schemaVersion": 39,
+  "tags": [
+    "alertmanager",
+    "alerting",
+    "infra"
+  ],
+  "links": [],
+  "title": "Alertmanager",
+  "uid": "alertmanager-core",
+  "description": "Salud de Alertmanager: alertas activas, entrega de notificaciones por canal (Discord/email/heartbeat), fallos, latencia, silences y estado del servicio.",
+  "time": {
+    "from": "now-24h",
+    "to": "now"
+  },
+  "timezone": "browser",
+  "refresh": "1m",
+  "templating": {
+    "list": []
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "row",
+      "title": "Estado",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "panels": []
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Alertas activas",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus-infra"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 0,
+        "y": 1
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "decimals": 0,
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 1
+              },
+              {
+                "color": "orange",
+                "value": 20
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "value"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus-infra"
+          },
+          "expr": "sum(alertmanager_alerts{state=\"active\"})"
+        }
+      ],
+      "description": "Alertas que Alertmanager tiene en estado activo (firing) ahora mismo."
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Suprimidas (inhibidas/silenciadas)",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus-infra"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 4,
+        "y": 1
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "decimals": 0,
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "blue",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "value"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus-infra"
+          },
+          "expr": "sum(alertmanager_alerts{state=\"suppressed\"})"
+        }
+      ],
+      "description": "Alertas activas pero silenciadas por un silence o por una inhibition rule (p.ej. una critical inhibe su warning)."
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Silences activos",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus-infra"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 8,
+        "y": 1
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "decimals": 0,
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "blue",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "value"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus-infra"
+          },
+          "expr": "sum(alertmanager_silences{state=\"active\"})"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "type": "stat",
+      "title": "Notif. fallidas [5m]",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus-infra"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 12,
+        "y": 1
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "cps",
+          "decimals": 3,
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 0.0001
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "value"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus-infra"
+          },
+          "expr": "sum(rate(alertmanager_notifications_failed_total[5m]))"
+        }
+      ],
+      "description": "Tasa de notificaciones que fallaron al entregarse (cualquier canal). >0 = un webhook/SMTP está roto."
+    },
+    {
+      "id": 6,
+      "type": "stat",
+      "title": "Config reload",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus-infra"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 16,
+        "y": 1
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "decimals": 0,
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          },
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "FALLO",
+                  "color": "red"
+                },
+                "1": {
+                  "text": "OK",
+                  "color": "green"
+                }
+              }
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "value"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus-infra"
+          },
+          "expr": "alertmanager_config_last_reload_successful"
+        }
+      ],
+      "description": "1 = la última recarga de config fue correcta; 0 = alertmanager.yml inválido, sigue con la config vieja."
+    },
+    {
+      "id": 7,
+      "type": "stat",
+      "title": "Cluster health",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus-infra"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 20,
+        "y": 1
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "decimals": 0,
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          },
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "OK",
+                  "color": "green"
+                }
+              }
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "value"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus-infra"
+          },
+          "expr": "alertmanager_cluster_health_score"
+        }
+      ],
+      "description": "0 = sano. En un solo nodo (sin HA) siempre debería ser 0."
+    },
+    {
+      "id": 8,
+      "type": "row",
+      "title": "Notificaciones",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 5
+      },
+      "panels": []
+    },
+    {
+      "id": 9,
+      "type": "timeseries",
+      "title": "Notificaciones enviadas por canal [5m]",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus-infra"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 6
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "cps",
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 15,
+            "lineWidth": 2,
+            "showPoints": "never",
+            "spanNulls": true
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus-infra"
+          },
+          "expr": "sum by (integration) (rate(alertmanager_notifications_total{integration=~\"discord|email|webhook|telegram\"}[5m]))",
+          "legendFormat": "{{integration}}"
+        }
+      ],
+      "description": "Ritmo de notificaciones entregadas por receiver. webhook = el heartbeat healthchecks.io del Watchdog."
+    },
+    {
+      "id": 10,
+      "type": "timeseries",
+      "title": "Notificaciones FALLIDAS por canal [5m]",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus-infra"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 6
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "cps",
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 15,
+            "lineWidth": 2,
+            "showPoints": "never",
+            "spanNulls": true,
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus-infra"
+          },
+          "expr": "sum by (integration) (rate(alertmanager_notifications_failed_total{integration=~\"discord|email|webhook|telegram\"}[5m]))",
+          "legendFormat": "{{integration}}"
+        }
+      ],
+      "description": "Cualquier línea >0 = entregas fallando en ese canal (webhook caído, credenciales SMTP, rate-limit de Discord)."
+    },
+    {
+      "id": 11,
+      "type": "timeseries",
+      "title": "Latencia de entrega p99 / p50 [5m]",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus-infra"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 14
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "lineWidth": 2,
+            "showPoints": "never",
+            "spanNulls": true
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus-infra"
+          },
+          "expr": "histogram_quantile(0.99, sum by (le, integration) (rate(alertmanager_notification_latency_seconds_bucket{integration=~\"discord|email|webhook|telegram\"}[5m])))",
+          "legendFormat": "p99 {{integration}}"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus-infra"
+          },
+          "expr": "histogram_quantile(0.50, sum by (le, integration) (rate(alertmanager_notification_latency_seconds_bucket{integration=~\"discord|email|webhook|telegram\"}[5m])))",
+          "legendFormat": "p50 {{integration}}"
+        }
+      ],
+      "description": "Tiempo que tarda cada canal en aceptar la notificación. Picos = el endpoint remoto va lento."
+    },
+    {
+      "id": 12,
+      "type": "timeseries",
+      "title": "Ratio de fallo por canal (%) [1h]",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus-infra"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 14
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "lineWidth": 2,
+            "showPoints": "never",
+            "spanNulls": true,
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          },
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus-infra"
+          },
+          "expr": "100 * (sum by (integration) (rate(alertmanager_notifications_failed_total{integration=~\"discord|email|webhook|telegram\"}[1h])) / clamp_min(sum by (integration) (rate(alertmanager_notifications_total{integration=~\"discord|email|webhook|telegram\"}[1h])), 1e-9))",
+          "legendFormat": "{{integration}}"
+        }
+      ],
+      "description": "Porcentaje de entregas fallidas sobre el total, por canal. Debería quedarse en 0."
+    },
+    {
+      "id": 13,
+      "type": "row",
+      "title": "Alertas",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 22
+      },
+      "panels": []
+    },
+    {
+      "id": 14,
+      "type": "timeseries",
+      "title": "Alertas por estado",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus-infra"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 23
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 25,
+            "lineWidth": 2,
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "mode": "normal",
+              "group": "A"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus-infra"
+          },
+          "expr": "sum by (state) (alertmanager_alerts)",
+          "legendFormat": "{{state}}"
+        }
+      ],
+      "description": "Evolución de alertas active / suppressed / unprocessed dentro de Alertmanager."
+    },
+    {
+      "id": 15,
+      "type": "timeseries",
+      "title": "Flujo de alertas: recibidas vs inválidas [5m]",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus-infra"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 23
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "cps",
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "lineWidth": 2,
+            "showPoints": "never",
+            "spanNulls": true
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus-infra"
+          },
+          "expr": "sum(rate(alertmanager_alerts_received_total[5m]))",
+          "legendFormat": "recibidas"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus-infra"
+          },
+          "expr": "sum(rate(alertmanager_alerts_invalid_total[5m]))",
+          "legendFormat": "inválidas"
+        }
+      ],
+      "description": "Alertas que Prometheus empuja a Alertmanager. 'inválidas' >0 = alertas malformadas rechazadas."
+    },
+    {
+      "id": 16,
+      "type": "table",
+      "title": "Alertas firing ahora (desde Prometheus)",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus-infra"
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 24,
+        "x": 0,
+        "y": 31
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "filterable": true
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus-infra"
+          },
+          "expr": "sort(ALERTS{alertstate=\"firing\"})",
+          "instant": true,
+          "range": false,
+          "format": "table"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "Value": true,
+              "__name__": true,
+              "alertstate": true,
+              "job": true,
+              "role": true
+            },
+            "renameByName": {
+              "alertname": "Alerta",
+              "severity": "Severidad",
+              "instance": "Instancia",
+              "host": "Host"
+            },
+            "indexByName": {}
+          }
+        }
+      ],
+      "description": "Detalle por alerta de lo que está firing ahora (labels de la serie ALERTS). Complementa el contador agregado de arriba."
+    },
+    {
+      "id": 17,
+      "type": "row",
+      "title": "Salud del servicio",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 40
+      },
+      "panels": []
+    },
+    {
+      "id": 18,
+      "type": "stat",
+      "title": "Uptime",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus-infra"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 0,
+        "y": 41
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "decimals": 0,
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        },
+        "colorMode": "value",
+        "graphMode": "area",
+        "textMode": "value"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus-infra"
+          },
+          "expr": "time() - process_start_time_seconds{job=\"alertmanager\"}"
+        }
+      ],
+      "description": "Tiempo desde el último arranque/reinicio de Alertmanager."
+    },
+    {
+      "id": 19,
+      "type": "stat",
+      "title": "Última recarga de config (hace)",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus-infra"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 6,
+        "y": 41
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "decimals": 0,
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "value"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus-infra"
+          },
+          "expr": "time() - alertmanager_config_last_reload_success_timestamp_seconds"
+        }
+      ]
+    },
+    {
+      "id": 20,
+      "type": "stat",
+      "title": "Receivers configurados",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus-infra"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 12,
+        "y": 41
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "decimals": 0,
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "value"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus-infra"
+          },
+          "expr": "alertmanager_receivers"
+        }
+      ],
+      "description": "Nº de receivers en alertmanager.yml (discord, critical, heartbeat)."
+    },
+    {
+      "id": 21,
+      "type": "stat",
+      "title": "Grupos de agregación",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus-infra"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 18,
+        "y": 41
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "decimals": 0,
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "value"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus-infra"
+          },
+          "expr": "sum(alertmanager_dispatcher_aggregation_groups)"
+        }
+      ],
+      "description": "Grupos activos del dispatcher (según group_by). Refleja cuántos lotes de notificación mantiene vivos."
+    }
+  ]
+}
