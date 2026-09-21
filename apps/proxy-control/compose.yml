@@ -40,7 +40,19 @@ services:
             # Descubrimiento de dominios por labels (opt-in con DOCKER_LABELS_ENABLED=true en
             # proxy-control.env). La app NO monta el socket: habla con el daemon a través del
             # docker-socket-proxy (API filtrada y read-only), así corre como `node` sin EACCES.
+            #
+            # Un host (default): este DOCKER_HOST apunta al proxy local.
+            # Varios hosts: define DOCKER_HOSTS en proxy-control.env (tiene prioridad sobre
+            # DOCKER_HOST) con `nombre=url` separados por coma, un proxy por daemon. Ej:
+            #   DOCKER_HOSTS=local=tcp://proxy-control-docker-proxy:2375,pi2=tcp://proxy-control-docker-proxy-pi2:2375
+            # (levanta un docker-socket-proxy por host remoto — ver ejemplo comentado abajo).
             DOCKER_HOST: tcp://proxy-control-docker-proxy:2375
+            # Descubrimiento por fichero YAML (paneles bare-metal: Proxmox, TrueNAS…). Opt-in con
+            # FILE_DOMAINS_ENABLED=true en proxy-control.env. Lee ./domains.d montado abajo.
+            FILE_DOMAINS_PATH: /config/domains.d
+        volumes:
+            # Dominios estáticos declarativos (versionados en el repo, sincronizados a pi-infra).
+            - ./domains.d:/config/domains.d:ro
         depends_on:
             proxy-control-migrate:
                 condition: service_completed_successfully
@@ -113,6 +125,24 @@ services:
             options: { max-size: '10m', max-file: '3' }
         networks: [proxy-control-net]
         restart: unless-stopped
+
+    # ── Multi-host (opcional) ──────────────────────────────────────────────────────────
+    # Para vigilar OTRO daemon Docker, levanta un docker-socket-proxy adicional que exponga
+    # su socket, y añade su nombre a DOCKER_HOSTS (arriba). Si el otro host es una máquina
+    # remota, corre allí un docker-socket-proxy publicando el puerto (o hazlo alcanzable por
+    # red) y apunta DOCKER_HOSTS a `nombre=tcp://IP_REMOTA:2375` — sin este servicio local.
+    #
+    # proxy-control-docker-proxy-pi2:
+    #     image: tecnativa/docker-socket-proxy:0.3.0
+    #     container_name: proxy-control-docker-proxy-pi2
+    #     environment: { CONTAINERS: 1, EVENTS: 1, PING: 1, POST: 0 }
+    #     volumes:
+    #         - /var/run/docker.sock:/var/run/docker.sock:ro   # o el socket del host remoto
+    #     deploy:
+    #         resources:
+    #             limits: { cpus: '0.25', memory: 64m }
+    #     networks: [proxy-control-net]
+    #     restart: unless-stopped
 
     proxy-control-prometheus:
         image: prom/prometheus:v3.1.0
