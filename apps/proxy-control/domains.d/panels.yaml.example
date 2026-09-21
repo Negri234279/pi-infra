@@ -1,0 +1,27 @@
+# Dominios estáticos (servicios que NO son contenedores: paneles de Proxmox, TrueNAS, un
+# switch, una impresora…). Copia este fichero a `panels.yaml` (o crea otros *.yaml) y edítalo:
+# el watcher de proxy-control (FILE_DOMAINS_ENABLED=true) lo lee y crea/actualiza los dominios.
+#
+# Esta carpeta se versiona en el repo y el workflow sync-pi-infra la espeja a
+# pi-infra → apps/proxy-control/domains.d/ (el compose la monta en /config/domains.d).
+#
+# Quitar una entrada marca el dominio como HUÉRFANO (no se borra solo; se revisa a mano).
+# Cambiar el hostname = borrar el viejo (huérfano) + crear el nuevo.
+
+domains:
+    # Panel de Proxmox VE (privado, solo LAN, cert wildcard *.negri.es en NPM).
+    - hostname: pve-web.negri.es
+      visibility: private
+      forward: { scheme: https, host: 192.168.1.10, port: 8006 }
+      npm: { websockets: true } # la consola noVNC de Proxmox necesita websockets
+
+    # Panel de TrueNAS (privado).
+    - hostname: nas-web.negri.es
+      visibility: private
+      forward: { scheme: https, host: 192.168.1.20, port: 443 }
+
+    # Ejemplo público (Cloudflare + cert nuevo de Let's Encrypt). Descomenta y ajusta:
+    # - hostname: demo.negri.es
+    #   visibility: public
+    #   forward: { scheme: http, host: 10.0.0.5, port: 8080 }
+    #   cloudflare: { recordType: A, content: 203.0.113.10, proxied: true }
