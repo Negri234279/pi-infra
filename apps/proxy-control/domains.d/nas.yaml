@@ -6,4 +6,4 @@ domains:
     - hostname: nas-impi.negri.es
       visibility: private
       dnsOnly: true
-      address: 192.168.1.18
+      address: 192.168.1.17
