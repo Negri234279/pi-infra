@@ -1,0 +1,4 @@
+domains:
+    - hostname: nas-web.negri.es
+      visibility: private
+      forward: { scheme: https, host: 192.168.1.18, port: 443 }
