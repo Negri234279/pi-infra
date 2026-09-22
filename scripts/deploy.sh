@@ -173,6 +173,18 @@ if changed '^core/pgbouncer/'; then
   log "pgbouncer config changed -> recreate pgbouncer"
   docker compose up -d --force-recreate pgbouncer
 fi
+if changed '^core/ipmi-exporter/'; then
+  # ipmi.yml is a single-FILE bind mount (:/config.yml) that ipmi_exporter reads only at startup →
+  # needs a --force-recreate (same inode rationale as loki/snmp/pgbouncer above). BUT the live
+  # ipmi.yml holds the BMC creds and is GITIGNORED, so this git-diff-driven deploy can never see a
+  # change to it. So we key on the whole (tracked) dir instead: to change collectors, edit the hub's
+  # ipmi.yml AND commit the mirrored change to ipmi.yml.example — the example diff is what triggers
+  # this recreate, which then re-reads the already-edited live config. Without this, a collectors
+  # change (e.g. dropping the permanently-failing dcmi) never takes effect and IpmiCollectorFailing
+  # keeps firing on the stale config. README-only edits also recreate here — cheap and harmless.
+  log "ipmi-exporter config changed -> recreate ipmi-exporter"
+  docker compose up -d --force-recreate ipmi-exporter
+fi
 # NOTE: pve-exporter is no longer a hub service — it runs in an LXC on the pve node
 # (ansible/roles/pve_exporter_lxc) and its pve.yml is managed there by Ansible, not by
 # this script. A stale container from the old Docker setup is cleaned up by the
