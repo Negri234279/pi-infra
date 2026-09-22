@@ -25,3 +25,20 @@ domains:
     #   visibility: public
     #   forward: { scheme: http, host: 10.0.0.5, port: 8080 }
     #   cloudflare: { recordType: A, content: 203.0.113.10, proxied: true }
+
+    # ── Solo DNS (sin proxy host en NPM): registra solo la resolución ──
+    # Útil para apuntar un hostname directo a un servicio sin proxificarlo por NPM.
+    #
+    # Privado solo-DNS: crea SOLO la entrada A estática en el Mikrotik hacia `address`
+    # (obligatoria). Sin `forward`, sin SSL, sin opciones de NPM.
+    # - hostname: nas.negri.es
+    #   visibility: private
+    #   dnsOnly: true
+    #   address: 192.168.1.20
+    #
+    # Público solo-DNS: crea SOLO el registro en Cloudflare hacia `cloudflare.content`
+    # (obligatorio). `proxied: false` = registro gris (DNS-only, apunta directo al origen).
+    # - hostname: cdn.negri.es
+    #   visibility: public
+    #   dnsOnly: true
+    #   cloudflare: { recordType: A, content: 203.0.113.5, proxied: false }
