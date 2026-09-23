@@ -96,8 +96,10 @@ LAN/VPN and set `NEXTCLOUD_OVERWRITEPROTOCOL=https`.
 
 A full media stack runs on the NAS's native Docker, **LAN/VPN only** (no public exposure):
 **Jellyfin** (streaming), **Sonarr**/**Radarr** (TV/movies), **Jackett** (indexers),
-**qBittorrent** (downloads), **Jellyseerr** (requests — the Jellyfin fork of Overseerr; plain
-Overseerr is Plex-only), and **Cantinarr** (discovery/requests + assistant over the *arr stack).
+**qBittorrent** (downloads), **Jellyseerr** (requests — uses the **Seerr** image
+`ghcr.io/seerr-team/seerr`, the maintained successor of Jellyseerr; the old `fallenbagel/jellyseerr`
+is archived and breaks on current Jellyfin. Service/DNS name kept as `jellyseerr`), and **Cantinarr**
+(discovery/requests + assistant over the *arr stack).
 
 - Compose: `hosts/truenas/media.compose.yml`  ·  Role: `ansible/roles/truenas_media` (tag `media`).
 - Config: `hosts/truenas/media.env` (copy from `.example`; gitignored via `hosts/**/*.env`).

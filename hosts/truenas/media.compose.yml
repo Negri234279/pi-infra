@@ -138,15 +138,20 @@ services:
       - ./config/qbittorrent:/config
       - ${MEDIA_LIBRARY_HOST_PATH:-/mnt/tank/media}:/data
 
-  # Jellyseerr — requests / discovery front-end (the Jellyfin-compatible fork of Overseerr; plain
-  # Overseerr only supports Plex). Talks to Jellyfin, Sonarr and Radarr over the bridge by name.
+  # Requests / discovery front-end. Uses SEERR (ghcr.io/seerr-team/seerr = Docker Hub seerr/seerr),
+  # the maintained successor of Jellyseerr — the old fallenbagel/jellyseerr image is ARCHIVED and
+  # doesn't support current Jellyfin (12.x auth breaks). Seerr keeps the same port 5055 and the same
+  # /app/config path, so it reuses this volume and migrates the existing config in place. The service
+  # / container / DNS name stays `jellyseerr` to avoid churn across the stack. Runs as node (UID 1000).
   jellyseerr:
-    image: fallenbagel/jellyseerr:latest
+    image: ghcr.io/seerr-team/seerr:latest
     container_name: jellyseerr
     restart: unless-stopped
+    init: true
     environment:
       TZ: ${TZ:-Europe/Madrid}
       LOG_LEVEL: info
+      PORT: 5055
     ports:
       - "${JELLYSEERR_PORT:-5055}:5055"
     volumes:
