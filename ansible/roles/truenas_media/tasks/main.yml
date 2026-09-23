@@ -67,6 +67,17 @@
     mode: "0775"
   loop: "{{ truenas_media_subdirs }}"
 
+# Seerr (the `jellyseerr` service) runs strictly as the node user (UID/GID 1000) and does NOT honour
+# PUID/PGID, so its config dir must be owned by 1000 or it can't write (EACCES on /app/config/logs).
+# Pre-create + chown it before compose up, so a fresh bind mount isn't left root-owned by Docker.
+- name: Ensure the Seerr (jellyseerr) config dir is owned by the node user (UID 1000)
+  ansible.builtin.file:
+    path: "{{ truenas_media_dir }}/config/jellyseerr"
+    state: directory
+    owner: "1000"
+    group: "1000"
+    recurse: true
+
 # ── Sync the compose project + .env ────────────────────────────────────────────────
 - name: Sync the media compose file
   ansible.builtin.copy:

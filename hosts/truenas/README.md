@@ -206,6 +206,9 @@ Use **container names**, not host ports, for the internal connections:
    allowed the LAN to reach the WebUI without a password; set a real WebUI password here anyway if
    you want, but then also fill `QBITTORRENT_USER`/`PASSWORD` in the hub `.env` for the widget.
 2. **Jackett** (`:9117`) → add your indexers; copy each one's **Torznab feed** + the Jackett API key.
+   For Cloudflare-protected indexers (e.g. 1337x → "Challenge detected but FlareSolverr is not
+   configured"), set Jackett → Settings → **FlareSolverr API URL** = `http://flaresolverr:8191` and
+   save (the `flaresolverr` service is in the compose).
 3. **Sonarr** (`:8989`) and **Radarr** (`:7878`):
    - Settings → **Download Clients** → add **qBittorrent**, host **`gluetun`**, port `8080`
      (qBittorrent shares gluetun's network namespace, so the container name on the bridge is

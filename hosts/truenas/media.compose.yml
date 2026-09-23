@@ -82,6 +82,19 @@ services:
       - ./config/jackett:/config
     networks: [media]
 
+  # FlareSolverr — headless-browser proxy that solves Cloudflare "challenge" pages for Jackett
+  # indexers that are behind Cloudflare (e.g. 1337x). Jackett reaches it internally at
+  # http://flaresolverr:8191 (set it in Jackett → Settings → FlareSolverr API URL). No published
+  # port (only Jackett uses it). Not routed through the VPN — it only fetches indexer search pages.
+  flaresolverr:
+    image: ghcr.io/flaresolverr/flaresolverr:latest
+    container_name: flaresolverr
+    restart: unless-stopped
+    environment:
+      LOG_LEVEL: ${FLARESOLVERR_LOG_LEVEL:-info}
+      TZ: ${TZ:-Europe/Madrid}
+    networks: [media]
+
   # gluetun — VPN gateway (AirVPN over WireGuard). qBittorrent runs INSIDE this container's network
   # namespace (network_mode: service:gluetun below), so ALL torrent traffic goes through the tunnel
   # and gluetun's built-in firewall kill-switch drops everything if the VPN goes down. Because
