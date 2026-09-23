@@ -118,7 +118,7 @@
 
     - name: Wait for the qBittorrent config
       ansible.builtin.wait_for:
-        path: "{{ truenas_media_dir }}/config/qBittorrent/qBittorrent.conf"
+        path: "{{ truenas_media_dir }}/config/qbittorrent/qBittorrent/qBittorrent.conf"
         timeout: 120
 
     - name: Read Sonarr config.xml
@@ -148,7 +148,7 @@
     # made while running would be overwritten.
     - name: Read qBittorrent.conf (from the NAS)
       ansible.builtin.slurp:
-        src: "{{ truenas_media_dir }}/config/qBittorrent/qBittorrent.conf"
+        src: "{{ truenas_media_dir }}/config/qbittorrent/qBittorrent/qBittorrent.conf"
       register: truenas_media_qbt_cfg
 
     - name: Check whether the qBittorrent LAN whitelist is already set
@@ -167,13 +167,13 @@
 
         - name: Ensure the [Preferences] section exists
           ansible.builtin.lineinfile:
-            path: "{{ truenas_media_dir }}/config/qBittorrent/qBittorrent.conf"
+            path: "{{ truenas_media_dir }}/config/qbittorrent/qBittorrent/qBittorrent.conf"
             regexp: '^\[Preferences\]'
             line: '[Preferences]'
 
         - name: Set the WebUI subnet-whitelist keys
           ansible.builtin.lineinfile:
-            path: "{{ truenas_media_dir }}/config/qBittorrent/qBittorrent.conf"
+            path: "{{ truenas_media_dir }}/config/qbittorrent/qBittorrent/qBittorrent.conf"
             regexp: "{{ item.re }}"
             line: "{{ item.line }}"
             insertafter: '^\[Preferences\]'
