@@ -83,6 +83,14 @@ services:
       - HOMEPAGE_VAR_PVE_TOKEN_ID=${PVE_TOKEN_ID:-}
       - HOMEPAGE_VAR_PVE_TOKEN_SECRET=${PVE_TOKEN_SECRET:-}
       - HOMEPAGE_VAR_NAS_KEY=${NAS_KEY:-}
+      # Media stack on the NAS (hosts/truenas/, role truenas_media). API keys/creds set per-app
+      # AFTER first launch. Empty → the card still links + pings, the widget just shows no data.
+      - HOMEPAGE_VAR_JELLYFIN_KEY=${JELLYFIN_KEY:-}
+      - HOMEPAGE_VAR_JELLYSEERR_KEY=${JELLYSEERR_KEY:-}
+      - HOMEPAGE_VAR_SONARR_KEY=${SONARR_KEY:-}
+      - HOMEPAGE_VAR_RADARR_KEY=${RADARR_KEY:-}
+      - HOMEPAGE_VAR_QBITTORRENT_USER=${QBITTORRENT_USER:-}
+      - HOMEPAGE_VAR_QBITTORRENT_PASSWORD=${QBITTORRENT_PASSWORD:-}
     volumes:
       - ./homepage/config:/app/config
       # Auto-descubrimiento de apps por labels + estado de contenedores. RO basta.

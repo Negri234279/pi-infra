@@ -1,0 +1,44 @@
+---
+# Deploys the media server stack (Jellyfin + Sonarr/Radarr/Jackett + qBittorrent + Jellyseerr +
+# Cantinarr) onto TrueNAS's native Docker. Opt-in (playbook tag `media`). LAN/VPN only.
+# Same shape as the truenas_nextcloud role. See hosts/truenas/media.compose.yml.
+#
+# Two datasets, created via midclt if absent:
+truenas_media_dataset: "{{ truenas_pool }}/mediaserver"        # compose project + ./config/<app>
+truenas_media_library_dataset: "{{ truenas_pool }}/media"      # library + downloads (one FS = hardlinks)
+
+# Where the compose project is synced on the NAS (= the mediaserver dataset mountpoint). The compose
+# uses RELATIVE binds (./config/<app>), so it must be deployed here.
+truenas_media_dir: "/mnt/{{ truenas_media_dataset }}"
+
+# Host path of the library dataset, mounted as /data in the containers. MUST match
+# MEDIA_LIBRARY_HOST_PATH in media.env. The role creates the /data subfolders under it.
+truenas_media_library_dir: "/mnt/{{ truenas_media_library_dataset }}"
+
+# Subfolders created under the library dataset (chowned to PUID:PGID from media.env). Downloads and
+# libraries share the ONE dataset so Sonarr/Radarr import by hardlink instead of copying.
+truenas_media_subdirs:
+  - torrents/complete
+  - torrents/incomplete
+  - media/movies
+  - media/tv
+
+# Sources on the control node / hub (the repo checkout). playbook_dir is ansible/playbooks.
+truenas_media_compose_src: "{{ playbook_dir }}/../../hosts/truenas/media.compose.yml"
+truenas_media_env_src: "{{ playbook_dir }}/../../hosts/truenas/media.env"
+
+# Force-pull images on this run (e.g. to update the containers deliberately).
+truenas_media_pull: false
+
+# ── Homepage widget auto-provisioning ────────────────────────────────────────────
+# After the stack is up, read the API keys the apps generate on first launch (Sonarr/Radarr from
+# config.xml, Jellyseerr from settings.json), whitelist the LAN in qBittorrent so its widget needs
+# no password, write the keys into the hub's .env and recreate homepage. Jellyfin has NO file-based
+# key (created via UI/REST after the setup wizard) → it stays a manual step. Set false to skip all
+# of this (e.g. if homepage isn't in use).
+truenas_media_provision_homepage: true
+# LAN/VPN subnet allowed to reach qBittorrent's WebUI without auth (must include the hub running
+# homepage, 192.168.1.7). The widget then connects with no credentials.
+truenas_media_lan_subnet: "192.168.1.0/24"
+# The hub's repo-root .env (control node = the hub). playbook_dir is ansible/playbooks.
+truenas_media_hub_env: "{{ playbook_dir }}/../../.env"

@@ -7,3 +7,34 @@ domains:
       visibility: private
       dnsOnly: true
       address: 192.168.1.17
+
+    # ── Media stack (hosts/truenas/, role truenas_media) — private, LAN/VPN only ──
+    # All serve plain HTTP on the NAS mgmt NIC (192.168.1.18); NPM fronts them with the
+    # *.negri.es wildcard cert. websockets on for the apps that use them (Jellyfin, and
+    # Sonarr/Radarr/Jellyseerr use SignalR for live UI updates).
+    - hostname: jellyfin.negri.es
+      visibility: private
+      forward: { scheme: http, host: 192.168.1.18, port: 8096 }
+      npm: { websockets: true }
+    - hostname: jellyseerr.negri.es
+      visibility: private
+      forward: { scheme: http, host: 192.168.1.18, port: 5055 }
+      npm: { websockets: true }
+    - hostname: cantinarr.negri.es
+      visibility: private
+      forward: { scheme: http, host: 192.168.1.18, port: 8585 }
+      npm: { websockets: true }
+    - hostname: sonarr.negri.es
+      visibility: private
+      forward: { scheme: http, host: 192.168.1.18, port: 8989 }
+      npm: { websockets: true }
+    - hostname: radarr.negri.es
+      visibility: private
+      forward: { scheme: http, host: 192.168.1.18, port: 7878 }
+      npm: { websockets: true }
+    - hostname: jackett.negri.es
+      visibility: private
+      forward: { scheme: http, host: 192.168.1.18, port: 9117 }
+    - hostname: qbittorrent.negri.es
+      visibility: private
+      forward: { scheme: http, host: 192.168.1.18, port: 8085 }

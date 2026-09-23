@@ -1,0 +1,222 @@
+---
+# Provision the media server stack on TrueNAS's native Docker. Runs with become (docker + midclt
+# need root). LAN/VPN only. See hosts/truenas/media.compose.yml. Mirrors the truenas_nextcloud role.
+
+# ── Preflight ───────────────────────────────────────────────────────────────────
+- name: Check the TrueNAS Docker (Apps) engine status
+  ansible.builtin.command:
+    argv: [midclt, call, docker.status]
+  register: truenas_media_docker_status
+  changed_when: false
+
+- name: Fail if the Docker engine is not running
+  ansible.builtin.fail:
+    msg: >-
+      TrueNAS Docker engine is '{{ (truenas_media_docker_status.stdout | from_json).status
+      | default("UNKNOWN") }}', expected 'RUNNING'. Initialise Apps with a pool first.
+  when: (truenas_media_docker_status.stdout | from_json).status | default('') != 'RUNNING'
+
+- name: Ensure the media .env file exists on the control node
+  ansible.builtin.stat:
+    path: "{{ truenas_media_env_src }}"
+  register: truenas_media_env
+  delegate_to: localhost
+  become: false
+
+- name: Fail if the .env file is missing
+  ansible.builtin.fail:
+    msg: >-
+      {{ truenas_media_env_src }} not found. Copy hosts/truenas/media.env.example to
+      hosts/truenas/media.env and set PUID/PGID/TZ, then re-run.
+  when: not truenas_media_env.stat.exists
+
+# PUID/PGID drive who owns the /data subfolders (LinuxServer.io apps run as these). Read them from
+# the .env on the control node so the chown below matches what the containers use.
+- name: Read PUID/PGID from the media .env (control node)
+  ansible.builtin.set_fact:
+    truenas_media_puid: "{{ lookup('file', truenas_media_env_src) | regex_search('(?m)^PUID=(\\d+)', '\\1') | first | default('1000') }}"
+    truenas_media_pgid: "{{ lookup('file', truenas_media_env_src) | regex_search('(?m)^PGID=(\\d+)', '\\1') | first | default('1000') }}"
+
+# ── ZFS datasets (idempotent) ─────────────────────────────────────────────────────
+- name: Check whether the media datasets exist
+  ansible.builtin.command:
+    argv: [midclt, call, pool.dataset.get_instance, "{{ item }}"]
+  loop:
+    - "{{ truenas_media_dataset }}"
+    - "{{ truenas_media_library_dataset }}"
+  register: truenas_media_ds
+  changed_when: false
+  failed_when: false
+
+- name: Create the missing media datasets
+  ansible.builtin.command:
+    argv: [midclt, call, pool.dataset.create, "{{ {'name': item.item} | to_json }}"]
+  loop: "{{ truenas_media_ds.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+  when: item.rc != 0
+  changed_when: true
+
+# ── /data layout (downloads + libraries share ONE dataset → hardlinks work) ────────
+- name: Create the /data subfolders on the library dataset
+  ansible.builtin.file:
+    path: "{{ truenas_media_library_dir }}/{{ item }}"
+    state: directory
+    owner: "{{ truenas_media_puid }}"
+    group: "{{ truenas_media_pgid }}"
+    mode: "0775"
+  loop: "{{ truenas_media_subdirs }}"
+
+# ── Sync the compose project + .env ────────────────────────────────────────────────
+- name: Sync the media compose file
+  ansible.builtin.copy:
+    src: "{{ truenas_media_compose_src }}"
+    dest: "{{ truenas_media_dir }}/docker-compose.yml"
+    mode: "0644"
+  register: truenas_media_compose
+
+- name: Sync the media .env (next to the compose)
+  ansible.builtin.copy:
+    src: "{{ truenas_media_env_src }}"
+    dest: "{{ truenas_media_dir }}/.env"
+    mode: "0600"
+  register: truenas_media_envfile
+
+- name: Pull the media images
+  ansible.builtin.command:
+    argv: [docker, compose, -f, "{{ truenas_media_dir }}/docker-compose.yml", pull]
+  when: truenas_media_pull | bool
+  changed_when: true
+
+- name: Bring up the media stack
+  ansible.builtin.command:
+    argv: [docker, compose, -f, "{{ truenas_media_dir }}/docker-compose.yml", up, -d]
+  register: truenas_media_up
+  changed_when: >-
+    ('Started' in truenas_media_up.stderr) or ('Created' in truenas_media_up.stderr) or
+    ('Recreated' in truenas_media_up.stderr) or ('Pulling' in truenas_media_up.stderr)
+
+# ── Auto-provision homepage widget keys (opt-out via truenas_media_provision_homepage) ──────────
+# Reads the keys the apps generate on first launch and writes them into the hub's .env, then
+# recreates homepage on the hub. qBittorrent gets a LAN subnet whitelist so its widget needs no
+# password (the stored password is a non-reversible PBKDF2 hash). Jellyfin stays manual.
+- name: Provision homepage widget credentials
+  when: truenas_media_provision_homepage | bool
+  block:
+    - name: Wait for the *arr configs to be generated (with the API key)
+      ansible.builtin.wait_for:
+        path: "{{ truenas_media_dir }}/config/{{ item }}/config.xml"
+        search_regex: "<ApiKey>"
+        timeout: 120
+      loop: [sonarr, radarr]
+
+    - name: Wait for the Jellyseerr settings (with the API key)
+      ansible.builtin.wait_for:
+        path: "{{ truenas_media_dir }}/config/jellyseerr/settings.json"
+        search_regex: "apiKey"
+        timeout: 120
+
+    - name: Wait for the qBittorrent config
+      ansible.builtin.wait_for:
+        path: "{{ truenas_media_dir }}/config/qBittorrent/qBittorrent.conf"
+        timeout: 120
+
+    - name: Read Sonarr config.xml
+      ansible.builtin.slurp:
+        src: "{{ truenas_media_dir }}/config/sonarr/config.xml"
+      register: truenas_media_sonarr_cfg
+
+    - name: Read Radarr config.xml
+      ansible.builtin.slurp:
+        src: "{{ truenas_media_dir }}/config/radarr/config.xml"
+      register: truenas_media_radarr_cfg
+
+    - name: Read Jellyseerr settings.json
+      ansible.builtin.slurp:
+        src: "{{ truenas_media_dir }}/config/jellyseerr/settings.json"
+      register: truenas_media_jellyseerr_cfg
+
+    - name: Collect the discovered widget keys
+      ansible.builtin.set_fact:
+        truenas_media_keys:
+          SONARR_KEY: "{{ truenas_media_sonarr_cfg.content | b64decode | regex_findall('<ApiKey>([^<]+)</ApiKey>') | first | default('') }}"
+          RADARR_KEY: "{{ truenas_media_radarr_cfg.content | b64decode | regex_findall('<ApiKey>([^<]+)</ApiKey>') | first | default('') }}"
+          JELLYSEERR_KEY: "{{ (truenas_media_jellyseerr_cfg.content | b64decode | from_json).main.apiKey | default('') }}"
+
+    # qBittorrent WebUI: whitelist the LAN so homepage connects without a password. Edit the conf
+    # while the container is STOPPED — qBittorrent rewrites its conf on graceful exit, so an edit
+    # made while running would be overwritten.
+    - name: Read qBittorrent.conf (from the NAS)
+      ansible.builtin.slurp:
+        src: "{{ truenas_media_dir }}/config/qBittorrent/qBittorrent.conf"
+      register: truenas_media_qbt_cfg
+
+    - name: Check whether the qBittorrent LAN whitelist is already set
+      ansible.builtin.set_fact:
+        truenas_media_qbt_ok: >-
+          {{ ('AuthSubnetWhitelist=' ~ truenas_media_lan_subnet) in (truenas_media_qbt_cfg.content | b64decode)
+             and 'AuthSubnetWhitelistEnabled=true' in (truenas_media_qbt_cfg.content | b64decode) }}
+
+    - name: Apply the qBittorrent LAN whitelist (stop → edit → start)
+      when: not truenas_media_qbt_ok
+      block:
+        - name: Stop qBittorrent so the conf edit persists
+          ansible.builtin.command:
+            argv: [docker, compose, -f, "{{ truenas_media_dir }}/docker-compose.yml", stop, qbittorrent]
+          changed_when: true
+
+        - name: Ensure the [Preferences] section exists
+          ansible.builtin.lineinfile:
+            path: "{{ truenas_media_dir }}/config/qBittorrent/qBittorrent.conf"
+            regexp: '^\[Preferences\]'
+            line: '[Preferences]'
+
+        - name: Set the WebUI subnet-whitelist keys
+          ansible.builtin.lineinfile:
+            path: "{{ truenas_media_dir }}/config/qBittorrent/qBittorrent.conf"
+            regexp: "{{ item.re }}"
+            line: "{{ item.line }}"
+            insertafter: '^\[Preferences\]'
+          loop:
+            - { re: '^WebUI\\AuthSubnetWhitelistEnabled=', line: 'WebUI\AuthSubnetWhitelistEnabled=true' }
+            - { re: '^WebUI\\AuthSubnetWhitelist=', line: 'WebUI\AuthSubnetWhitelist={{ truenas_media_lan_subnet }}' }
+
+        - name: Start qBittorrent again
+          ansible.builtin.command:
+            argv: [docker, compose, -f, "{{ truenas_media_dir }}/docker-compose.yml", start, qbittorrent]
+          changed_when: true
+
+    # ── Write the discovered keys into the hub .env + recreate homepage (control node = the hub) ──
+    - name: Write the discovered widget keys into the hub .env
+      ansible.builtin.lineinfile:
+        path: "{{ truenas_media_hub_env }}"
+        regexp: "^{{ item.key }}="
+        line: "{{ item.key }}={{ item.value }}"
+      loop: "{{ truenas_media_keys | dict2items }}"
+      loop_control:
+        label: "{{ item.key }}"
+      when: item.value | default('') | length > 0
+      delegate_to: localhost
+      become: false
+
+    - name: Recreate homepage so it picks up the new widget keys
+      ansible.builtin.command:
+        cmd: docker compose up -d homepage
+        chdir: "{{ truenas_media_hub_env | dirname }}"
+      register: truenas_media_hp
+      changed_when: >-
+        ('Recreated' in truenas_media_hp.stderr) or ('Started' in truenas_media_hp.stderr) or
+        ('Created' in truenas_media_hp.stderr)
+      delegate_to: localhost
+      become: false
+
+- name: Where to reach it
+  ansible.builtin.debug:
+    msg: >-
+      Media stack up on the LAN/VPN (http://{{ ansible_host }}:<port>): Jellyfin 8096, Sonarr 8989,
+      Radarr 7878, Jackett 9117, qBittorrent 8085, Jellyseerr 5055, Cantinarr 8585. Sonarr/Radarr/
+      Jellyseerr keys + qBittorrent whitelist were auto-written to the hub .env and homepage was
+      recreated. MANUAL step left: create a Jellyfin API key (Dashboard → API Keys) and set
+      JELLYFIN_KEY in the hub .env, then `docker compose up -d homepage`. Next, wire Sonarr/Radarr:
+      add download client gluetun:8080 (qBittorrent runs in gluetun's VPN namespace) + indexers from
+      jackett:9117, root folders /data/media/tv and /data/media/movies; Jellyfin libraries at /data/media/*.

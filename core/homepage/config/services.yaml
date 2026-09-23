@@ -172,3 +172,75 @@
         description: Métricas de la BD
         server: my-docker
         container: postgres-exporter
+
+- Media (NAS):
+    # El stack multimedia corre en el NAS (192.168.1.18), NO en el hub: cross-host y
+    # solo-LAN/VPN (sin subdominio NPM), así que se declara a mano aquí (no auto-registro
+    # por labels) con href/siteMonitor a la IP LAN + puerto. Los widgets nativos leen su
+    # API key/credenciales desde {{HOMEPAGE_VAR_*}} (vacío → tarjeta sin datos pero con
+    # enlace + estado). Definido en hosts/truenas/ (rol truenas_media). Jackett y Cantinarr
+    # no tienen widget nativo → solo tarjeta.
+    - Jellyfin:
+        icon: jellyfin.png
+        href: https://jellyfin.negri.es
+        description: Servidor multimedia
+        siteMonitor: http://192.168.1.18:8096
+        widget:
+          type: jellyfin
+          url: http://192.168.1.18:8096
+          key: "{{HOMEPAGE_VAR_JELLYFIN_KEY}}"
+          enableBlocks: true
+          enableNowPlaying: true
+
+    - Jellyseerr:
+        icon: jellyseerr.png
+        href: https://jellyseerr.negri.es
+        description: Peticiones de contenido
+        siteMonitor: http://192.168.1.18:5055
+        widget:
+          type: jellyseerr
+          url: http://192.168.1.18:5055
+          key: "{{HOMEPAGE_VAR_JELLYSEERR_KEY}}"
+
+    - Cantinarr:
+        icon: mdi-filmstrip
+        href: https://cantinarr.negri.es
+        description: Descubrimiento + asistente *arr
+        siteMonitor: http://192.168.1.18:8585
+
+    - Sonarr:
+        icon: sonarr.png
+        href: https://sonarr.negri.es
+        description: Series de TV
+        siteMonitor: http://192.168.1.18:8989
+        widget:
+          type: sonarr
+          url: http://192.168.1.18:8989
+          key: "{{HOMEPAGE_VAR_SONARR_KEY}}"
+
+    - Radarr:
+        icon: radarr.png
+        href: https://radarr.negri.es
+        description: Películas
+        siteMonitor: http://192.168.1.18:7878
+        widget:
+          type: radarr
+          url: http://192.168.1.18:7878
+          key: "{{HOMEPAGE_VAR_RADARR_KEY}}"
+
+    - Jackett:
+        icon: jackett.png
+        href: https://jackett.negri.es
+        description: Indexadores (torrent)
+        siteMonitor: http://192.168.1.18:9117
+
+    - qBittorrent:
+        icon: qbittorrent.png
+        href: https://qbittorrent.negri.es
+        description: Cliente de descargas
+        siteMonitor: http://192.168.1.18:8085
+        widget:
+          type: qbittorrent
+          url: http://192.168.1.18:8085
+          username: "{{HOMEPAGE_VAR_QBITTORRENT_USER}}"
+          password: "{{HOMEPAGE_VAR_QBITTORRENT_PASSWORD}}"

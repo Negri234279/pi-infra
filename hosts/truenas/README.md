@@ -92,6 +92,196 @@ the `nextcloud` tag, so a normal observability bootstrap never touches it. `next
 gitignored (`hosts/**/*.env`). To later add TLS/a hostname, front it with NPM restricted to the
 LAN/VPN and set `NEXTCLOUD_OVERWRITEPROTOCOL=https`.
 
+# Media server stack — opt-in
+
+A full media stack runs on the NAS's native Docker, **LAN/VPN only** (no public exposure):
+**Jellyfin** (streaming), **Sonarr**/**Radarr** (TV/movies), **Jackett** (indexers),
+**qBittorrent** (downloads), **Jellyseerr** (requests — the Jellyfin fork of Overseerr; plain
+Overseerr is Plex-only), and **Cantinarr** (discovery/requests + assistant over the *arr stack).
+
+- Compose: `hosts/truenas/media.compose.yml`  ·  Role: `ansible/roles/truenas_media` (tag `media`).
+- Config: `hosts/truenas/media.env` (copy from `.example`; gitignored via `hosts/**/*.env`).
+- Runs on the NAS, deployed **from the hub** like the rest of `bootstrap-truenas.yml`.
+
+### How it fits together
+
+```
+qBittorrent ──downloads──► /data/torrents ──hardlink import──► /data/media/{movies,tv}
+      ▲                                                              │
+   Jackett (indexers)                                            Jellyfin (streaming)
+      ▲                                                              ▲
+   Sonarr / Radarr ◄── requests ── Jellyseerr / Cantinarr ◄──── users
+```
+
+Everything shares one docker bridge (`media`), so the apps reach each other by **container name**
+(`jackett:9117`, `sonarr:8989`, `radarr:7878`, and the download client at **`gluetun:8080`** —
+qBittorrent runs in gluetun's VPN namespace) — the host ports below are only for you, from the LAN/VPN.
+
+### Storage layout (why one dataset)
+
+Two ZFS datasets, created by the role via `midclt`:
+- `<pool>/mediaserver` → the compose project + per-app config (`./config/<app>`), snapshotted.
+- `<pool>/media` → the library **and** downloads on **one filesystem**, mounted as `/data` in every
+  media container, with subfolders the role creates and `chown`s to `PUID:PGID`:
+  ```
+  /data/torrents/{complete,incomplete}   (qBittorrent)
+  /data/media/movies                     (Radarr library + Jellyfin)
+  /data/media/tv                         (Sonarr library + Jellyfin)
+  ```
+  Downloads and libraries share the **same** dataset on purpose: Sonarr/Radarr then import by
+  **hardlink** instead of copying (instant, no double space, seeding continues) — the TRaSH-guide
+  layout. Split them across datasets and every import silently falls back to a slow full copy.
+
+### Ports (LAN/VPN, at `192.168.1.18`)
+
+| Service     | Port  | Notes |
+|-------------|-------|-------|
+| Jellyfin    | 8096  | streaming server |
+| Jellyseerr  | 5055  | requests |
+| Cantinarr   | 8585  | discovery + assistant |
+| Sonarr      | 8989  | TV |
+| Radarr      | 7878  | movies |
+| Jackett     | 9117  | indexers |
+| qBittorrent | 8085  | WebUI (remapped off 8080 to avoid clashing with Nextcloud) |
+| qBittorrent | 6881  | BitTorrent peer port (tcp+udp) |
+
+## Setup — step by step
+
+### 0. Prerequisites
+- The observability bootstrap prerequisites (SSH + key, Apps/Docker initialised with a pool) — see
+  **Provision** above. The media stack reuses the same `nas` inventory host and `truenas_pool`.
+- Decide the **owner UID/GID** the apps run as. Find it on the NAS: `ssh truenas 'id <user>'`
+  (e.g. `truenas_admin`, or a dedicated `apps` user). It must own `<pool>/media`, or the containers
+  can't write.
+
+### 1. Create the config file
+From the repo root:
+```bash
+cp hosts/truenas/media.env.example hosts/truenas/media.env
+$EDITOR hosts/truenas/media.env      # set PUID / PGID / TZ (the id from step 0)
+```
+`MEDIA_LIBRARY_HOST_PATH` defaults to `/mnt/tank/media`; change it only if your pool isn't `tank`
+(and keep it in sync with `truenas_media_library_dataset` in the role defaults).
+
+### 2. Deploy
+From `~/pi-infra/ansible` on the hub:
+```bash
+./run.sh playbooks/bootstrap-truenas.yml --tags media
+```
+This creates the datasets + `/data` subfolders, syncs the compose + `.env` to the NAS, and runs
+`docker compose up -d`. On the first run it also auto-provisions the homepage widgets (step 5).
+
+### 3. Verify the containers
+```bash
+ssh truenas 'docker compose -f /mnt/tank/mediaserver/docker-compose.yml ps'   # all Up
+```
+Then open each WebUI from the LAN/VPN at `192.168.1.18:<port>` (see the ports table).
+
+### 4. Jellyfin first-run wizard
+Open `http://192.168.1.18:8096` and complete the setup wizard (create the admin user, skip adding
+libraries for now — you'll point them at `/data/media/*` in step 6). This wizard is the one part
+that can't be automated, and it must be done before the Jellyfin API key exists.
+
+### 5. Homepage widgets — mostly automatic
+The role **auto-fills** the hub's homepage widgets on deploy: it reads `SONARR_KEY`/`RADARR_KEY`
+from each app's `config.xml`, `JELLYSEERR_KEY` from Jellyseerr's `settings.json`, and LAN-whitelists
+qBittorrent (`truenas_media_lan_subnet`, default `192.168.1.0/24`) so its widget needs no password.
+It writes these into the hub's repo-root `.env` and recreates `homepage`. Nothing to do for those.
+
+The **only manual key is Jellyfin's** (it has no file-based key):
+1. Jellyfin → **Dashboard → Advanced → API Keys → +**, name it `homepage`.
+2. Put it in the hub `.env`: `JELLYFIN_KEY=<the key>`.
+3. Recreate homepage from the repo root on the hub: `docker compose up -d homepage`.
+
+Disable all widget auto-provisioning with `truenas_media_provision_homepage: false` (role default is
+`true`).
+
+### 6. Wire the *arr stack (in the WebUIs)
+Use **container names**, not host ports, for the internal connections:
+
+1. **qBittorrent** (`:8085`) → Options → Downloads → default save path `/data/torrents`
+   (and, if you use it, keep incomplete downloads in `/data/torrents/incomplete`). The role already
+   allowed the LAN to reach the WebUI without a password; set a real WebUI password here anyway if
+   you want, but then also fill `QBITTORRENT_USER`/`PASSWORD` in the hub `.env` for the widget.
+2. **Jackett** (`:9117`) → add your indexers; copy each one's **Torznab feed** + the Jackett API key.
+3. **Sonarr** (`:8989`) and **Radarr** (`:7878`):
+   - Settings → **Download Clients** → add **qBittorrent**, host **`gluetun`**, port `8080`
+     (qBittorrent shares gluetun's network namespace, so the container name on the bridge is
+     `gluetun`, not `qbittorrent`).
+   - Settings → **Indexers** → add each Jackett indexer (Torznab URL + API key), or point them at
+     Jackett's aggregate feed.
+   - Settings → **Media Management** → **Root Folders**: add `/data/media/tv` (Sonarr) and
+     `/data/media/movies` (Radarr).
+   - Confirm a test grab imports by **hardlink** (same inode as the file in `/data/torrents`, no
+     copy). If it copies, the `/data` layout is broken — recheck step 1.
+
+### 7. Requests: Jellyseerr + Cantinarr
+- **Jellyseerr** (`:5055`) → sign in with your Jellyfin account, connect it to Jellyfin, then add
+  Sonarr (`sonarr:8989`) and Radarr (`radarr:7878`) with their API keys and the same root folders.
+- **Cantinarr** (`:8585`) → run its setup wizard (admin account) and connect Jellyfin + the *arr
+  services the same way. It overlaps Jellyseerr; use whichever front-end you prefer, or both.
+
+### 8. Jellyfin libraries
+Jellyfin → Dashboard → Libraries → add a **Movies** library at `/data/media/movies` and a **Shows**
+library at `/data/media/tv`. New imports from Sonarr/Radarr land there automatically.
+
+## Updating & operations
+- **Update images:** `./run.sh playbooks/bootstrap-truenas.yml --tags media -e truenas_media_pull=true`
+  (pulls, then `up -d` recreates only what changed).
+- **Logs:** `ssh truenas 'docker logs <container>'` (e.g. `sonarr`, `qbittorrent`).
+- **Re-run is idempotent:** datasets/subdirs/whitelist are only created/edited when missing, and
+  homepage is only recreated when a key actually changed.
+
+### Maximise Direct Play (server has no GPU)
+
+Transcoding always happens **on the server**, and this one has no iGPU/QuickSync — so the goal is to
+**avoid transcoding** and let each client Direct Play the original file (the client's own CPU/GPU
+decodes it). You can't offload the *server's* transcode to clients; you sidestep it. Two levers:
+
+**Client / playback side** (biggest impact):
+- Use apps that Direct Play almost anything: **Jellyfin Media Player** (mpv), **Kodi + Jellyfin**,
+  Android TV / Shield, Fire TV. Avoid the **web player** — it's the most transcode-happy.
+- In each client set playback quality to **Original / Maximum** (a bitrate cap forces a transcode).
+- Prefer **text subtitles (SRT/ASS)** over image-based (PGS/VOBSUB) — burned-in image subs force a
+  transcode. Set subtitle mode/priority accordingly in Jellyfin.
+
+**Acquisition side** — bias Sonarr/Radarr toward compatible releases with the ready-made custom
+formats in **`media-custom-formats/`** (import + scoring instructions in that folder's README):
+H.264 + AAC/AC3 score high (Direct Plays everywhere), DTS/TrueHD/Atmos score low (often transcoded),
+HEVC optional depending on your clients. Given equal options they grab the file that plays without
+transcoding. If a specific file still won't play on any client, pre-convert it once to H.264/AAC/SRT.
+
+### Torrent VPN (gluetun + AirVPN)
+
+qBittorrent runs **inside gluetun's network namespace** (`network_mode: service:gluetun`), so all
+torrent traffic goes through the AirVPN WireGuard tunnel and gluetun's firewall **kill-switch** drops
+everything if the VPN drops. Setup:
+
+1. AirVPN → **Client Area → Config Generator → WireGuard**: pick a server/country, generate, and open
+   the `.conf`. Copy into `hosts/truenas/media.env`:
+   - `WIREGUARD_PRIVATE_KEY` ← `PrivateKey`
+   - `WIREGUARD_PRESHARED_KEY` ← `PresharedKey` (AirVPN requires this)
+   - `WIREGUARD_ADDRESSES` ← the `Address` line (e.g. `10.x.x.x/32`)
+   - `VPN_SERVER_COUNTRIES` (e.g. `Netherlands`) or pin `VPN_SERVER_NAMES` to an AirVPN server name.
+2. AirVPN → **Client Area → Ports**: reserve a port. Set `QBITTORRENT_BT_PORT` to it (and later set
+   qBittorrent → Connection → *incoming connections port* to the same value). AirVPN port forwarding
+   is **static** (reserved on the site) — gluetun does not negotiate it dynamically like PIA/Proton.
+3. Deploy: `./run.sh playbooks/bootstrap-truenas.yml --tags media`.
+
+**Verify the tunnel** (the IP seen by qBittorrent must be AirVPN's, not your home IP):
+```bash
+ssh truenas 'docker logs gluetun 2>&1 | grep -i "public ip"'          # gluetun reports the VPN IP
+ssh truenas 'docker exec qbittorrent wget -qO- https://ipinfo.io/ip'  # should be the AirVPN exit IP
+```
+If gluetun is unhealthy, qBittorrent won't start (it `depends_on` gluetun `service_healthy`) — that's
+the kill-switch working. To go back to no-VPN, revert the `gluetun`/`qbittorrent` block in the compose.
+
+## Notes / caveats
+- **Transcoding is CPU-only** — the Supermicro X10SRL-F (Xeon E5) has no iGPU/QuickSync. Prefer
+  Direct Play (see above); the `/dev/dri` passthrough is left commented in the compose for a future GPU.
+- **qBittorrent lives in gluetun's namespace** — its WebUI is published on host `8085`, but on the
+  bridge the *arr apps must use **`gluetun:8080`**, not `qbittorrent:8080`.
+
 ## Notes
 
 - The `graphite_exporter` expires a metric 5 min after its last push, so if netdata stops

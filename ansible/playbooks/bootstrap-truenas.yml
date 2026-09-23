@@ -16,7 +16,11 @@
 #   7. truenas_backup_target        — OPT-IN (tag `backup`): make the NAS the Pi's restic
 #      backup target — dataset tank/backups/rpi5 + NFS export (Pi only) + a native periodic
 #      ZFS snapshot task. Pairs with the `backup` service in core/ (see docs/backups.md).
-#   8. truenas_fan_curve            — OPT-IN (tag `fan`): force the Supermicro BMC into Full
+#   8. truenas_media                 — OPT-IN (tag `media`): media server stack on the NAS
+#      (Jellyfin + Sonarr/Radarr/Jackett + qBittorrent + Jellyseerr + Cantinarr) on ZFS datasets
+#      tank/mediaserver (config) + tank/media (library+downloads, one FS for hardlinks). LAN/VPN
+#      only. Needs hosts/truenas/media.env (copy from .example). Not part of the observability bootstrap.
+#   9. truenas_fan_curve            — OPT-IN (tag `fan`): force the Supermicro BMC into Full
 #      fan mode at a fixed duty on every boot (dataset tank/scripts + fan-curve.sh + a native
 #      POSTINIT Init/Shutdown Script), relaxing fan lower-thresholds so the low duty holds
 #      instead of tripping the BMC's 100% failsafe.
@@ -50,6 +54,9 @@
     # Opt-in service (private Drive). `never` → only with `--tags nextcloud`.
     - role: truenas_nextcloud
       tags: [nextcloud, never]
+    # Opt-in media server stack (Jellyfin + *arr + downloads). `never` → only with `--tags media`.
+    - role: truenas_media
+      tags: [media, never]
     # Backup target for the Pi: dataset + NFS export + periodic ZFS snapshot task.
     # `never` → only with `--tags backup` (not part of the observability bootstrap).
     - role: truenas_backup_target

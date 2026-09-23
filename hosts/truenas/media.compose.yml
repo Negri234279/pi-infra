@@ -1,0 +1,175 @@
+# Media server stack running ON the NAS (TrueNAS SCALE native Docker) — LAN/VPN only, no public
+# exposure. Deployed by ansible/roles/truenas_media (tag `media`), which creates the ZFS datasets,
+# syncs this file + a gitignored .env to the `mediaserver` dataset and runs `docker compose up -d`.
+# Same pattern as hosts/truenas/nextcloud.compose.yml.
+#
+# STORAGE — the whole point of the layout below is HARDLINKS + ATOMIC MOVES (TRaSH guide): the
+# download client and the *arr libraries MUST share ONE filesystem, so Sonarr/Radarr import by
+# hardlinking instead of copying (instant, no double space, seeding continues). That is why every
+# app that touches media mounts the SAME dataset as a single `/data` root, NOT per-app subfolders:
+#   ${MEDIA_LIBRARY_HOST_PATH}  = /mnt/<pool>/media   -> /data
+#     /data/torrents/{complete,incomplete}   (qBittorrent)
+#     /data/media/movies                     (Radarr library + Jellyfin)
+#     /data/media/tv                         (Sonarr library + Jellyfin)
+# Per-app CONFIG lives next to this compose on the `mediaserver` dataset (./config/<app>), relative
+# to this file's location ({{ truenas_media_dir }} = /mnt/<pool>/mediaserver) — small, snapshotted.
+#
+# Ports are published on the host (reachable at 192.168.1.18:<port> over LAN/WireGuard). Internally
+# the services talk to each other by container name on the `media` bridge (e.g. Sonarr → the
+# download client at gluetun:8080 — qBittorrent shares gluetun's namespace — indexers at
+# jackett:9117) — use those names, not host ports.
+services:
+  jellyfin:
+    image: lscr.io/linuxserver/jellyfin:latest
+    container_name: jellyfin
+    restart: unless-stopped
+    environment:
+      PUID: ${PUID:?set PUID in .env}
+      PGID: ${PGID:?set PGID in .env}
+      TZ: ${TZ:-Europe/Madrid}
+    ports:
+      - "${JELLYFIN_PORT:-8096}:8096"
+    volumes:
+      - ./config/jellyfin:/config
+      - ${MEDIA_LIBRARY_HOST_PATH:-/mnt/tank/media}:/data
+    # HW transcoding: the Supermicro X10SRL-F (Xeon E5) has NO iGPU / QuickSync, so transcoding is
+    # CPU-only — prefer Direct Play from clients. If you ever add an Intel/AMD GPU, uncomment:
+    # devices:
+    #   - /dev/dri:/dev/dri
+    networks: [media]
+
+  sonarr:
+    image: lscr.io/linuxserver/sonarr:latest
+    container_name: sonarr
+    restart: unless-stopped
+    environment:
+      PUID: ${PUID:?}
+      PGID: ${PGID:?}
+      TZ: ${TZ:-Europe/Madrid}
+    ports:
+      - "${SONARR_PORT:-8989}:8989"
+    volumes:
+      - ./config/sonarr:/config
+      - ${MEDIA_LIBRARY_HOST_PATH:-/mnt/tank/media}:/data
+    networks: [media]
+
+  radarr:
+    image: lscr.io/linuxserver/radarr:latest
+    container_name: radarr
+    restart: unless-stopped
+    environment:
+      PUID: ${PUID:?}
+      PGID: ${PGID:?}
+      TZ: ${TZ:-Europe/Madrid}
+    ports:
+      - "${RADARR_PORT:-7878}:7878"
+    volumes:
+      - ./config/radarr:/config
+      - ${MEDIA_LIBRARY_HOST_PATH:-/mnt/tank/media}:/data
+    networks: [media]
+
+  jackett:
+    image: lscr.io/linuxserver/jackett:latest
+    container_name: jackett
+    restart: unless-stopped
+    environment:
+      PUID: ${PUID:?}
+      PGID: ${PGID:?}
+      TZ: ${TZ:-Europe/Madrid}
+    ports:
+      - "${JACKETT_PORT:-9117}:9117"
+    volumes:
+      - ./config/jackett:/config
+    networks: [media]
+
+  # gluetun — VPN gateway (AirVPN over WireGuard). qBittorrent runs INSIDE this container's network
+  # namespace (network_mode: service:gluetun below), so ALL torrent traffic goes through the tunnel
+  # and gluetun's built-in firewall kill-switch drops everything if the VPN goes down. Because
+  # gluetun owns the namespace, qBittorrent's WebUI + BT ports are PUBLISHED HERE, and the *arr apps
+  # reach the download client at `gluetun:8080` (NOT qbittorrent:8080).
+  gluetun:
+    image: qmcgaw/gluetun:latest
+    container_name: gluetun
+    restart: unless-stopped
+    cap_add: [NET_ADMIN]
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    environment:
+      VPN_SERVICE_PROVIDER: airvpn
+      VPN_TYPE: wireguard
+      # From AirVPN's Config Generator (WireGuard). AirVPN uses a PRESHARED key too — all three are
+      # required. Set them in media.env.
+      WIREGUARD_PRIVATE_KEY: ${WIREGUARD_PRIVATE_KEY:?set WIREGUARD_PRIVATE_KEY in .env}
+      WIREGUARD_PRESHARED_KEY: ${WIREGUARD_PRESHARED_KEY:?set WIREGUARD_PRESHARED_KEY in .env}
+      WIREGUARD_ADDRESSES: ${WIREGUARD_ADDRESSES:?set WIREGUARD_ADDRESSES in .env}
+      # Pick exit servers by country (or pin one with SERVER_NAMES=<AirVPN server name>).
+      SERVER_COUNTRIES: ${VPN_SERVER_COUNTRIES:-Netherlands}
+      SERVER_NAMES: ${VPN_SERVER_NAMES:-}
+      TZ: ${TZ:-Europe/Madrid}
+      # Let the LAN/VPN subnet reach the published WebUI through gluetun (the kill-switch otherwise
+      # blocks non-tunnel traffic). Must include the hub running homepage.
+      FIREWALL_OUTBOUND_SUBNETS: ${VPN_LAN_SUBNET:-192.168.1.0/24}
+    ports:
+      # qBittorrent WebUI (8085→8080) + the BT peer port. NOTE for AirVPN: port forwarding is NOT
+      # dynamic — reserve a port in the AirVPN client area (Ports) and set QBITTORRENT_BT_PORT to it,
+      # then set qBittorrent's incoming-connections port to the same value.
+      - "${QBITTORRENT_PORT:-8085}:8080"
+      - "${QBITTORRENT_BT_PORT:-6881}:6881"
+      - "${QBITTORRENT_BT_PORT:-6881}:6881/udp"
+    networks: [media]
+
+  qbittorrent:
+    image: lscr.io/linuxserver/qbittorrent:latest
+    container_name: qbittorrent
+    restart: unless-stopped
+    # Share gluetun's network stack → all traffic tunnelled, kill-switch enforced. No ports/networks
+    # here (they live on gluetun). depends_on service_healthy waits for the VPN to be up first.
+    network_mode: "service:gluetun"
+    depends_on:
+      gluetun:
+        condition: service_healthy
+    environment:
+      PUID: ${PUID:?}
+      PGID: ${PGID:?}
+      TZ: ${TZ:-Europe/Madrid}
+      # WebUI port inside the (gluetun) namespace; published on the host as ${QBITTORRENT_PORT}.
+      WEBUI_PORT: 8080
+    volumes:
+      - ./config/qbittorrent:/config
+      - ${MEDIA_LIBRARY_HOST_PATH:-/mnt/tank/media}:/data
+
+  # Jellyseerr — requests / discovery front-end (the Jellyfin-compatible fork of Overseerr; plain
+  # Overseerr only supports Plex). Talks to Jellyfin, Sonarr and Radarr over the bridge by name.
+  jellyseerr:
+    image: fallenbagel/jellyseerr:latest
+    container_name: jellyseerr
+    restart: unless-stopped
+    environment:
+      TZ: ${TZ:-Europe/Madrid}
+      LOG_LEVEL: info
+    ports:
+      - "${JELLYSEERR_PORT:-5055}:5055"
+    volumes:
+      - ./config/jellyseerr:/app/config
+    networks: [media]
+
+  # Cantinarr — media discovery + request management + assistant layered over the *arr stack
+  # (ghcr.io/windoze95/cantinarr). Setup wizard at http://<nas>:8585 on first run.
+  cantinarr:
+    image: ghcr.io/windoze95/cantinarr:latest
+    container_name: cantinarr
+    restart: unless-stopped
+    environment:
+      # Push notifications are opt-in; the hosted gateway is the project default. Blank = disabled.
+      CANTINARR_PUSH_GATEWAY_URL: ${CANTINARR_PUSH_GATEWAY_URL:-https://push.cantinarr.com}
+      PUID: ${PUID:?}
+      PGID: ${PGID:?}
+    ports:
+      - "${CANTINARR_PORT:-8585}:8585"
+    volumes:
+      - ./config/cantinarr:/config
+    networks: [media]
+
+networks:
+  media:
+    driver: bridge
