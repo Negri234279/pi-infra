@@ -136,6 +136,14 @@ services:
       # Pick exit servers by country (or pin one with SERVER_NAMES=<AirVPN server name>).
       SERVER_COUNTRIES: ${VPN_SERVER_COUNTRIES:-Netherlands}
       SERVER_NAMES: ${VPN_SERVER_NAMES:-}
+      # FIXED WireGuard MTU. The path blocks ICMP so gluetun's PMTUD fails and it flapped the tunnel
+      # in a loop (healthcheck i/o timeouts) → every torrent stalled. Pinning the MTU stops the
+      # re-discovery/restart loop and lets bulk BitTorrent traffic through. 1320 is what PMTUD found;
+      # drop to 1280 if it still flaps.
+      WIREGUARD_MTU: ${VPN_WIREGUARD_MTU:-1320}
+      # Give the tunnel more time to come up before the healthcheck restarts it (default 6s is too
+      # aggressive on a flaky path), and don't hammer restarts.
+      HEALTH_VPN_DURATION_INITIAL: ${VPN_HEALTH_DURATION_INITIAL:-30s}
       TZ: ${TZ:-Europe/Madrid}
       # Let the LAN/VPN subnet reach the published WebUI through gluetun (the kill-switch otherwise
       # blocks non-tunnel traffic). Must include the hub running homepage.
