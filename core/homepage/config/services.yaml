@@ -228,6 +228,16 @@
           url: http://192.168.1.18:7878
           key: "{{HOMEPAGE_VAR_RADARR_KEY}}"
 
+    - Bazarr:
+        icon: bazarr.png
+        href: https://bazarr.negri.es
+        description: Subtítulos
+        siteMonitor: http://192.168.1.18:6767
+        widget:
+          type: bazarr
+          url: http://192.168.1.18:6767
+          key: "{{HOMEPAGE_VAR_BAZARR_KEY}}"
+
     - Jackett:
         icon: jackett.png
         href: https://jackett.negri.es
@@ -242,5 +252,4 @@
         widget:
           type: qbittorrent
           url: http://192.168.1.18:8085
-          username: "{{HOMEPAGE_VAR_QBITTORRENT_USER}}"
-          password: "{{HOMEPAGE_VAR_QBITTORRENT_PASSWORD}}"
+          key: "{{HOMEPAGE_VAR_QBITTORRENT_KEY}}"

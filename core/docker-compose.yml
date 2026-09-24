@@ -89,8 +89,8 @@ services:
       - HOMEPAGE_VAR_JELLYSEERR_KEY=${JELLYSEERR_KEY:-}
       - HOMEPAGE_VAR_SONARR_KEY=${SONARR_KEY:-}
       - HOMEPAGE_VAR_RADARR_KEY=${RADARR_KEY:-}
-      - HOMEPAGE_VAR_QBITTORRENT_USER=${QBITTORRENT_USER:-}
-      - HOMEPAGE_VAR_QBITTORRENT_PASSWORD=${QBITTORRENT_PASSWORD:-}
+      - HOMEPAGE_VAR_BAZARR_KEY=${BAZARR_KEY:-}
+      - HOMEPAGE_VAR_QBITTORRENT_KEY=${QBITTORRENT_KEY:-}
     volumes:
       - ./homepage/config:/app/config
       # Auto-descubrimiento de apps por labels + estado de contenedores. RO basta.

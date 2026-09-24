@@ -154,6 +154,26 @@
           RADARR_KEY: "{{ truenas_media_radarr_cfg.content | b64decode | regex_findall('<ApiKey>([^<]+)</ApiKey>') | first | default('') }}"
           JELLYSEERR_KEY: "{{ (truenas_media_jellyseerr_cfg.content | b64decode | from_json).main.apiKey | default('') }}"
 
+    # Bazarr's API key (best-effort — it lives in config.yaml/config.ini whose exact path/format vary
+    # by version, and it may not exist on the very first boot; `find` never fails the play if absent).
+    - name: Find the Bazarr config file
+      ansible.builtin.find:
+        paths: "{{ truenas_media_dir }}/config/bazarr/config"
+        patterns: "config.yaml,config.ini"
+      register: truenas_media_bazarr_find
+
+    - name: Merge the Bazarr API key into the discovered keys (if found)
+      when: truenas_media_bazarr_find.files | length > 0
+      block:
+        - name: Read the Bazarr config
+          ansible.builtin.slurp:
+            src: "{{ truenas_media_bazarr_find.files[0].path }}"
+          register: truenas_media_bazarr_cfg
+
+        - name: Add BAZARR_KEY
+          ansible.builtin.set_fact:
+            truenas_media_keys: "{{ truenas_media_keys | combine({'BAZARR_KEY': (truenas_media_bazarr_cfg.content | b64decode | regex_findall('apikey[\"\\s:=]+([a-zA-Z0-9]+)') | first | default('')) }) }}"
+
     # qBittorrent WebUI: whitelist the LAN so homepage connects without a password. Edit the conf
     # while the container is STOPPED — qBittorrent rewrites its conf on graceful exit, so an edit
     # made while running would be overwritten.

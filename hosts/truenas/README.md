@@ -95,8 +95,9 @@ LAN/VPN and set `NEXTCLOUD_OVERWRITEPROTOCOL=https`.
 # Media server stack — opt-in
 
 A full media stack runs on the NAS's native Docker, **LAN/VPN only** (no public exposure):
-**Jellyfin** (streaming), **Sonarr**/**Radarr** (TV/movies), **Jackett** (indexers),
-**qBittorrent** (downloads), **Jellyseerr** (requests — uses the **Seerr** image
+**Jellyfin** (streaming), **Sonarr**/**Radarr** (TV/movies), **Bazarr** (subtitles),
+**Jackett** (indexers) + **FlareSolverr** (Cloudflare solver),
+**qBittorrent** (downloads, via **gluetun**/AirVPN), **Jellyseerr** (requests — uses the **Seerr** image
 `ghcr.io/seerr-team/seerr`, the maintained successor of Jellyseerr; the old `fallenbagel/jellyseerr`
 is archived and breaks on current Jellyfin. Service/DNS name kept as `jellyseerr`), and **Cantinarr**
 (discovery/requests + assistant over the *arr stack).
@@ -143,6 +144,7 @@ Two ZFS datasets, created by the role via `midclt`:
 | Cantinarr   | 8585  | discovery + assistant |
 | Sonarr      | 8989  | TV |
 | Radarr      | 7878  | movies |
+| Bazarr      | 6767  | subtitles (Spanish, etc.) |
 | Jackett     | 9117  | indexers |
 | qBittorrent | 8085  | WebUI (remapped off 8080 to avoid clashing with Nextcloud) |
 | qBittorrent | 6881  | BitTorrent peer port (tcp+udp) |
@@ -226,9 +228,18 @@ Use **container names**, not host ports, for the internal connections:
 - **Cantinarr** (`:8585`) → run its setup wizard (admin account) and connect Jellyfin + the *arr
   services the same way. It overlaps Jellyseerr; use whichever front-end you prefer, or both.
 
-### 8. Jellyfin libraries
+### 8. Subtitles: Bazarr
+**Bazarr** (`:6767`) → Settings → connect **Sonarr** (`sonarr:8989`) and **Radarr** (`radarr:7878`)
+with their API keys (same host/path mapping — Bazarr sees the library at `/data/media/*` too). Then
+Settings → **Languages** → add **Spanish** as a wanted language and enable subtitle providers
+(OpenSubtitles, etc.). Bazarr drops `.srt` files next to each video, which Jellyfin shows alongside
+the original audio — this is the reliable way to get "original version + Spanish subs" (far better
+than trying to grab releases with embedded subs).
+
+### 9. Jellyfin libraries
 Jellyfin → Dashboard → Libraries → add a **Movies** library at `/data/media/movies` and a **Shows**
-library at `/data/media/tv`. New imports from Sonarr/Radarr land there automatically.
+library at `/data/media/tv`. New imports from Sonarr/Radarr land there automatically. Set the
+**metadata language** to Spanish if you want titles/overviews in Spanish (doesn't affect audio).
 
 ## Updating & operations
 - **Update images:** `./run.sh playbooks/bootstrap-truenas.yml --tags media -e truenas_media_pull=true`

@@ -32,6 +32,10 @@ domains:
       visibility: private
       forward: { scheme: http, host: 192.168.1.18, port: 7878 }
       npm: { websockets: true }
+    - hostname: bazarr.negri.es
+      visibility: private
+      forward: { scheme: http, host: 192.168.1.18, port: 6767 }
+      npm: { websockets: true }
     - hostname: jackett.negri.es
       visibility: private
       forward: { scheme: http, host: 192.168.1.18, port: 9117 }

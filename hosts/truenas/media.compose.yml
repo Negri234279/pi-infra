@@ -68,6 +68,24 @@ services:
       - ${MEDIA_LIBRARY_HOST_PATH:-/mnt/tank/media}:/data
     networks: [media]
 
+  # Bazarr — auto-downloads subtitles (e.g. Spanish) for the Sonarr/Radarr library. Mounts the SAME
+  # /data so it drops the .srt next to each video (paths must match what Sonarr/Radarr report).
+  # Connect it to sonarr:8989 + radarr:7878 and add the wanted languages in its UI.
+  bazarr:
+    image: lscr.io/linuxserver/bazarr:latest
+    container_name: bazarr
+    restart: unless-stopped
+    environment:
+      PUID: ${PUID:?}
+      PGID: ${PGID:?}
+      TZ: ${TZ:-Europe/Madrid}
+    ports:
+      - "${BAZARR_PORT:-6767}:6767"
+    volumes:
+      - ./config/bazarr:/config
+      - ${MEDIA_LIBRARY_HOST_PATH:-/mnt/tank/media}:/data
+    networks: [media]
+
   jackett:
     image: lscr.io/linuxserver/jackett:latest
     container_name: jackett
