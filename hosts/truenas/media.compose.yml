@@ -301,7 +301,7 @@ services:
   # exposes VPN status, the public (AirVPN exit) IP and the forwarded port. The `standalone`
   # variant only needs HTTP access to the control server; auth is granted by auth-config.toml.
   gluetun-exporter:
-    image: ghcr.io/thecfu/gluetun-exporter:standalone
+    image: ghcr.io/thecfu/gluetun-exporter:0-standalone
     container_name: gluetun-exporter
     restart: unless-stopped
     environment:
