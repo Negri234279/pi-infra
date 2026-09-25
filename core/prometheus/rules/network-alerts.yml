@@ -51,9 +51,11 @@ groups:
 
       # A monitored interface that was up went down. `interface` collector.
       # ether2–ether5 are excluded: they're unused LAN ports (permanently down), so
-      # they'd fire constantly. Keeps ether1 (WAN uplink) and bridge1 covered.
+      # they'd fire constantly. lte1 is excluded too: it's an LTE backup/standby
+      # interface that's normally NOT running (only comes up on WAN failover), so a
+      # "down" alert on it is noise. Keeps ether1 (WAN uplink) and bridge1 covered.
       - alert: RouterInterfaceDown
-        expr: mktxp_interface_running{name!~"ether[2-5]"} == 0
+        expr: mktxp_interface_running{name!~"ether[2-5]|lte1"} == 0
         for: 2m
         labels:
           severity: warning
