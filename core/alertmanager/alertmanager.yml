@@ -89,3 +89,17 @@ inhibit_rules:
     target_matchers:
       - severity = "warning"
     equal: ["alertname", "instance"]
+
+  # NAS off/unreachable → don't spam. Everything hosted on the NAS carries host="truenas"
+  # (the truenas graphite job + all media exporter jobs in prometheus.yml). When the NAS is
+  # down its graphite scrape drops and TrueNasScrapeDown (critical) fires — that ONE alert is
+  # the signal. This suppresses the redundant WARNING "down" noise from the media stack
+  # (MediaExporterDown, VpnExporterDown, TorrentClientDown) and anything else on the NAS, so a
+  # deliberate shutdown doesn't page a dozen alerts. The VPN/port-forward/*arr-health alerts
+  # already stay quiet on their own (their metrics go absent, not to 0, when the NAS is off).
+  - source_matchers:
+      - alertname = "TrueNasScrapeDown"
+    target_matchers:
+      - host = "truenas"
+      - severity = "warning"
+    equal: ["host"]
