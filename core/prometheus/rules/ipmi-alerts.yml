@@ -34,9 +34,12 @@ groups:
 
       - alert: IpmiCollectorFailing
         # A specific collector keeps failing while the scrape otherwise succeeds.
-        # Warning: metrics are partial, not absent. (dcmi is intentionally disabled on
-        # this board — see core/ipmi-exporter/ipmi.yml — so it won't fire for that.)
-        expr: ipmi_up{job="ipmi"} == 0
+        # Warning: metrics are partial, not absent. dcmi is EXCLUDED here: the X10SRL-F
+        # BMC has no DCMI power sensor, so that collector fails permanently by design
+        # (see core/ipmi-exporter/ipmi.yml.example). The exporter's `collectors` list is
+        # meant to drop dcmi, but the live ipmi.yml is gitignored/per-host so it may still
+        # be running it — excluding it in the expr makes this alert correct regardless.
+        expr: ipmi_up{job="ipmi", collector!="dcmi"} == 0
         for: 15m
         labels:
           severity: warning
