@@ -341,27 +341,44 @@
 - name: Enable Jellyfin's native /metrics endpoint
   when: truenas_media_provision_metrics | bool
   block:
-    - name: Find Jellyfin's system.xml
+    # Jellyfin's `<EnableMetrics>` lives in system.xml, but the image's layout varies
+    # (linuxserver puts it under /config, native under /etc/jellyfin/, and some builds nest
+    # it in a config/ subdir) — so search the WHOLE Jellyfin config tree instead of guessing.
+    - name: Find Jellyfin's system.xml (anywhere under the Jellyfin config dir)
       ansible.builtin.find:
-        paths: "{{ truenas_media_dir }}/config/jellyfin/config"
+        paths: "{{ truenas_media_dir }}/config/jellyfin"
         patterns: "system.xml"
+        recurse: true
       register: truenas_media_jf_sysxml
 
-    - name: Turn on EnableMetrics + restart Jellyfin (only if the tag is present)
+    - name: Enable metrics in system.xml (best-effort; the file exists once Jellyfin has run)
       when: truenas_media_jf_sysxml.files | length > 0
       block:
-        - name: Set EnableMetrics=true in Jellyfin system.xml
-          ansible.builtin.replace:
-            path: "{{ truenas_media_jf_sysxml.files[0].path }}"
-            regexp: "<EnableMetrics>false</EnableMetrics>"
-            replace: "<EnableMetrics>true</EnableMetrics>"
-          register: truenas_media_jf_metrics
+        - name: Read Jellyfin system.xml
+          ansible.builtin.slurp:
+            src: "{{ truenas_media_jf_sysxml.files[0].path }}"
+          register: truenas_media_jf_sys
 
-        - name: Restart Jellyfin to apply the metrics setting
-          ansible.builtin.command:
-            argv: [docker, compose, -f, "{{ truenas_media_dir }}/docker-compose.yml", restart, jellyfin]
-          when: truenas_media_jf_metrics is changed
-          changed_when: true
+        # Only act when there's a `false` to flip: skips a needless Jellyfin bounce when it's
+        # already enabled, or when the tag is absent (schema change → manual fallback in README).
+        - name: Enable EnableMetrics (stop → edit → start, so Jellyfin doesn't rewrite it on exit)
+          when: "'<EnableMetrics>false</EnableMetrics>' in (truenas_media_jf_sys.content | b64decode)"
+          block:
+            - name: Stop Jellyfin so the system.xml edit persists
+              ansible.builtin.command:
+                argv: [docker, compose, -f, "{{ truenas_media_dir }}/docker-compose.yml", stop, jellyfin]
+              changed_when: true
+
+            - name: Set EnableMetrics=true in Jellyfin system.xml
+              ansible.builtin.replace:
+                path: "{{ truenas_media_jf_sysxml.files[0].path }}"
+                regexp: "<EnableMetrics>false</EnableMetrics>"
+                replace: "<EnableMetrics>true</EnableMetrics>"
+
+            - name: Start Jellyfin again
+              ansible.builtin.command:
+                argv: [docker, compose, -f, "{{ truenas_media_dir }}/docker-compose.yml", start, jellyfin]
+              changed_when: true
 
 - name: Where to reach it
   ansible.builtin.debug:

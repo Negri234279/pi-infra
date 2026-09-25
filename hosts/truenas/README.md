@@ -345,11 +345,18 @@ published. The `VpnTunnelDown` alert (`gluetun_vpn_status == 0`) is the kill-swi
 route list / metric names against your gluetun + exporter version after the first deploy.
 
 **Jellyfin metrics — one manual fallback.** Jellyfin serves `/metrics` on `:8096` only when
-`EnableMetrics` is on. The role flips it in Jellyfin's `system.xml` and restarts Jellyfin, but that
-file only exists **after** the setup wizard. If the `jellyfin` target reads empty, enable it by hand:
-Jellyfin **Dashboard → Advanced → Networking** (or edit `config/jellyfin/config/system.xml`:
-`<EnableMetrics>true</EnableMetrics>`), then restart Jellyfin. Rich playback stats (active streams
-per user) come from the **Playback Reporting** plugin, not the native endpoint.
+`EnableMetrics` is on, and that toggle lives ONLY in `system.xml` (there is no Dashboard UI switch).
+The role finds `system.xml` anywhere under `config/jellyfin/` and flips it (stop → edit → start), but
+the file only exists once Jellyfin has run at least once. If the `jellyfin` target reads empty, do it
+by hand on the NAS:
+```bash
+f=$(sudo find /mnt/tank/mediaserver/config/jellyfin -name system.xml); echo "$f"
+sudo docker compose -f /mnt/tank/mediaserver/docker-compose.yml stop jellyfin
+sudo sed -i 's#<EnableMetrics>false</EnableMetrics>#<EnableMetrics>true</EnableMetrics>#' "$f"
+sudo docker compose -f /mnt/tank/mediaserver/docker-compose.yml start jellyfin
+```
+Rich playback stats (active streams per user) come from the **Playback Reporting** plugin, not the
+native endpoint.
 
 **Toggle.** All of the above wiring is gated by `truenas_media_provision_metrics` (default `true`);
 set it `false` to leave the exporters idle. The log shipper (`media-alloy`) always runs.
