@@ -107,6 +107,7 @@
     src: "{{ truenas_media_gluetun_auth_src }}"
     dest: "{{ truenas_media_dir }}/config/gluetun/auth-config.toml"
     mode: "0644"
+  register: truenas_media_gluetun_auth
 
 - name: Sync the media-alloy log-shipper config
   ansible.builtin.copy:
@@ -127,6 +128,30 @@
   changed_when: >-
     ('Started' in truenas_media_up.stderr) or ('Created' in truenas_media_up.stderr) or
     ('Recreated' in truenas_media_up.stderr) or ('Pulling' in truenas_media_up.stderr)
+
+# gluetun reads /gluetun/auth/config.toml only at startup, and it's a single-FILE bind mount → a
+# content change does NOT trigger `up -d` to recreate it (same class as the deploy.sh bind-mount
+# handlers). Recreate gluetun when the auth file changed so the new control-server routes take effect
+# — and qbittorrent WITH it, since it shares gluetun's network namespace (network_mode: service:).
+# gluetun-exporter is bounced too so it re-polls immediately. Skipped on a fresh `up -d` (which
+# already started gluetun with the current file), so this only fires on a later auth-only change.
+- name: Recreate gluetun (+qbittorrent, gluetun-exporter) after an auth-config change
+  ansible.builtin.command:
+    argv:
+      - docker
+      - compose
+      - -f
+      - "{{ truenas_media_dir }}/docker-compose.yml"
+      - up
+      - -d
+      - --force-recreate
+      - gluetun
+      - qbittorrent
+      - gluetun-exporter
+  when:
+    - truenas_media_gluetun_auth is changed
+    - not (truenas_media_up is changed)
+  changed_when: true
 
 # ── Discover the app API keys the apps generate on first launch, then feed the two consumers that
 #    need them: the hub's homepage widgets (truenas_media_provision_homepage) and the *arr metrics

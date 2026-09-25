@@ -26,8 +26,11 @@ groups:
 
       # The VPN tunnel is down. qBittorrent runs inside gluetun's namespace with a kill-switch, so a
       # down tunnel means ALL torrent traffic is blocked (by design) — but also that nothing downloads.
+      # NOTE: gluetun-exporter has a bug where a failed port-forward fetch forces gluetun_vpn_status=0
+      # even while the tunnel is up. So we only trust status==0 when the public exit IP is ALSO gone
+      # (gluetun_vpn_infos absent) — that combination is a real tunnel outage, not the exporter quirk.
       - alert: VpnTunnelDown
-        expr: gluetun_vpn_status == 0
+        expr: gluetun_vpn_status == 0 unless on(instance) gluetun_vpn_infos == 1
         for: 5m
         labels:
           severity: critical

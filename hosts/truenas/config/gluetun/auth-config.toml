@@ -11,6 +11,13 @@
 #
 # NOTE: verify the route list against the exporter/gluetun version after the first deploy — if the
 # exporter logs 401/404 on a route, add/rename it here (see gluetun-wiki control-server.md).
+#
+# GOTCHA (found 2026-09-25): the exporter requests the LEGACY port-forward route
+# `/v1/openvpn/portforwarded`, which current gluetun 301-redirects to `/v1/portforward`. Go's HTTP
+# client follows the redirect, so the REDIRECT TARGET (`/v1/portforward`) must also be granted or it
+# 401s. And the exporter has a copy-paste bug: a failed port-forward fetch calls UpdateVPNStatus(0),
+# so a 401 here makes `gluetun_vpn_status` read 0 (DOWN) even while the tunnel is "running". Granting
+# BOTH routes fixes vpn_status AND forwarded_ports.
 [[roles]]
 name = "metrics"
 auth = "none"
@@ -19,6 +26,7 @@ routes = [
   "GET /v1/vpn/status",
   "GET /v1/openvpn/status",
   "GET /v1/openvpn/portforwarded",
+  "GET /v1/portforward",
   "GET /v1/dns/status",
   "GET /v1/version",
 ]
