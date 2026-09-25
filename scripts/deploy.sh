@@ -6,9 +6,15 @@
 # YAML does NOT make `docker compose up -d` recreate the container. We diff the pulled
 # commits and reload/restart only the services whose mounted config actually changed.
 #
+# It also applies the TrueNAS (NAS) side: since the NAS is deployed from this hub via
+# Ansible, the same diff picks which bootstrap-truenas.yml tags to run (observability /
+# media / nextcloud) and runs only those. Set DEPLOY_NAS=0 to skip that part. NAS runs
+# are best-effort — they never fail the hub deploy.
+#
 #   ./scripts/deploy.sh
 #
-# Requires: git, docker compose, and an `origin` remote with an upstream branch.
+# Requires: git, docker compose, and an `origin` remote with an upstream branch (plus
+# ansible-playbook on the hub for the NAS part).
 set -euo pipefail
 
 # Repo root, regardless of where the script is invoked from.
@@ -194,6 +200,60 @@ if changed '^core/homepage/'; then
   # homepage vigila config/ en caliente, pero un restart es determinista y barato.
   log "homepage config changed -> restart homepage"
   docker compose restart homepage
+fi
+
+# ── TrueNAS (NAS) — auto-apply the matching Ansible tags for whatever changed ────────
+# The NAS is deployed FROM this hub via ansible/run.sh (playbooks/bootstrap-truenas.yml), not by
+# docker compose. Instead of remembering which --tags to pass, map the changed paths → tags and run
+# only those. Set DEPLOY_NAS=0 to skip (e.g. on a timer where you'd rather apply the NAS by hand).
+# NON-FATAL by design: a NAS run failing (NAS powered off, missing .env, ansible not installed) logs
+# a WARN and never fails the hub deploy. Each opt-in stack also needs its gitignored .env on the hub.
+if [ "${DEPLOY_NAS:-1}" != 0 ]; then
+  NAS_TAGS=()
+
+  # NAS core observability: the graphite-exporter compose + the always-on observability roles.
+  if changed '^hosts/truenas/docker-compose\.yml$' \
+    || changed '^ansible/roles/truenas_reporting_exporter/' \
+    || changed '^ansible/roles/truenas_docker_stack/' \
+    || changed '^ansible/roles/truenas_disk_inventory/' \
+    || changed '^ansible/roles/truenas_metrics_pusher/'; then
+    NAS_TAGS+=("observability")
+  fi
+
+  # Media stack (compose + log-shipper config + gluetun auth + role).
+  if changed '^hosts/truenas/media\.' \
+    || changed '^hosts/truenas/alloy-media\.' \
+    || changed '^hosts/truenas/config/' \
+    || changed '^ansible/roles/truenas_media/'; then
+    if [ -f hosts/truenas/media.env ]; then
+      NAS_TAGS+=("media")
+    else
+      log "WARN: media changed but hosts/truenas/media.env is missing -> skipping the media tag"
+    fi
+  fi
+
+  # Nextcloud (compose + log-shipper config + role).
+  if changed '^hosts/truenas/nextcloud\.' \
+    || changed '^hosts/truenas/alloy-nextcloud\.' \
+    || changed '^ansible/roles/truenas_nextcloud/'; then
+    if [ -f hosts/truenas/nextcloud.env ]; then
+      NAS_TAGS+=("nextcloud")
+    else
+      log "WARN: nextcloud changed but hosts/truenas/nextcloud.env is missing -> skipping the nextcloud tag"
+    fi
+  fi
+
+  if [ ${#NAS_TAGS[@]} -gt 0 ]; then
+    if command -v ansible-playbook >/dev/null 2>&1; then
+      nas_tags="$(IFS=,; echo "${NAS_TAGS[*]}")"
+      log "NAS changes detected -> ansible bootstrap-truenas.yml --tags $nas_tags"
+      # run.sh wires the run into Prometheus/Loki/Grafana just like a manual invocation.
+      ( cd ansible && ./run.sh playbooks/bootstrap-truenas.yml --tags "$nas_tags" ) \
+        || log "WARN: NAS ansible run (--tags $nas_tags) failed — apply manually from ~/pi-infra/ansible"
+    else
+      log "WARN: NAS changes detected but ansible-playbook isn't installed here -> skipping (apply from the hub)"
+    fi
+  fi
 fi
 
 log "done ($NEW)"

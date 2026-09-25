@@ -63,6 +63,14 @@ Prerequisites:
 Then, on the hub, pick up the new Prometheus job + rules + dashboards with `./scripts/deploy.sh`
 from the repo root.
 
+**Auto-apply on deploy.** `scripts/deploy.sh` also drives the NAS side: after pulling, it maps the
+changed paths to `bootstrap-truenas.yml` tags and runs only those — `hosts/truenas/docker-compose.yml`
+or the observability roles → `--tags observability`; `media.*` / `alloy-media.*` / `config/` / the
+`truenas_media` role → `--tags media`; `nextcloud.*` / `alloy-nextcloud.*` / the `truenas_nextcloud`
+role → `--tags nextcloud`. So a normal `git push` + `deploy.sh` (or its timer) applies both the hub
+and the matching NAS stack, no manual `--tags` needed. NAS runs are best-effort (a powered-off NAS or
+a missing opt-in `.env` logs a warning, never fails the hub deploy); set `DEPLOY_NAS=0` to skip them.
+
 ## Nextcloud (private Drive) — opt-in
 
 A self-contained Nextcloud (own Postgres + Redis, so it does NOT depend on the hub's shared
