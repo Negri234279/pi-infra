@@ -298,6 +298,72 @@ the kill-switch working. To go back to no-VPN, revert the `gluetun`/`qbittorrent
 - **qBittorrent lives in gluetun's namespace** — its WebUI is published on host `8085`, but on the
   bridge the *arr apps must use **`gluetun:8080`**, not `qbittorrent:8080`.
 
+## Observability of the media stack
+
+The same exporter→Prometheus→alerts + Alloy→Loki + Grafana pattern the rest of the homelab uses,
+layered onto the media stack. Everything runs **on the NAS** in the same compose and publishes its
+port on `192.168.1.18`, so the hub's Prometheus scrapes it over the LAN (exactly like the
+`graphite-exporter` at `:9108`). The hub-side pieces (jobs, alerts, dashboards) live under `core/`
+and are picked up by `scripts/deploy.sh`.
+
+```
+sonarr/radarr/bazarr ─API─► exportarr ×3 ─┐
+gluetun ─control:8000─► gluetun-exporter ─┤ scrape LAN
+qbittorrent ─► qbittorrent-exporter ──────┼─► hub Prometheus ─► alerts (Discord) + Grafana "media"
+jellyfin ─native /metrics ────────────────┘
+ALL media containers ─► media-alloy (docker.sock) ─push─► hub Loki (job="media")
+```
+
+| Piece | Where | Port (`192.168.1.18`) | Prometheus job | Managed by |
+|-------|-------|-----------------------|----------------|------------|
+| exportarr (Sonarr) | NAS Docker | 9707 | `sonarr` | `media.compose.yml` |
+| exportarr (Radarr) | NAS Docker | 9708 | `radarr` | `media.compose.yml` |
+| exportarr (Bazarr) | NAS Docker | 9709 | `bazarr` | `media.compose.yml` |
+| qbittorrent-exporter | NAS Docker | 9710 | `qbittorrent` | `media.compose.yml` |
+| gluetun-exporter | NAS Docker | 9711 | `gluetun` | `media.compose.yml` |
+| Jellyfin native `/metrics` | NAS Docker | 8096 | `jellyfin` | `media.compose.yml` |
+| media-alloy (log shipper) | NAS Docker | — (pushes) | — (`job="media"` in Loki) | `alloy-media.config.alloy` |
+| Prometheus jobs | Hub | — | — | `core/prometheus/prometheus.yml` |
+| Alerts (group `media`) | Hub | — | — | `core/prometheus/rules/media-alerts.yml` |
+| Dashboards (folder "media") | Hub | — | — | `core/grafana/dashboards/media/` |
+
+**Keys are auto-provisioned.** exportarr no longer reads `config.xml`, so it needs each app's
+`API_KEY`. The `truenas_media` role's existing key-discovery (the same one that fills the homepage
+widgets) writes `SONARR_KEY`/`RADARR_KEY`/`BAZARR_KEY` into the NAS-side `.env` after first boot and
+recreates the exporters — leave those blank in `media.env`. On a **fresh** install the three
+exportarr containers restart-loop for a minute until the role writes the keys; that's expected.
+
+**qBittorrent exporter needs no password.** The role widens qBittorrent's `AuthSubnetWhitelist` to
+include the Docker bridge range (`truenas_media_bridge_subnet`, default `172.16.0.0/12`) alongside
+the LAN, so the exporter — on the `media` bridge, talking to `gluetun:8080` — bypasses auth the same
+way the homepage widget does.
+
+**VPN health.** `gluetun-exporter` polls gluetun's control server (`:8000`, internal to the bridge).
+Since gluetun ≥3.40 makes every control-server route private, `config/gluetun/auth-config.toml`
+(bind-mounted) grants the exporter's read routes with `auth = "none"` — safe because `:8000` is never
+published. The `VpnTunnelDown` alert (`gluetun_vpn_status == 0`) is the kill-switch canary; verify the
+route list / metric names against your gluetun + exporter version after the first deploy.
+
+**Jellyfin metrics — one manual fallback.** Jellyfin serves `/metrics` on `:8096` only when
+`EnableMetrics` is on. The role flips it in Jellyfin's `system.xml` and restarts Jellyfin, but that
+file only exists **after** the setup wizard. If the `jellyfin` target reads empty, enable it by hand:
+Jellyfin **Dashboard → Advanced → Networking** (or edit `config/jellyfin/config/system.xml`:
+`<EnableMetrics>true</EnableMetrics>`), then restart Jellyfin. Rich playback stats (active streams
+per user) come from the **Playback Reporting** plugin, not the native endpoint.
+
+**Toggle.** All of the above wiring is gated by `truenas_media_provision_metrics` (default `true`);
+set it `false` to leave the exporters idle. The log shipper (`media-alloy`) always runs.
+
+### Verify
+
+```bash
+ssh truenas 'docker compose -f /mnt/tank/mediaserver/docker-compose.yml ps'   # exporters Up
+ssh truenas 'curl -s localhost:9707/metrics | head'                            # exportarr (…8-9)
+ssh truenas 'curl -s localhost:8096/metrics | head'                            # Jellyfin native
+```
+Then, from the hub, `up{job=~"sonarr|radarr|bazarr|qbittorrent|gluetun|jellyfin"}` should be `1` in
+Prometheus, and Grafana → folder **media** → **Overview** / **Logs** should have data.
+
 ## Notes
 
 - The `graphite_exporter` expires a metric 5 min after its last push, so if netdata stops

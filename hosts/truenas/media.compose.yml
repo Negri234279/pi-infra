@@ -148,6 +148,12 @@ services:
       # Let the LAN/VPN subnet reach the published WebUI through gluetun (the kill-switch otherwise
       # blocks non-tunnel traffic). Must include the hub running homepage.
       FIREWALL_OUTBOUND_SUBNETS: ${VPN_LAN_SUBNET:-192.168.1.0/24}
+    volumes:
+      # gluetun ≥3.40 makes ALL control-server routes private by default. This tiny auth file grants
+      # the read-only routes the gluetun-exporter polls (VPN status / public IP / forwarded port) with
+      # auth="none" — safe because the control server is only reachable INSIDE the `media` bridge
+      # (no published :8000). See hosts/truenas/config/gluetun/auth-config.toml.
+      - ./config/gluetun/auth-config.toml:/gluetun/auth/config.toml:ro
     ports:
       # qBittorrent WebUI (8085→8080) + the BT peer port. NOTE for AirVPN: port forwarding is NOT
       # dynamic — reserve a port in the AirVPN client area (Ports) and set QBITTORRENT_BT_PORT to it,
@@ -213,6 +219,124 @@ services:
     volumes:
       - ./config/cantinarr:/config
     networks: [media]
+
+  # ─────────────────────────────────────────────────────────────────────────────────
+  # OBSERVABILITY — metrics exporters + a log shipper, scraped/collected by the hub.
+  # Same pattern as the graphite-exporter in hosts/truenas/docker-compose.yml and the
+  # nextcloud-alloy sidecar: everything runs ON the NAS and PUBLISHES its port on
+  # 192.168.1.18 so the hub's Prometheus scrapes it over the LAN (jobs sonarr/radarr/
+  # bazarr/qbittorrent/gluetun/jellyfin in core/prometheus/prometheus.yml). See the
+  # "Observability" section of hosts/truenas/README.md. LAN-only, no public exposure.
+  # ─────────────────────────────────────────────────────────────────────────────────
+
+  # exportarr — one instance per *arr app (Prometheus metrics from each app's REST API).
+  # Current exportarr no longer reads config.xml, so the API key MUST be passed as API_KEY.
+  # SONARR_KEY/RADARR_KEY/BAZARR_KEY are auto-written into this stack's .env by the
+  # truenas_media role after first boot (from each app's config) — do NOT set them by hand.
+  sonarr-exporter:
+    image: ghcr.io/onedr0p/exportarr:latest
+    container_name: sonarr-exporter
+    restart: unless-stopped
+    command: ["sonarr"]
+    environment:
+      PORT: 9707
+      URL: "http://sonarr:8989"
+      # Blank until the role discovers it on first boot — the exporter just restarts until then;
+      # NOT `:?` on purpose, or an empty key would abort `docker compose up` for the WHOLE stack.
+      API_KEY: ${SONARR_KEY:-}
+    ports:
+      - "9707:9707"
+    depends_on: [sonarr]
+    networks: [media]
+
+  radarr-exporter:
+    image: ghcr.io/onedr0p/exportarr:latest
+    container_name: radarr-exporter
+    restart: unless-stopped
+    command: ["radarr"]
+    environment:
+      PORT: 9707
+      URL: "http://radarr:7878"
+      API_KEY: ${RADARR_KEY:-}
+    ports:
+      - "9708:9707"
+    depends_on: [radarr]
+    networks: [media]
+
+  bazarr-exporter:
+    image: ghcr.io/onedr0p/exportarr:latest
+    container_name: bazarr-exporter
+    restart: unless-stopped
+    command: ["bazarr"]
+    environment:
+      PORT: 9707
+      URL: "http://bazarr:6767"
+      API_KEY: ${BAZARR_KEY:-}
+    ports:
+      - "9709:9707"
+    depends_on: [bazarr]
+    networks: [media]
+
+  # qBittorrent metrics. qBittorrent runs in gluetun's namespace, so its WebUI is reached at
+  # gluetun:8080 (NOT qbittorrent:8080). No credentials are needed: the truenas_media role
+  # whitelists the Docker bridge range in qBittorrent (WebUI\AuthSubnetWhitelist), so this
+  # exporter — on the `media` bridge — bypasses auth the same way the homepage widget does.
+  qbittorrent-exporter:
+    image: ghcr.io/esanchezm/prometheus-qbittorrent-exporter:latest
+    container_name: qbittorrent-exporter
+    restart: unless-stopped
+    environment:
+      QBITTORRENT_HOST: gluetun
+      QBITTORRENT_PORT: 8080
+      EXPORTER_PORT: 8000
+      # No auth needed thanks to the subnet whitelist; kept blank on purpose.
+      QBITTORRENT_USER: ${QBITTORRENT_USER:-}
+      QBITTORRENT_PASS: ${QBITTORRENT_PASSWORD:-}
+    ports:
+      - "9710:8000"
+    depends_on: [gluetun]
+    networks: [media]
+
+  # gluetun / VPN health — polls gluetun's control server (:8000, internal to the bridge) and
+  # exposes VPN status, the public (AirVPN exit) IP and the forwarded port. The `standalone`
+  # variant only needs HTTP access to the control server; auth is granted by auth-config.toml.
+  gluetun-exporter:
+    image: ghcr.io/thecfu/gluetun-exporter:standalone
+    container_name: gluetun-exporter
+    restart: unless-stopped
+    environment:
+      GLUETUN_URL: "http://gluetun:8000"
+      EXPORTER_PORT: 8001
+    ports:
+      - "9711:8001"
+    depends_on: [gluetun]
+    networks: [media]
+
+  # Log shipper — tails the stdout/stderr of every container in THIS compose project via the
+  # Docker socket and pushes it to the hub's Loki (job="media", instance="truenas"). Same idea as
+  # nextcloud-alloy but socket-based so one sidecar covers the whole stack. Config in
+  # alloy-media.config.alloy (synced alongside this file by the role).
+  media-alloy:
+    image: grafana/alloy:v1.5.1
+    container_name: media-alloy
+    restart: unless-stopped
+    # Root so it can read the Docker socket (root:docker) to tail every container's logs.
+    user: root
+    command:
+      - run
+      - --server.http.listen-addr=0.0.0.0:12345
+      - --storage.path=/var/lib/alloy/data
+      - /etc/alloy/config.alloy
+    environment:
+      MEDIA_LOKI_URL: ${MEDIA_LOKI_URL:-http://192.168.1.7:3100/loki/api/v1/push}
+    volumes:
+      - ./alloy-media.config.alloy:/etc/alloy/config.alloy:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - media-alloy-data:/var/lib/alloy/data
+    networks: [media]
+
+volumes:
+  media-alloy-data:
 
 networks:
   media:

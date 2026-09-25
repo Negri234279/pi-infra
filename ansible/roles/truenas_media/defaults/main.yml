@@ -42,3 +42,20 @@ truenas_media_provision_homepage: true
 truenas_media_lan_subnet: "192.168.1.0/24"
 # The hub's repo-root .env (control node = the hub). playbook_dir is ansible/playbooks.
 truenas_media_hub_env: "{{ playbook_dir }}/../../.env"
+
+# ── Observability provisioning ─────────────────────────────────────────────────────
+# The compose ALWAYS ships the metrics exporters (exportarr ×3, qbittorrent-exporter,
+# gluetun-exporter) and the media-alloy log shipper. This flag gates the extra wiring they need to
+# actually work: writing the discovered *arr API keys into the NAS-side .env (exportarr needs API_KEY
+# — it no longer reads config.xml) and recreating the exporters, widening the qBittorrent WebUI
+# subnet whitelist so its exporter connects without auth, and enabling Jellyfin's native /metrics.
+# Set false to leave the exporters idle (they'll restart until keyed). The hub-side Prometheus jobs /
+# alerts / dashboards live under core/ and are picked up by scripts/deploy.sh, independent of this.
+truenas_media_provision_metrics: true
+# Docker bridge address range added to qBittorrent's WebUI\AuthSubnetWhitelist (alongside the LAN
+# subnet) so the qbittorrent-exporter container bypasses auth. Docker's default bridges live in
+# 172.16.0.0/12; narrow this if you pin the `media` network to a fixed subnet.
+truenas_media_bridge_subnet: "172.16.0.0/12"
+# Extra files synced next to the compose for observability (log shipper + gluetun control-server auth).
+truenas_media_alloy_src: "{{ playbook_dir }}/../../hosts/truenas/alloy-media.config.alloy"
+truenas_media_gluetun_auth_src: "{{ playbook_dir }}/../../hosts/truenas/config/gluetun/auth-config.toml"

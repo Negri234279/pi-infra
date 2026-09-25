@@ -173,6 +173,56 @@ scrape_configs:
       - { source_labels: [serial], regex: "50026B785401B363", target_label: vdev, replacement: "mirror-0" }
       # END ANSIBLE MANAGED BLOCK truenas-disk-map
 
+  # ── Media stack on the NAS (hosts/truenas/media.compose.yml) ─────────────────────────────────
+  # Each media app's exporter runs ON the NAS in the same compose and PUBLISHES its port on
+  # 192.168.1.18, so we scrape it over the LAN — same shape as the `truenas` graphite job. All get
+  # host="truenas" so the media dashboards/alerts share a filter. Ports (see media.compose.yml):
+  # exportarr sonarr/radarr/bazarr = 9707/9708/9709, qbittorrent-exporter = 9710,
+  # gluetun-exporter = 9711, Jellyfin native /metrics = 8096. exportarr reads the app's API_KEY
+  # (auto-written into the NAS .env by ansible/roles/truenas_media). Alerts: rules/media-alerts.yml.
+  - job_name: sonarr
+    scrape_interval: 30s
+    static_configs:
+      - targets: ["192.168.1.18:9707"]
+        labels: { host: truenas }
+
+  - job_name: radarr
+    scrape_interval: 30s
+    static_configs:
+      - targets: ["192.168.1.18:9708"]
+        labels: { host: truenas }
+
+  - job_name: bazarr
+    scrape_interval: 30s
+    static_configs:
+      - targets: ["192.168.1.18:9709"]
+        labels: { host: truenas }
+
+  # qBittorrent (behind gluetun/AirVPN). The exporter bypasses the WebUI auth via qBittorrent's
+  # subnet whitelist (set by the role), so no credentials are needed here.
+  - job_name: qbittorrent
+    scrape_interval: 30s
+    static_configs:
+      - targets: ["192.168.1.18:9710"]
+        labels: { host: truenas }
+
+  # VPN health — gluetun-exporter polls gluetun's control server: VPN up/down, AirVPN exit IP,
+  # forwarded port. VpnTunnelDown (rules/media-alerts.yml) is the kill-switch canary.
+  - job_name: gluetun
+    scrape_interval: 30s
+    static_configs:
+      - targets: ["192.168.1.18:9711"]
+        labels: { host: truenas }
+
+  # Jellyfin's native Prometheus metrics on its web port (EnableMetrics — see hosts/truenas/README.md).
+  # LAN-only endpoint; scraped straight over the mgmt NIC.
+  - job_name: jellyfin
+    scrape_interval: 30s
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["192.168.1.18:8096"]
+        labels: { host: truenas }
+
   # All containers on the Pi (reached by service DNS on the monitoring network).
   - job_name: cadvisor
     static_configs:

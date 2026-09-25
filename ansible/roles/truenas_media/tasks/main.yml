@@ -93,6 +93,27 @@
     mode: "0600"
   register: truenas_media_envfile
 
+# ── Observability config files (must exist BEFORE `up -d`, or Docker creates DIRECTORIES for the
+#    bind mounts). The gluetun auth file is synced unconditionally because the always-on gluetun
+#    service mounts it; the alloy config feeds the media-alloy log shipper. ──────────────────────
+- name: Ensure the gluetun config dir exists on the NAS
+  ansible.builtin.file:
+    path: "{{ truenas_media_dir }}/config/gluetun"
+    state: directory
+    mode: "0755"
+
+- name: Sync the gluetun control-server auth config (grants the exporter's read routes)
+  ansible.builtin.copy:
+    src: "{{ truenas_media_gluetun_auth_src }}"
+    dest: "{{ truenas_media_dir }}/config/gluetun/auth-config.toml"
+    mode: "0644"
+
+- name: Sync the media-alloy log-shipper config
+  ansible.builtin.copy:
+    src: "{{ truenas_media_alloy_src }}"
+    dest: "{{ truenas_media_dir }}/alloy-media.config.alloy"
+    mode: "0644"
+
 - name: Pull the media images
   ansible.builtin.command:
     argv: [docker, compose, -f, "{{ truenas_media_dir }}/docker-compose.yml", pull]
@@ -107,12 +128,12 @@
     ('Started' in truenas_media_up.stderr) or ('Created' in truenas_media_up.stderr) or
     ('Recreated' in truenas_media_up.stderr) or ('Pulling' in truenas_media_up.stderr)
 
-# ── Auto-provision homepage widget keys (opt-out via truenas_media_provision_homepage) ──────────
-# Reads the keys the apps generate on first launch and writes them into the hub's .env, then
-# recreates homepage on the hub. qBittorrent gets a LAN subnet whitelist so its widget needs no
-# password (the stored password is a non-reversible PBKDF2 hash). Jellyfin stays manual.
-- name: Provision homepage widget credentials
-  when: truenas_media_provision_homepage | bool
+# ── Discover the app API keys the apps generate on first launch, then feed the two consumers that
+#    need them: the hub's homepage widgets (truenas_media_provision_homepage) and the *arr metrics
+#    exporters on the NAS (truenas_media_provision_metrics). qBittorrent gets a subnet whitelist so
+#    both its widget AND its exporter connect without a password. Jellyfin's key stays manual. ─────
+- name: Provision homepage widget + metrics-exporter credentials
+  when: (truenas_media_provision_homepage | bool) or (truenas_media_provision_metrics | bool)
   block:
     - name: Wait for the *arr configs to be generated (with the API key)
       ansible.builtin.wait_for:
@@ -182,10 +203,15 @@
         src: "{{ truenas_media_dir }}/config/qbittorrent/qBittorrent/qBittorrent.conf"
       register: truenas_media_qbt_cfg
 
-    - name: Check whether the qBittorrent LAN whitelist is already set
+    # LAN (homepage widget / you) + the Docker bridge range (the qbittorrent-exporter container).
+    - name: Compose the qBittorrent WebUI subnet whitelist
+      ansible.builtin.set_fact:
+        truenas_media_qbt_whitelist: "{{ truenas_media_lan_subnet }},{{ truenas_media_bridge_subnet }}"
+
+    - name: Check whether the qBittorrent subnet whitelist is already set
       ansible.builtin.set_fact:
         truenas_media_qbt_ok: >-
-          {{ ('AuthSubnetWhitelist=' ~ truenas_media_lan_subnet) in (truenas_media_qbt_cfg.content | b64decode)
+          {{ ('AuthSubnetWhitelist=' ~ truenas_media_qbt_whitelist) in (truenas_media_qbt_cfg.content | b64decode)
              and 'AuthSubnetWhitelistEnabled=true' in (truenas_media_qbt_cfg.content | b64decode) }}
 
     - name: Apply the qBittorrent LAN whitelist (stop → edit → start)
@@ -210,14 +236,15 @@
             insertafter: '^\[Preferences\]'
           loop:
             - { re: '^WebUI\\AuthSubnetWhitelistEnabled=', line: 'WebUI\AuthSubnetWhitelistEnabled=true' }
-            - { re: '^WebUI\\AuthSubnetWhitelist=', line: 'WebUI\AuthSubnetWhitelist={{ truenas_media_lan_subnet }}' }
+            - { re: '^WebUI\\AuthSubnetWhitelist=', line: 'WebUI\AuthSubnetWhitelist={{ truenas_media_qbt_whitelist }}' }
 
         - name: Start qBittorrent again
           ansible.builtin.command:
             argv: [docker, compose, -f, "{{ truenas_media_dir }}/docker-compose.yml", start, qbittorrent]
           changed_when: true
 
-    # ── Write the discovered keys into the hub .env + recreate homepage (control node = the hub) ──
+    # ── Consumer 1: the hub homepage widgets. Write the discovered keys into the hub .env + recreate
+    #    homepage (control node = the hub). Skipped when homepage provisioning is off. ─────────────
     - name: Write the discovered widget keys into the hub .env
       ansible.builtin.lineinfile:
         path: "{{ truenas_media_hub_env }}"
@@ -226,7 +253,9 @@
       loop: "{{ truenas_media_keys | dict2items }}"
       loop_control:
         label: "{{ item.key }}"
-      when: item.value | default('') | length > 0
+      when:
+        - truenas_media_provision_homepage | bool
+        - item.value | default('') | length > 0
       delegate_to: localhost
       become: false
 
@@ -238,8 +267,76 @@
       changed_when: >-
         ('Recreated' in truenas_media_hp.stderr) or ('Started' in truenas_media_hp.stderr) or
         ('Created' in truenas_media_hp.stderr)
+      when: truenas_media_provision_homepage | bool
       delegate_to: localhost
       become: false
+
+    # ── Consumer 2: the *arr metrics exporters (exportarr) ON the NAS. exportarr needs API_KEY in the
+    #    stack's .env; write the three keys there and recreate the exporters so they pick them up.
+    #    Only the exporter keys go here (Jellyseerr's key is homepage-only). ────────────────────────
+    - name: Write the *arr API keys into the NAS media .env (for exportarr)
+      ansible.builtin.lineinfile:
+        path: "{{ truenas_media_dir }}/.env"
+        regexp: "^{{ item.key }}="
+        line: "{{ item.key }}={{ item.value }}"
+      loop: "{{ truenas_media_keys | dict2items }}"
+      loop_control:
+        label: "{{ item.key }}"
+      when:
+        - truenas_media_provision_metrics | bool
+        - item.key in ['SONARR_KEY', 'RADARR_KEY', 'BAZARR_KEY']
+        - item.value | default('') | length > 0
+      register: truenas_media_exporter_env
+
+    - name: Recreate the metrics exporters so they read the new API keys
+      ansible.builtin.command:
+        argv:
+          - docker
+          - compose
+          - -f
+          - "{{ truenas_media_dir }}/docker-compose.yml"
+          - up
+          - -d
+          - sonarr-exporter
+          - radarr-exporter
+          - bazarr-exporter
+      when:
+        - truenas_media_provision_metrics | bool
+        - truenas_media_exporter_env is changed
+      register: truenas_media_exporters_up
+      changed_when: >-
+        ('Recreated' in truenas_media_exporters_up.stderr) or
+        ('Started' in truenas_media_exporters_up.stderr) or
+        ('Created' in truenas_media_exporters_up.stderr)
+
+# ── Jellyfin native Prometheus metrics (best-effort) ────────────────────────────────
+# Jellyfin serves /metrics on its web port (8096) when EnableMetrics is on. The toggle lives in its
+# system.xml, which only exists AFTER the setup wizard is completed — so this is best-effort: if the
+# file (or the tag) isn't there yet, we skip and the README documents the one-line manual enable.
+- name: Enable Jellyfin's native /metrics endpoint
+  when: truenas_media_provision_metrics | bool
+  block:
+    - name: Find Jellyfin's system.xml
+      ansible.builtin.find:
+        paths: "{{ truenas_media_dir }}/config/jellyfin/config"
+        patterns: "system.xml"
+      register: truenas_media_jf_sysxml
+
+    - name: Turn on EnableMetrics + restart Jellyfin (only if the tag is present)
+      when: truenas_media_jf_sysxml.files | length > 0
+      block:
+        - name: Set EnableMetrics=true in Jellyfin system.xml
+          ansible.builtin.replace:
+            path: "{{ truenas_media_jf_sysxml.files[0].path }}"
+            regexp: "<EnableMetrics>false</EnableMetrics>"
+            replace: "<EnableMetrics>true</EnableMetrics>"
+          register: truenas_media_jf_metrics
+
+        - name: Restart Jellyfin to apply the metrics setting
+          ansible.builtin.command:
+            argv: [docker, compose, -f, "{{ truenas_media_dir }}/docker-compose.yml", restart, jellyfin]
+          when: truenas_media_jf_metrics is changed
+          changed_when: true
 
 - name: Where to reach it
   ansible.builtin.debug:
@@ -251,3 +348,6 @@
       JELLYFIN_KEY in the hub .env, then `docker compose up -d homepage`. Next, wire Sonarr/Radarr:
       add download client gluetun:8080 (qBittorrent runs in gluetun's VPN namespace) + indexers from
       jackett:9117, root folders /data/media/tv and /data/media/movies; Jellyfin libraries at /data/media/*.
+      OBSERVABILITY: exporters published on 9707-9711 + Jellyfin /metrics on 8096; container logs shipped
+      to the hub Loki (job=media). Pick up the hub-side Prometheus jobs / alerts / dashboards with
+      scripts/deploy.sh from the repo root. If Jellyfin /metrics is empty, enable EnableMetrics (README).

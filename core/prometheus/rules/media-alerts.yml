@@ -1,0 +1,80 @@
+# Alert rules for the NAS media stack (hosts/truenas/media.compose.yml). Fed by the exporters that
+# run ON the NAS and are scraped over the LAN — jobs sonarr/radarr/bazarr/qbittorrent/gluetun/jellyfin
+# in core/prometheus/prometheus.yml. Same severity labels → same Discord routing as every other alert.
+#
+# Metric sources:
+#   exportarr (sonarr/radarr/bazarr): {app}_system_health_issues, up{job=...}
+#   gluetun-exporter:  gluetun_vpn_status (1=connected/0=down), gluetun_forwarded_ports_total,
+#                      gluetun_vpn_infos{ip,country,city}
+#   qbittorrent-exporter / jellyfin native: up{job=...}
+#
+# VERIFY after the first scrape: the exact exportarr metric names (`*_system_health_issues`) and that
+# gluetun_forwarded_ports_total is non-zero for your AirVPN port-forward setup, then tune below.
+groups:
+  - name: media
+    rules:
+      # An app metrics exporter (or Jellyfin's /metrics) stopped responding. Container down, app down,
+      # or — for exportarr — a missing/rotated API key (see the role's key auto-provisioning).
+      - alert: MediaExporterDown
+        expr: up{job=~"sonarr|radarr|bazarr|jellyfin"} == 0
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Media exporter {{ $labels.job }} is down"
+          description: "No metrics from the {{ $labels.job }} exporter on the NAS (192.168.1.18) for >15m — container down, app down, or a missing exportarr API key. See hosts/truenas/README.md."
+
+      # The VPN tunnel is down. qBittorrent runs inside gluetun's namespace with a kill-switch, so a
+      # down tunnel means ALL torrent traffic is blocked (by design) — but also that nothing downloads.
+      - alert: VpnTunnelDown
+        expr: gluetun_vpn_status == 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Torrent VPN tunnel is DOWN"
+          description: "gluetun reports the AirVPN WireGuard tunnel down for >5m (gluetun_vpn_status==0). The kill-switch is blocking qBittorrent — downloads are stalled. Check `docker logs gluetun` on the NAS (MTU/handshake)."
+
+      # We've lost visibility into the VPN itself (the gluetun-exporter can't reach gluetun's control
+      # server, or its container is down). Distinct from the tunnel being down.
+      - alert: VpnExporterDown
+        expr: up{job="gluetun"} == 0
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "gluetun VPN exporter is down"
+          description: "No response from gluetun-exporter (192.168.1.18:9711) for >10m — VPN health is now unmonitored. Container down or gluetun's control server unreachable."
+
+      # qBittorrent's exporter is down. Note: qBittorrent `depends_on` gluetun being healthy, so if the
+      # kill-switch trips this fires too — a second signal that the torrent path is broken.
+      - alert: TorrentClientDown
+        expr: up{job="qbittorrent"} == 0
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "qBittorrent is unreachable"
+          description: "No metrics from qbittorrent-exporter (192.168.1.18:9710) for >15m — qBittorrent is down, or gluetun went unhealthy and stopped it (kill-switch). Check the VPN first (see VpnTunnelDown)."
+
+      # AirVPN port forwarding dropped. Inbound peers can't reach you → slow/leech-only torrents.
+      # Only meaningful if you reserved a forwarded port (README step 2); silence if you don't use PF.
+      - alert: VpnForwardedPortMissing
+        expr: gluetun_forwarded_ports_total == 0
+        for: 30m
+        labels:
+          severity: warning
+        annotations:
+          summary: "No VPN forwarded port"
+          description: "gluetun reports 0 forwarded ports for >30m — the AirVPN reserved port isn't being forwarded, so inbound BitTorrent peers can't connect. Re-check the reserved port (AirVPN client area) and QBITTORRENT_BT_PORT."
+
+      # The *arr apps report health issues (indexer errors, no download client, root-folder missing…).
+      # Often benign, so warning + a long `for`. Tighten/relax once you see what your setup reports.
+      - alert: ArrHealthIssues
+        expr: sum by (job) ({__name__=~"(sonarr|radarr|bazarr)_system_health_issues"}) > 0
+        for: 1h
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{ $labels.job }} reports health issues"
+          description: "{{ $labels.job }} has had unresolved system health issues for >1h — open its UI → System → Status. Common causes: indexer down, no download client, or a missing root folder."

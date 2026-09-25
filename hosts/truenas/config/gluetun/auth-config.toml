@@ -1,0 +1,24 @@
+# gluetun control-server auth (bind-mounted at /gluetun/auth/config.toml by media.compose.yml).
+#
+# Since gluetun v3.40 EVERY control-server route is private by default. The gluetun-exporter
+# (thecfu/gluetun-exporter, service `gluetun-exporter`) polls a handful of read-only GET routes to
+# expose VPN status / public IP / forwarded port. We grant exactly those with auth = "none".
+#
+# This is safe: the control server has NO published host port — it is only reachable INSIDE the
+# `media` Docker bridge (as gluetun:8000), which is LAN-only and holds only our own containers.
+# If you later publish :8000 or want real auth, switch this role to auth = "apikey" and set
+# GLUETUN_APIKEY on the gluetun-exporter service.
+#
+# NOTE: verify the route list against the exporter/gluetun version after the first deploy — if the
+# exporter logs 401/404 on a route, add/rename it here (see gluetun-wiki control-server.md).
+[[roles]]
+name = "metrics"
+auth = "none"
+routes = [
+  "GET /v1/publicip/ip",
+  "GET /v1/vpn/status",
+  "GET /v1/openvpn/status",
+  "GET /v1/openvpn/portforwarded",
+  "GET /v1/dns/status",
+  "GET /v1/version",
+]

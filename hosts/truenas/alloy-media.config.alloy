@@ -1,0 +1,56 @@
+// Alloy running ON the NAS — ships the logs of every container in the `media` compose project to
+// the core Loki on the hub so the "Media Logs" dashboard (core/grafana/dashboards/media/media-logs.json)
+// has data. Deployed by ansible/roles/truenas_media next to media.compose.yml.
+//
+// Unlike the Nextcloud sidecar (which tails one file), this reads the Docker socket and streams the
+// stdout/stderr of ALL media containers in one shot. We keep only the containers whose compose
+// project is "mediaserver" (the dir the role deploys to → the default compose project name), then
+// relabel each stream with job="media", instance="truenas" and container=<name>. The hub's Loki
+// isn't on this host, so we push over the LAN to its published :3100 endpoint (MEDIA_LOKI_URL).
+
+discovery.docker "media" {
+	host = "unix:///var/run/docker.sock"
+}
+
+discovery.relabel "media" {
+	targets = discovery.docker.media.targets
+
+	// Keep only containers from this compose project (the mediaserver dataset dir).
+	rule {
+		source_labels = ["__meta_docker_container_label_com_docker_compose_project"]
+		regex         = "mediaserver"
+		action        = "keep"
+	}
+
+	// container=<compose service or container name>
+	rule {
+		source_labels = ["__meta_docker_container_label_com_docker_compose_service"]
+		target_label  = "container"
+	}
+	rule {
+		source_labels = ["__meta_docker_container_name"]
+		regex         = "/(.*)"
+		target_label  = "container"
+	}
+	rule {
+		target_label = "job"
+		replacement  = "media"
+	}
+	rule {
+		target_label = "instance"
+		replacement  = "truenas"
+	}
+}
+
+loki.source.docker "media" {
+	host       = "unix:///var/run/docker.sock"
+	targets    = discovery.relabel.media.output
+	labels     = {}
+	forward_to = [loki.write.hub.receiver]
+}
+
+loki.write "hub" {
+	endpoint {
+		url = sys.env("MEDIA_LOKI_URL")
+	}
+}
