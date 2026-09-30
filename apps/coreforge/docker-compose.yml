@@ -119,8 +119,6 @@ services:
             - homepage.icon=mdi-anvil
             - homepage.href=https://coreforge-conveyor-filters.negri.es/
             - homepage.docker.container=coreforge-app
-            - homepage.widget.type=customapi
-            - homepage.widget.url=http://coreforge-app:4321/api/healthz
 
     # ── Observability (metrics / logs / traces) ──────────────────
     coreforge-prometheus:
@@ -142,7 +140,7 @@ services:
             - ./observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
             - ./observability/prometheus/rules:/etc/prometheus/rules:ro
             - ./scrape.d:/etc/prometheus/scrape.d:ro
-            - coreforge-prometheus-data:/prometheus
+            - prometheus-data:/prometheus
         deploy:
             resources:
                 limits: { cpus: '0.5', memory: 512m }
@@ -154,7 +152,7 @@ services:
         command: ['-config.file=/etc/loki/loki-config.yaml']
         volumes:
             - ./observability/loki/loki-config.yaml:/etc/loki/loki-config.yaml:ro
-            - coreforge-loki-data:/loki
+            - loki-data:/loki
         deploy:
             resources:
                 limits: { cpus: '0.5', memory: 384m }
@@ -166,7 +164,7 @@ services:
         command: ['-config.file=/etc/tempo/tempo.yaml']
         volumes:
             - ./observability/tempo/tempo.yaml:/etc/tempo/tempo.yaml:ro
-            - coreforge-tempo-data:/var/tempo
+            - tempo-data:/var/tempo
         deploy:
             resources:
                 limits: { cpus: '0.5', memory: 384m }
@@ -183,7 +181,7 @@ services:
         volumes:
             - ./observability/alloy/config.alloy:/etc/alloy/config.alloy:ro
             - /var/run/docker.sock:/var/run/docker.sock:ro
-            - coreforge-alloy-data:/var/lib/alloy/data
+            - alloy-data:/var/lib/alloy/data
         depends_on:
             - coreforge-loki
             - coreforge-tempo
@@ -221,7 +219,7 @@ services:
             - -c
             - 'printf "%s" "$$COREFORGE_DISCORD_WEBHOOK_URL" > /secrets/discord_webhook_url && echo "wrote coreforge discord webhook secret"'
         volumes:
-            - coreforge-alertmanager-secrets:/secrets
+            - alertmanager-secrets:/secrets
         networks: [coreforge-net]
         restart: 'no'
 
@@ -234,8 +232,8 @@ services:
             - '--storage.path=/alertmanager'
         volumes:
             - ./observability/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
-            - coreforge-alertmanager-secrets:/etc/alertmanager/secrets:ro
-            - coreforge-alertmanager-data:/alertmanager
+            - alertmanager-secrets:/etc/alertmanager/secrets:ro
+            - alertmanager-data:/alertmanager
         depends_on:
             coreforge-alertmanager-init:
                 condition: service_completed_successfully
@@ -251,21 +249,17 @@ volumes:
     coreforge-data:
         name: coreforge-conveyor-filters_coreforge-data
         external: true
-    # KEYS are prefixed so that when this file is merged into the root `include:`
-    # alongside core/, Compose (which merges top-level volumes by KEY, last-wins)
-    # can't shadow — or be shadowed by — the core stack's identically-named
-    # volumes. `name:` keeps each real volume unchanged so no data moves.
-    coreforge-prometheus-data:
+    prometheus-data:
         name: coreforge-prometheus-data
-    coreforge-loki-data:
+    loki-data:
         name: coreforge-loki-data
-    coreforge-tempo-data:
+    tempo-data:
         name: coreforge-tempo-data
-    coreforge-alloy-data:
+    alloy-data:
         name: coreforge-alloy-data
-    coreforge-alertmanager-data:
+    alertmanager-data:
         name: coreforge-alertmanager-data
-    coreforge-alertmanager-secrets:
+    alertmanager-secrets:
         name: coreforge-alertmanager-secrets
 
 networks:
