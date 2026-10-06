@@ -183,6 +183,51 @@ services:
       - ./config/qbittorrent:/config
       - ${MEDIA_LIBRARY_HOST_PATH:-/mnt/tank/media}:/data
 
+  # vpn-autoswitch — watchdog that rotates gluetun onto a LESS-CONGESTED AirVPN country when
+  # qBittorrent stays slow. gluetun can't be told which server to use at runtime (only stop/start via
+  # its control server, which re-picks RANDOMLY from the SERVER_COUNTRIES pool — gluetun#2473), so this
+  # does rejection sampling BY COUNTRY: restart the tunnel, read the exit country from gluetun's
+  # control server (/v1/publicip/ip), look up that country's least-loaded healthy server in AirVPN's
+  # public status API, and restart again if it's still above MAX_LOAD_PERCENT — until it lands in a
+  # decongested country. NO Docker socket, NO container recreation. For rotation to span countries,
+  # VPN_SERVER_COUNTRIES (on gluetun above) MUST list several. OPT-IN: idles unless
+  # VPN_AUTOSWITCH_ENABLED=true. Logs go to Loki via media-alloy (job="media"). See autoswitch.sh.
+  vpn-autoswitch:
+    image: alpine:3.20
+    container_name: vpn-autoswitch
+    restart: unless-stopped
+    depends_on:
+      gluetun:
+        condition: service_healthy
+    environment:
+      AUTOSWITCH_ENABLED: ${VPN_AUTOSWITCH_ENABLED:-false}
+      # qBittorrent WebUI lives in gluetun's namespace → reach it at gluetun:8080. No auth needed:
+      # the truenas_media role whitelists the Docker bridge (same bypass the exporter/homepage use).
+      QBT_URL: "http://gluetun:8080"
+      # gluetun control server (bridge-internal :8000; PUT /v1/vpn/status granted in auth-config.toml).
+      GLUETUN_URL: "http://gluetun:8000"
+      AIRVPN_STATUS_URL: ${VPN_AUTOSWITCH_STATUS_URL:-https://airvpn.org/api/status/}
+      # Trigger: DL below SLOW_MBPS (MB/s) for SLOW_MINUTES straight while seeded torrents download.
+      SLOW_MBPS: ${VPN_AUTOSWITCH_SLOW_MBPS:-1}
+      SLOW_MINUTES: ${VPN_AUTOSWITCH_SLOW_MINUTES:-10}
+      # A landing country is "decongested" when its best healthy server's load % is at/under this.
+      MAX_LOAD_PERCENT: ${VPN_AUTOSWITCH_MAX_LOAD:-70}
+      # Max tunnel restarts per switch (rejection sampling) before giving up until the next cycle.
+      MAX_ATTEMPTS: ${VPN_AUTOSWITCH_MAX_ATTEMPTS:-6}
+      # Don't switch again for this many minutes after a switch (anti-flap; each switch drops the
+      # tunnel ~10-30s so torrents pause briefly).
+      COOLDOWN_MINUTES: ${VPN_AUTOSWITCH_COOLDOWN:-20}
+      POLL_SECONDS: ${VPN_AUTOSWITCH_POLL:-60}
+      # Optional: restrict acceptable landing countries (comma list, AirVPN names). Blank = any in the
+      # gluetun pool. Does NOT steer gluetun — that's VPN_SERVER_COUNTRIES.
+      ALLOWED_COUNTRIES: ${VPN_AUTOSWITCH_ALLOWED_COUNTRIES:-}
+      TZ: ${TZ:-Europe/Madrid}
+    volumes:
+      - ./config/vpn-autoswitch/autoswitch.sh:/autoswitch.sh:ro
+    # curl (PUT with a JSON body) + jq (parse AirVPN/qBittorrent JSON) aren't in base alpine.
+    command: ["sh", "-c", "apk add --no-cache curl jq >/dev/null 2>&1 && exec sh /autoswitch.sh"]
+    networks: [media]
+
   # Requests / discovery front-end. Uses SEERR (ghcr.io/seerr-team/seerr = Docker Hub seerr/seerr),
   # the maintained successor of Jellyseerr — the old fallenbagel/jellyseerr image is ARCHIVED and
   # doesn't support current Jellyfin (12.x auth breaks). Seerr keeps the same port 5055 and the same

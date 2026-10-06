@@ -59,3 +59,9 @@ truenas_media_bridge_subnet: "172.16.0.0/12"
 # Extra files synced next to the compose for observability (log shipper + gluetun control-server auth).
 truenas_media_alloy_src: "{{ playbook_dir }}/../../hosts/truenas/alloy-media.config.alloy"
 truenas_media_gluetun_auth_src: "{{ playbook_dir }}/../../hosts/truenas/config/gluetun/auth-config.toml"
+
+# ── VPN auto-switch ──────────────────────────────────────────────────────────────────
+# Watchdog script bind-mounted into the vpn-autoswitch sidecar (media.compose.yml). Rotates gluetun
+# onto a less-congested AirVPN country when qBittorrent stays slow. Opt-in via VPN_AUTOSWITCH_ENABLED
+# in media.env — the container is always deployed but idles until enabled.
+truenas_media_autoswitch_src: "{{ playbook_dir }}/../../hosts/truenas/config/vpn-autoswitch/autoswitch.sh"

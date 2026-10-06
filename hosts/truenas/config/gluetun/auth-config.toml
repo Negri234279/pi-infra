@@ -30,3 +30,13 @@ routes = [
   "GET /v1/dns/status",
   "GET /v1/version",
 ]
+
+# vpn-autoswitch (media.compose.yml) restarts the tunnel to rotate onto a less-congested AirVPN
+# country, so it needs the MUTATING status route. Same safety as above: the control server has no
+# published host port — only our own containers on the `media` bridge can reach gluetun:8000.
+[[roles]]
+name = "autoswitch"
+auth = "none"
+routes = [
+  "PUT /v1/vpn/status",
+]

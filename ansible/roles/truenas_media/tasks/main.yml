@@ -115,6 +115,21 @@
     dest: "{{ truenas_media_dir }}/alloy-media.config.alloy"
     mode: "0644"
 
+# vpn-autoswitch watchdog script — bind-mounted into the sidecar. Must exist before `up -d`, or Docker
+# creates a DIRECTORY for the bind mount (same class as the gluetun auth / alloy config above).
+- name: Ensure the vpn-autoswitch config dir exists on the NAS
+  ansible.builtin.file:
+    path: "{{ truenas_media_dir }}/config/vpn-autoswitch"
+    state: directory
+    mode: "0755"
+
+- name: Sync the vpn-autoswitch watchdog script
+  ansible.builtin.copy:
+    src: "{{ truenas_media_autoswitch_src }}"
+    dest: "{{ truenas_media_dir }}/config/vpn-autoswitch/autoswitch.sh"
+    mode: "0755"
+  register: truenas_media_autoswitch
+
 - name: Pull the media images
   ansible.builtin.command:
     argv: [docker, compose, -f, "{{ truenas_media_dir }}/docker-compose.yml", pull]
@@ -150,6 +165,25 @@
       - gluetun-exporter
   when:
     - truenas_media_gluetun_auth is changed
+    - not (truenas_media_up is changed)
+  changed_when: true
+
+# The autoswitch script is a single-FILE bind mount too → a content change doesn't make `up -d`
+# recreate the sidecar. Recreate it when the script changed (skipped on a fresh `up -d`, which already
+# started it with the current script).
+- name: Recreate vpn-autoswitch after a script change
+  ansible.builtin.command:
+    argv:
+      - docker
+      - compose
+      - -f
+      - "{{ truenas_media_dir }}/docker-compose.yml"
+      - up
+      - -d
+      - --force-recreate
+      - vpn-autoswitch
+  when:
+    - truenas_media_autoswitch is changed
     - not (truenas_media_up is changed)
   changed_when: true
 

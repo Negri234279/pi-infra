@@ -300,6 +300,34 @@ ssh truenas 'docker exec qbittorrent wget -qO- https://ipinfo.io/ip'  # should b
 If gluetun is unhealthy, qBittorrent won't start (it `depends_on` gluetun `service_healthy`) — that's
 the kill-switch working. To go back to no-VPN, revert the `gluetun`/`qbittorrent` block in the compose.
 
+#### Auto-switch to a less-congested AirVPN country (`vpn-autoswitch`)
+
+When downloads sit slow for a while, the **`vpn-autoswitch`** sidecar rotates gluetun onto a
+less-congested AirVPN **country**. gluetun cannot be told *which* server to use at runtime — its
+control server only stops/starts the tunnel, and a start re-picks a server **randomly** from the
+`VPN_SERVER_COUNTRIES` pool ([gluetun#2473](https://github.com/qdm12/gluetun/issues/2473)), and it
+never reports the connected server name. So the sidecar rotates **by country** (rejection sampling):
+
+1. Watches qBittorrent's download rate (`gluetun:8080`, no auth via the bridge whitelist).
+2. If it stays below `VPN_AUTOSWITCH_SLOW_MBPS` for `VPN_AUTOSWITCH_SLOW_MINUTES` while torrents with
+   seeders are downloading → restart the tunnel (`PUT /v1/vpn/status` on gluetun's control server).
+3. Read the new **exit country** (`GET /v1/publicip/ip`) and look up that country's least-loaded
+   healthy server in AirVPN's public status API (`airvpn.org/api/status`). If it's still above
+   `VPN_AUTOSWITCH_MAX_LOAD` %, restart again — up to `VPN_AUTOSWITCH_MAX_ATTEMPTS` — then cool down
+   for `VPN_AUTOSWITCH_COOLDOWN` minutes.
+
+**Opt-in:** the container is always deployed but idles until `VPN_AUTOSWITCH_ENABLED=true` in
+`media.env`. For rotation to span countries, `VPN_SERVER_COUNTRIES` **must list several** (the example
+env ships a good EU set). No Docker socket, no container recreation — only HTTP to gluetun's control
+server (`PUT /v1/vpn/status` is granted in `config/gluetun/auth-config.toml`) and to the AirVPN API.
+Logs go to Loki (`job="media"`, `container="vpn-autoswitch"`) — grep them to see each rotation.
+
+**Caveat:** this only helps if the bottleneck is the AirVPN **exit server**. If your **ISP** is
+congested at peak, switching VPN server changes nothing (same saturated home line). Confirm with the
+server load on airvpn.org before assuming the VPN is the cause. Each switch drops the tunnel ~10-30s
+(the kill-switch briefly pauses torrents). The reserved AirVPN forwarded port is **account-wide**, so
+it keeps working across servers.
+
 ## Notes / caveats
 - **Transcoding is CPU-only** — the Supermicro X10SRL-F (Xeon E5) has no iGPU/QuickSync. Prefer
   Direct Play (see above); the `/dev/dri` passthrough is left commented in the compose for a future GPU.
