@@ -9,6 +9,47 @@ the hub — the same pattern as `hosts/rpi3/`. It is **not** part of the hub's r
 is never brought up by `./scripts/deploy.sh`; the Ansible playbook deploys it to the NAS. Only the
 hub-side pieces (Prometheus job, alerts, Grafana dashboards) live under `core/`.
 
+## Pool layout (apps SSD vs storage tank)
+
+The NAS has **two pools**, split by access pattern so the noisy SAS disks can stay idle:
+
+| Pool | Media | Holds | Written… |
+|------|-------|-------|----------|
+| **`tank`** (storage) | 6-wide SAS RAIDZ2 | media library + downloads (`tank/media`), Nextcloud external files (`tank/negri-data`), rpi5 restic repo (`tank/backups`), fan/init scripts (`tank/scripts`) | on demand (streaming / downloads / nightly backup) |
+| **`apps`** (app state) | single Intel SATA SSD, **no redundancy** | all app **config + databases**: `apps/mediaserver`, `apps/nextcloud`, `apps/nextcloud-db`, `apps/pi-infra-monitoring` | **constantly** (*arr logs/SQLite, Postgres, container runtime) |
+
+Moving the constantly-written app state onto the SSD keeps the SAS array spun-down/quiet and makes the
+apps snappier. The pool names live in `ansible/inventory/group_vars/nas.yml` (`truenas_pool: tank`,
+`truenas_apps_pool: apps`); the role defaults derive everything from those, and nas.yml overrides the
+opt-in stacks' config/DB datasets onto `apps` while leaving the bulk paths on `tank`.
+
+Because `apps` is a **single disk with no redundancy**, it's protected by **recursive periodic ZFS
+snapshots** (role `truenas_apps_snapshots`, tag `apps-snapshots`): hourly kept 2 days + daily kept 2
+weeks. That recovers a bad app upgrade or a corrupt DB — it does **not** survive the SSD dying (no
+mirror, no offsite copy), which is accepted: the irreplaceable heavy data lives on the redundant tank.
+
+> **Also move the Docker engine's pool.** TrueNAS's native Docker stores image layers + container
+> writable layers + json-file logs in its `ix-apps` dataset, on whatever pool **Apps** was pointed at
+> in the UI. That runtime churn is a big part of the disk noise, so point it at `apps` too:
+> **Apps → Settings (Configuration) → "Choose pool" → `apps`**. TrueNAS recreates `ix-apps` on the SSD
+> (images get re-pulled); our compose stacks are unaffected because their data is in the bind mounts
+> under `apps/mediaserver` etc. Re-run the stack playbooks afterwards if any container needs bringing
+> back up. This step is a one-time UI action — it is **not** managed by Ansible.
+
+### Migrating existing data onto `apps`
+
+The Ansible roles **create** the datasets if absent but do **not** move existing data. The full
+step-by-step migration (stop → `zfs send|recv` → change the Docker engine pool → re-deploy → verify →
+cleanup) **and the rollback procedure back to `tank`** live in a dedicated runbook:
+
+**→ [`MIGRATION-apps-pool.md`](MIGRATION-apps-pool.md)**
+
+> ⚠️ **Order matters — copy the data BEFORE re-running any stack playbook.** The roles only
+> *create-if-absent*; they never migrate. If you re-deploy (or `deploy.sh` runs) against the repointed
+> `apps/*` datasets while they're still empty, the apps come up **blank** (the *arr apps reinitialise,
+> Nextcloud asks to install fresh). And do **not** `zfs destroy` the old `tank/*` app datasets until the
+> apps are verified on `apps` — they are your rollback source.
+
 ## Why this path
 
 TrueNAS's built-in reporting **is netdata**, which already instruments everything on the box
@@ -75,8 +116,10 @@ a missing opt-in `.env` logs a warning, never fails the hub deploy); set `DEPLOY
 
 A self-contained Nextcloud (own Postgres + Redis, so it does NOT depend on the hub's shared
 Postgres) runs on the NAS for a Google-Drive-like cloud, **LAN/VPN only** (no public exposure).
-Files live on dedicated ZFS datasets (`<pool>/nextcloud`, `<pool>/nextcloud-db`) so they get
-snapshots.
+The app + its database live on the **apps SSD** (`apps/nextcloud` = `./html` + internal `./data`;
+`apps/nextcloud-db` = Postgres) so they get snapshots and keep the SAS disks quiet. The **bulk Drive
+files** stay on **tank** via External Storage (`NEXTCLOUD_EXTERNAL_HOST_PATH`, default
+`/mnt/tank/negri-data`) — see "Pool layout" at the top of this file.
 
 ```bash
 cp hosts/truenas/nextcloud.env.example hosts/truenas/nextcloud.env   # fill in the passwords
@@ -128,11 +171,13 @@ Everything shares one docker bridge (`media`), so the apps reach each other by *
 (`jackett:9117`, `sonarr:8989`, `radarr:7878`, and the download client at **`gluetun:8080`** —
 qBittorrent runs in gluetun's VPN namespace) — the host ports below are only for you, from the LAN/VPN.
 
-### Storage layout (why one dataset)
+### Storage layout (why one dataset, and which pool)
 
-Two ZFS datasets, created by the role via `midclt`:
-- `<pool>/mediaserver` → the compose project + per-app config (`./config/<app>`), snapshotted.
-- `<pool>/media` → the library **and** downloads on **one filesystem**, mounted as `/data` in every
+Two ZFS datasets, created by the role via `midclt`, **on different pools** (see "Pool layout" at the
+top of this file):
+- `apps/mediaserver` → the compose project + per-app config (`./config/<app>`), on the **apps SSD**
+  (constant small writes — logs, SQLite DBs — so it belongs off the SAS disks), snapshotted.
+- `tank/media` → the library **and** downloads on **one filesystem**, mounted as `/data` in every
   media container, with subfolders the role creates and `chown`s to `PUID:PGID`:
   ```
   /data/torrents/{complete,incomplete}   (qBittorrent)
@@ -185,7 +230,7 @@ This creates the datasets + `/data` subfolders, syncs the compose + `.env` to th
 
 ### 3. Verify the containers
 ```bash
-ssh truenas 'docker compose -f /mnt/tank/mediaserver/docker-compose.yml ps'   # all Up
+ssh truenas 'docker compose -f /mnt/apps/mediaserver/docker-compose.yml ps'   # all Up
 ```
 Then open each WebUI from the LAN/VPN at `192.168.1.18:<port>` (see the ports table).
 
@@ -386,10 +431,10 @@ The role finds `system.xml` anywhere under `config/jellyfin/` and flips it (stop
 the file only exists once Jellyfin has run at least once. If the `jellyfin` target reads empty, do it
 by hand on the NAS:
 ```bash
-f=$(sudo find /mnt/tank/mediaserver/config/jellyfin -name system.xml); echo "$f"
-sudo docker compose -f /mnt/tank/mediaserver/docker-compose.yml stop jellyfin
+f=$(sudo find /mnt/apps/mediaserver/config/jellyfin -name system.xml); echo "$f"
+sudo docker compose -f /mnt/apps/mediaserver/docker-compose.yml stop jellyfin
 sudo sed -i 's#<EnableMetrics>false</EnableMetrics>#<EnableMetrics>true</EnableMetrics>#' "$f"
-sudo docker compose -f /mnt/tank/mediaserver/docker-compose.yml start jellyfin
+sudo docker compose -f /mnt/apps/mediaserver/docker-compose.yml start jellyfin
 ```
 Rich playback stats (active streams per user) come from the **Playback Reporting** plugin, not the
 native endpoint.
@@ -400,7 +445,7 @@ set it `false` to leave the exporters idle. The log shipper (`media-alloy`) alwa
 ### Verify
 
 ```bash
-ssh truenas 'docker compose -f /mnt/tank/mediaserver/docker-compose.yml ps'   # exporters Up
+ssh truenas 'docker compose -f /mnt/apps/mediaserver/docker-compose.yml ps'   # exporters Up
 ssh truenas 'curl -s localhost:9707/metrics | head'                            # exportarr (…8-9)
 ssh truenas 'curl -s localhost:8096/metrics | head'                            # Jellyfin native
 ```

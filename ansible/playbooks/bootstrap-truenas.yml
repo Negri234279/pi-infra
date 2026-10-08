@@ -17,13 +17,16 @@
 #      backup target — dataset tank/backups/rpi5 + NFS export (Pi only) + a native periodic
 #      ZFS snapshot task. Pairs with the `backup` service in core/ (see docs/backups.md).
 #   8. truenas_media                 — OPT-IN (tag `media`): media server stack on the NAS
-#      (Jellyfin + Sonarr/Radarr/Jackett + qBittorrent + Jellyseerr + Cantinarr) on ZFS datasets
-#      tank/mediaserver (config) + tank/media (library+downloads, one FS for hardlinks). LAN/VPN
-#      only. Needs hosts/truenas/media.env (copy from .example). Not part of the observability bootstrap.
+#      (Jellyfin + Sonarr/Radarr/Jackett + qBittorrent + Jellyseerr + Cantinarr). Config on the apps
+#      SSD (apps/mediaserver); library+downloads on tank/media (one FS for hardlinks). LAN/VPN only.
+#      Needs hosts/truenas/media.env (copy from .example). Not part of the observability bootstrap.
 #   9. truenas_fan_curve            — OPT-IN (tag `fan`): force the Supermicro BMC into Full
 #      fan mode at a fixed duty on every boot (dataset tank/scripts + fan-curve.sh + a native
 #      POSTINIT Init/Shutdown Script), relaxing fan lower-thresholds so the low duty holds
 #      instead of tripping the BMC's 100% failsafe.
+#  10. truenas_apps_snapshots       — OPT-IN (tag `apps-snapshots`): recursive periodic ZFS snapshot
+#      tasks on the apps SSD pool (the recovery layer for the app config + DBs that live on the
+#      single, non-redundant SSD). See the "Pool layout" section of hosts/truenas/README.md.
 #
 # The hub's Prometheus then scrapes 192.168.1.18:9108 (job `truenas`, in
 # core/prometheus/prometheus.yml). Grafana dashboards live in the "nas" folder.
@@ -65,3 +68,7 @@
     # `never` → only with `--tags fan` (not part of the observability bootstrap).
     - role: truenas_fan_curve
       tags: [fan, never]
+    # Recursive periodic ZFS snapshots on the apps SSD pool (recovery layer for app config + DBs).
+    # `never` → only with `--tags apps-snapshots` (not part of the observability bootstrap).
+    - role: truenas_apps_snapshots
+      tags: [apps-snapshots, never]

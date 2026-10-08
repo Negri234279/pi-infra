@@ -1,0 +1,95 @@
+---
+# Reconcile the periodic ZFS snapshot tasks on the apps SSD pool. Runs with become (midclt needs
+# root). Query-then-create/update so unchanged re-runs report changed=0. See defaults/main.yml.
+
+# ── Precheck: the apps pool must exist ───────────────────────────────────────────────
+# This role is useless (and the snapshot task create would fail) without the pool. Fail fast with a
+# clear message pointing at the migration runbook rather than a cryptic midclt error.
+- name: Check that the apps pool exists
+  ansible.builtin.command:
+    argv: [midclt, call, pool.dataset.get_instance, "{{ truenas_apps_snapshot_dataset }}"]
+  register: truenas_apps_pool_q
+  changed_when: false
+  failed_when: false
+
+- name: Fail if the apps pool is missing
+  ansible.builtin.fail:
+    msg: >-
+      Pool/dataset '{{ truenas_apps_snapshot_dataset }}' not found on the NAS. Create the `apps` pool
+      and migrate the app datasets onto it first (see hosts/truenas/README.md "Pool layout" /
+      migration runbook), then re-run with --tags apps-snapshots.
+  when: truenas_apps_pool_q.rc != 0
+
+# ── Existing snapshot tasks on this dataset ──────────────────────────────────────────
+- name: Look up existing periodic snapshot tasks for the apps pool
+  ansible.builtin.command:
+    argv:
+      - midclt
+      - call
+      - pool.snapshottask.query
+      - "{{ [['dataset', '=', truenas_apps_snapshot_dataset]] | to_json }}"
+  register: truenas_apps_snap_q
+  changed_when: false
+
+- name: Parse the existing snapshot tasks
+  ansible.builtin.set_fact:
+    truenas_apps_snap_existing: "{{ truenas_apps_snap_q.stdout | from_json }}"
+
+# ── Create any missing task (matched by naming_schema) ───────────────────────────────
+- name: Create the missing apps snapshot tasks
+  ansible.builtin.command:
+    argv:
+      - midclt
+      - call
+      - pool.snapshottask.create
+      - "{{ snap_payload | to_json }}"
+  vars:
+    snap_payload:
+      dataset: "{{ truenas_apps_snapshot_dataset }}"
+      recursive: "{{ truenas_apps_snapshot_recursive | bool }}"
+      lifetime_value: "{{ item.lifetime_value | int }}"
+      lifetime_unit: "{{ item.lifetime_unit }}"
+      naming_schema: "{{ item.naming_schema }}"
+      schedule: "{{ item.schedule }}"
+      allow_empty: true
+      enabled: true
+  loop: "{{ truenas_apps_snapshot_tasks }}"
+  loop_control:
+    label: "{{ item.naming_schema }}"
+  when: (truenas_apps_snap_existing | selectattr('naming_schema', 'equalto', item.naming_schema) | list | length) == 0
+  changed_when: true
+
+# ── Reconcile schedule/retention drift on tasks that already exist ───────────────────
+# Create-only would leave re-runs unable to change the time or retention; match on naming_schema and
+# only fire when a cron field or the lifetime actually drifts, so steady-state re-runs stay changed=0.
+- name: Update apps snapshot tasks whose schedule or retention drifted
+  ansible.builtin.command:
+    argv:
+      - midclt
+      - call
+      - pool.snapshottask.update
+      - "{{ (match.id) | int }}"
+      - "{{ {'schedule': item.schedule, 'lifetime_value': item.lifetime_value | int, 'lifetime_unit': item.lifetime_unit} | to_json }}"
+  vars:
+    matches: "{{ truenas_apps_snap_existing | selectattr('naming_schema', 'equalto', item.naming_schema) | list }}"
+    match: "{{ (matches | first) if (matches | length) > 0 else {} }}"
+  loop: "{{ truenas_apps_snapshot_tasks }}"
+  loop_control:
+    label: "{{ item.naming_schema }}"
+  when:
+    - matches | length > 0
+    - (match.lifetime_value | default(0) | int != item.lifetime_value | int)
+      or (match.lifetime_unit | default('') | string != item.lifetime_unit | string)
+      or (match.schedule.minute | default('') | string != item.schedule.minute | string)
+      or (match.schedule.hour | default('') | string != item.schedule.hour | string)
+      or (match.schedule.dom | default('') | string != item.schedule.dom | string)
+      or (match.schedule.month | default('') | string != item.schedule.month | string)
+      or (match.schedule.dow | default('') | string != item.schedule.dow | string)
+  changed_when: true
+
+- name: Show the apps snapshot summary
+  ansible.builtin.debug:
+    msg:
+      - "Pool:      {{ truenas_apps_snapshot_dataset }} (recursive={{ truenas_apps_snapshot_recursive }})"
+      - "Tasks:     {{ truenas_apps_snapshot_tasks | map(attribute='naming_schema') | join(', ') }}"
+      - "Retention: hourly {{ truenas_apps_snapshot_lifetime_hourly_value }} {{ truenas_apps_snapshot_lifetime_hourly_unit }}, daily {{ truenas_apps_snapshot_lifetime_daily_value }} {{ truenas_apps_snapshot_lifetime_daily_unit }}"

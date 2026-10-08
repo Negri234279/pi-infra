@@ -35,10 +35,31 @@ truenas_reporting_matching_charts: "*"      # export everything netdata collects
 #
 # !!! SET truenas_pool to your real pool name (check: `midclt call pool.query | jq -r '.[].name'`).
 # Your imported pool is the 6-wide RAIDZ2; if it's called `tank`, the defaults below are correct.
+#
+# POOL LAYOUT (see hosts/truenas/README.md "Pool layout"). Two pools, split by access pattern:
+#   truenas_pool      = STORAGE  — bulk, read mostly on demand: media library + downloads, the
+#                       Nextcloud external files, the rpi5 restic repo. The SAS RAIDZ2; keeping the
+#                       constantly-written app state OFF it lets these disks idle (quieter, less wear).
+#   truenas_apps_pool = APP STATE — config + databases + the Docker stacks, written constantly by the
+#                       *arr apps / Postgres / container runtime. The Intel SATA SSD (single disk, NO
+#                       redundancy → protected by periodic ZFS snapshots, role truenas_apps_snapshots).
 truenas_pool: tank
+truenas_apps_pool: apps
+
+# The monitoring Docker stack (graphite-exporter) lives on the apps SSD.
 truenas_apps_dataset_name: pi-infra-monitoring
-truenas_apps_dataset: "{{ truenas_pool }}/{{ truenas_apps_dataset_name }}"   # ZFS dataset name
-truenas_apps_dir: "/mnt/{{ truenas_apps_dataset }}"                          # its mountpoint
+truenas_apps_dataset: "{{ truenas_apps_pool }}/{{ truenas_apps_dataset_name }}"   # ZFS dataset name
+truenas_apps_dir: "/mnt/{{ truenas_apps_dataset }}"                               # its mountpoint
+
+# ── Repoint the opt-in stacks' APP/CONFIG/DB datasets onto the apps SSD ───────────
+# The truenas_media / truenas_nextcloud role defaults derive these from truenas_pool (single-pool
+# default). We override them here so ONLY app state moves to the SSD; the bulk library + Nextcloud
+# external files stay on tank. Keep MEDIA_LIBRARY_HOST_PATH (media.env) and NEXTCLOUD_EXTERNAL_HOST_PATH
+# (nextcloud.env) pointing at /mnt/tank/... — those are the heavy-storage paths that stay put.
+truenas_media_dataset: "{{ truenas_apps_pool }}/mediaserver"          # *arr/jellyfin/qbit config
+truenas_media_library_dataset: "{{ truenas_pool }}/media"            # library + downloads → STAYS on tank
+truenas_nextcloud_dataset: "{{ truenas_apps_pool }}/nextcloud"        # Nextcloud app (./html) + internal ./data
+truenas_nextcloud_db_dataset: "{{ truenas_apps_pool }}/nextcloud-db"  # Nextcloud Postgres
 
 # ── Backup target (role truenas_backup_target, tag `backup`) ──────────────────
 # Makes the NAS the Pi's restic backup destination: dataset {{ truenas_pool }}/backups/rpi5,
@@ -55,3 +76,10 @@ truenas_backup_nfs_hosts: ["192.168.1.7"]
 # tunables (per-fan duties, zones, thresholds, fan list) live in the role defaults; override
 # here if needed, e.g. bump one fan (raises its whole zone to the max requested in that zone):
 #   truenas_fan_duties: { FAN1: 45, FAN2: 60, FAN3: 60, FAN4: 45, FAN5: 45, FANA: 45, FANB: 45 }
+
+# ── Apps-pool snapshots (role truenas_apps_snapshots, tag `apps-snapshots`) ───
+# The apps SSD is a SINGLE disk with NO redundancy, so periodic recursive ZFS snapshots of the whole
+# pool are the safety net for app config + databases (a bad upgrade / fat-finger is recoverable; a
+# dead SSD is NOT — that's accepted, the heavy data lives on the redundant tank). Defaults in the role
+# (hourly keep 2 days + daily keep 2 weeks, recursive on {{ truenas_apps_pool }}); override here, e.g.:
+#   truenas_apps_snapshot_lifetime_daily_value: 4   # keep daily snapshots for 4 weeks instead of 2

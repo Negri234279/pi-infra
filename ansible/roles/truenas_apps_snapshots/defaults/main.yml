@@ -1,0 +1,39 @@
+---
+# Periodic ZFS snapshot tasks (native TrueNAS Data Protection) on the apps SSD pool.
+#
+# The apps pool (truenas_apps_pool, inventory/group_vars/nas.yml) is a SINGLE Intel SATA SSD with NO
+# redundancy — it holds all the app CONFIG + DATABASES (mediaserver, nextcloud, nextcloud-db,
+# pi-infra-monitoring) plus, if you moved it, the Docker engine's ix-apps dataset. These recursive
+# snapshots are the recovery layer for a bad app upgrade / config fat-finger / corrupt DB. They do NOT
+# protect against the SSD dying (no redundancy, no offsite copy) — that's accepted: the heavy,
+# irreplaceable data (media library, Nextcloud external files, backups) lives on the redundant tank.
+#
+# All idempotent, driven through the middleware (midclt) — same posture as truenas_backup_target
+# ([[nas-truenas-os-integration]]). Run with:
+#   ./run.sh playbooks/bootstrap-truenas.yml --tags apps-snapshots
+
+# Recursive snapshot of the whole pool → one task covers every app dataset on it (and anything added
+# later). The pool's own top-level dataset name equals the pool name.
+truenas_apps_snapshot_dataset: "{{ truenas_apps_pool }}"
+truenas_apps_snapshot_recursive: true
+
+# Two cadences: frequent short-lived (quick undo of an upgrade/DB mistake) + daily longer-lived.
+# Retention values are split out so they're easy to override from group_vars/nas.yml.
+truenas_apps_snapshot_lifetime_hourly_value: 2
+truenas_apps_snapshot_lifetime_hourly_unit: DAY     # keep hourly snapshots for 2 days
+truenas_apps_snapshot_lifetime_daily_value: 2
+truenas_apps_snapshot_lifetime_daily_unit: WEEK     # keep daily snapshots for 2 weeks
+
+# The snapshot tasks to reconcile. naming_schema is the stable identity we match on (so re-runs are
+# idempotent and a drifted schedule gets updated in place). allow_empty keeps the task valid even when
+# nothing changed between runs.
+truenas_apps_snapshot_tasks:
+  - naming_schema: "apps-auto-hourly-%Y-%m-%d_%H-%M"
+    lifetime_value: "{{ truenas_apps_snapshot_lifetime_hourly_value }}"
+    lifetime_unit: "{{ truenas_apps_snapshot_lifetime_hourly_unit }}"
+    schedule: { minute: "0", hour: "*", dom: "*", month: "*", dow: "*" }
+  - naming_schema: "apps-auto-daily-%Y-%m-%d_%H-%M"
+    lifetime_value: "{{ truenas_apps_snapshot_lifetime_daily_value }}"
+    lifetime_unit: "{{ truenas_apps_snapshot_lifetime_daily_unit }}"
+    # 03:15 — off-peak, and clear of the Pi's 00:00 backup / the backup dataset's 00:30 snapshot.
+    schedule: { minute: "15", hour: "3", dom: "*", month: "*", dow: "*" }
