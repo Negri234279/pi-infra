@@ -31,10 +31,12 @@ services:
     networks: [nextcloud]
 
   nextcloud:
-    # Fresh install tracks the maintained stable tag. NOTE: Nextcloud MAJOR upgrades must be done
-    # one release at a time — once installed, pin a major (e.g. nextcloud:31-apache) and bump it
-    # deliberately, never skip versions.
-    image: nextcloud:apache
+    # PINNED major — MUST match the installed data version (occ: version.php). Nextcloud MAJOR
+    # upgrades must be done ONE release at a time, so bump this tag deliberately (e.g. 34→35) and
+    # redeploy; NEVER let it float on `:apache`/`:latest`. If the image cache is ever wiped (e.g.
+    # moving the Docker engine pool), a floating tag pulls a newer major and half-upgrades the code
+    # → broken `occ` (missing 3rdparty files). Keep nextcloud-cron below on the SAME tag.
+    image: nextcloud:34-apache
     container_name: nextcloud
     restart: unless-stopped
     depends_on: [nextcloud-db, nextcloud-redis]
@@ -76,7 +78,7 @@ services:
 
   # Runs Nextcloud's background jobs (cron) — required for a healthy instance.
   nextcloud-cron:
-    image: nextcloud:apache
+    image: nextcloud:34-apache    # keep in lockstep with the `nextcloud` service tag above
     container_name: nextcloud-cron
     restart: unless-stopped
     volumes:
