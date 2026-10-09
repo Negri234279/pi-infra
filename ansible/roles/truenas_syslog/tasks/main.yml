@@ -1,0 +1,36 @@
+---
+# Configure TrueNAS remote syslog forwarding through the middleware (read-then-update → re-runs
+# report changed=0). Runs with become (midclt needs root). Same posture as the other truenas_* roles
+# ([[nas-truenas-os-integration]]).
+
+- name: Read the current system.advanced config
+  ansible.builtin.command:
+    argv: [midclt, call, system.advanced.config]
+  register: truenas_syslog_cfg_q
+  changed_when: false
+
+- name: Parse the current config
+  ansible.builtin.set_fact:
+    truenas_syslog_cfg: "{{ truenas_syslog_cfg_q.stdout | from_json }}"
+
+# Only the three keys we manage are sent; system.advanced.update accepts a partial payload. If a key
+# name is wrong for your build, midclt returns an [EINVAL] naming it — adjust the var/key and re-run.
+- name: Configure remote syslog forwarding (only if drifted)
+  ansible.builtin.command:
+    argv:
+      - midclt
+      - call
+      - system.advanced.update
+      - "{{ {'syslogserver': truenas_syslog_server, 'syslog_transport': truenas_syslog_transport, 'sysloglevel': truenas_syslog_level} | to_json }}"
+  when: >-
+    (truenas_syslog_cfg.syslogserver | default('')) != truenas_syslog_server
+    or (truenas_syslog_cfg.syslog_transport | default('')) != truenas_syslog_transport
+    or (truenas_syslog_cfg.sysloglevel | default('')) != truenas_syslog_level
+  changed_when: true
+
+- name: Show the syslog summary
+  ansible.builtin.debug:
+    msg:
+      - "Remote syslog → {{ truenas_syslog_server }} ({{ truenas_syslog_transport }}), min level {{ truenas_syslog_level }}"
+      - "View in Grafana (Loki): {source=\"truenas\"} — filter a service with {source=\"truenas\", app=\"zed\"}"
+      - "If logs land unparsed, flip the Alloy listener to rfc3164 (core/alloy/config.alloy) and redeploy."

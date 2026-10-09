@@ -678,8 +678,8 @@ services:
     networks:
       - monitoring
 
-  # Alloy: receives the router's remote syslog on 514 (udp+tcp) and ships it to
-  # Loki. 514 is the ONE new host port — LAN only, so the router can reach the Pi.
+  # Alloy: receives remote syslog and ships it to Loki — 514 from the MikroTik router
+  # (BSD/RFC3164) and 1514 from TrueNAS (RFC5424). LAN only, so both can reach the Pi.
   alloy:
     image: grafana/alloy:v1.5.1
     container_name: alloy
@@ -692,6 +692,8 @@ services:
     ports:
       - "514:514/udp" # MikroTik remote syslog (BSD/RFC3164)
       - "514:514/tcp"
+      - "1514:1514/udp" # TrueNAS remote syslog (RFC5424)
+      - "1514:1514/tcp"
     volumes:
       - ./alloy/config.alloy:/etc/alloy/config.alloy:ro
       - infra-alloy-data:/var/lib/alloy/data

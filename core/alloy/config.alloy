@@ -96,6 +96,48 @@ loki.relabel "network" {
 	}
 }
 
+// ── TrueNAS SCALE remote syslog ─────────────────────────────────────────────
+// TrueNAS (syslog-ng) forwards its OS logs here: ZFS/ZED events, smartd (SMART), the middleware,
+// auth/sshd, scrub results — the OS-log side that netdata metrics can't show. Configured on the NAS
+// by ansible/roles/truenas_syslog (tag `syslog`). On its OWN port (1514) so the `source` label stays
+// clean — the :514 listener above hardcodes source="router".
+loki.source.syslog "truenas" {
+	listener {
+		address       = "0.0.0.0:1514"
+		protocol      = "udp"
+		syslog_format = "rfc5424"
+		labels        = { job = "syslog", source = "truenas" }
+	}
+	listener {
+		address       = "0.0.0.0:1514"
+		protocol      = "tcp"
+		syslog_format = "rfc5424"
+		labels        = { job = "syslog", source = "truenas" }
+	}
+	// If TrueNAS logs land unparsed/garbled in Loki, its syslog-ng is sending BSD format instead —
+	// change both syslog_format above to "rfc3164" and redeploy Alloy.
+	forward_to = [loki.relabel.truenas.receiver]
+}
+
+loki.relabel "truenas" {
+	forward_to = [loki.write.default.receiver]
+
+	rule {
+		source_labels = ["__syslog_message_hostname"]
+		target_label  = "hostname"
+	}
+	rule {
+		source_labels = ["__syslog_message_severity"]
+		target_label  = "severity"
+	}
+	// Promote the program/app (zed, smartd, middlewared, sshd, …) so you can filter by service:
+	// {source="truenas", app="zed"}. Bounded set → safe as a label.
+	rule {
+		source_labels = ["__syslog_message_app_name"]
+		target_label  = "app"
+	}
+}
+
 loki.write "default" {
 	endpoint {
 		url = "http://loki:3100/loki/api/v1/push"

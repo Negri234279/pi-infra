@@ -1,0 +1,129 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "graphTooltip": 1,
+  "schemaVersion": 39,
+  "tags": ["loki", "truenas", "nas"],
+  "links": [
+    { "asDropdown": false, "icon": "external link", "includeVars": false, "keepTime": true, "tags": ["nas"], "targetBlank": false, "title": "NAS", "tooltip": "", "type": "dashboards", "url": "" }
+  ],
+  "title": "TrueNAS Logs",
+  "uid": "truenas-logs-nas",
+  "description": "TrueNAS SCALE OS syslog (ZFS/ZED, smartd/SMART, middleware, auth/sshd, scrub) shipped to Loki via the hub's Alloy syslog listener (:1514) by ansible/roles/truenas_syslog. Labels: job=syslog, source=truenas, plus promoted hostname/severity/app. Filter a service with the Servicio (app) picker, e.g. zed / smartd / middlewared / sshd.",
+  "time": { "from": "now-6h", "to": "now" },
+  "timezone": "browser",
+  "refresh": "30s",
+  "templating": {
+    "list": [
+      {
+        "name": "app",
+        "label": "Servicio (app)",
+        "type": "query",
+        "datasource": { "type": "loki", "uid": "loki-infra" },
+        "query": { "label": "app", "stream": "{source=\"truenas\"}", "type": 1, "refId": "LokiVariableQueryEditor-VariableQuery" },
+        "definition": "",
+        "refresh": 2,
+        "includeAll": true,
+        "allValue": ".*",
+        "multi": true,
+        "current": { "text": ["All"], "value": ["$__all"] },
+        "options": [],
+        "sort": 1
+      },
+      {
+        "name": "severity",
+        "label": "Severity",
+        "type": "query",
+        "datasource": { "type": "loki", "uid": "loki-infra" },
+        "query": { "label": "severity", "stream": "{source=\"truenas\"}", "type": 1, "refId": "LokiVariableQueryEditor-VariableQuery" },
+        "definition": "",
+        "refresh": 2,
+        "includeAll": true,
+        "allValue": ".+",
+        "multi": true,
+        "current": { "text": ["All"], "value": ["$__all"] },
+        "options": [],
+        "sort": 1
+      },
+      {
+        "name": "search",
+        "label": "Search (regex, case-insensitive)",
+        "type": "textbox",
+        "query": "",
+        "current": { "text": "", "value": "" },
+        "options": [ { "selected": true, "text": "", "value": "" } ]
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Líneas (rango)",
+      "gridPos": { "h": 4, "w": 12, "x": 0, "y": 0 },
+      "datasource": { "type": "loki", "uid": "loki-infra" },
+      "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "thresholds": { "steps": [ { "color": "blue", "value": null } ] } }, "overrides": [] },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "value", "graphMode": "area" },
+      "targets": [
+        { "refId": "A", "datasource": { "type": "loki", "uid": "loki-infra" }, "queryType": "instant", "expr": "sum(count_over_time({job=\"syslog\", source=\"truenas\"} |~ `(?i)$search` [$__range]))" }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Errores / críticos (rango)",
+      "description": "Severidad err/crit/alert/emerg — p. ej. errores de ZED (pool degradado) o SMART.",
+      "gridPos": { "h": 4, "w": 12, "x": 12, "y": 0 },
+      "datasource": { "type": "loki", "uid": "loki-infra" },
+      "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "thresholds": { "steps": [ { "color": "green", "value": null }, { "color": "red", "value": 1 } ] } }, "overrides": [] },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "none" },
+      "targets": [
+        { "refId": "A", "datasource": { "type": "loki", "uid": "loki-infra" }, "queryType": "instant", "expr": "sum(count_over_time({job=\"syslog\", source=\"truenas\", severity=~\"err.*|crit.*|alert|emerg.*\"} |~ `(?i)$search` [$__range]))" }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "Líneas por severidad",
+      "gridPos": { "h": 6, "w": 12, "x": 0, "y": 4 },
+      "datasource": { "type": "loki", "uid": "loki-infra" },
+      "fieldConfig": { "defaults": { "custom": { "drawStyle": "bars", "fillOpacity": 60, "stacking": { "mode": "normal" } } }, "overrides": [] },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "refId": "A", "datasource": { "type": "loki", "uid": "loki-infra" }, "legendFormat": "{{severity}}", "expr": "sum by (severity) (count_over_time({job=\"syslog\", source=\"truenas\", app=~\"$app\", severity=~\"$severity\"} |~ `(?i)$search` [$__interval]))" }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "Líneas por servicio (app)",
+      "gridPos": { "h": 6, "w": 12, "x": 12, "y": 4 },
+      "datasource": { "type": "loki", "uid": "loki-infra" },
+      "fieldConfig": { "defaults": { "custom": { "drawStyle": "bars", "fillOpacity": 60, "stacking": { "mode": "normal" } } }, "overrides": [] },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "refId": "A", "datasource": { "type": "loki", "uid": "loki-infra" }, "legendFormat": "{{app}}", "expr": "topk(10, sum by (app) (count_over_time({job=\"syslog\", source=\"truenas\", app=~\"$app\", severity=~\"$severity\"} |~ `(?i)$search` [$__interval])))" }
+      ]
+    },
+    {
+      "id": 5,
+      "type": "logs",
+      "title": "Logs del NAS",
+      "gridPos": { "h": 16, "w": 24, "x": 0, "y": 10 },
+      "datasource": { "type": "loki", "uid": "loki-infra" },
+      "options": {
+        "showTime": true,
+        "showLabels": false,
+        "showCommonLabels": false,
+        "wrapLogMessage": true,
+        "prettifyLogMessage": false,
+        "enableLogDetails": true,
+        "dedupStrategy": "none",
+        "sortOrder": "Descending"
+      },
+      "targets": [
+        { "refId": "A", "datasource": { "type": "loki", "uid": "loki-infra" }, "expr": "{job=\"syslog\", source=\"truenas\", app=~\"$app\", severity=~\"$severity\"} |~ `(?i)$search`" }
+      ]
+    }
+  ]
+}

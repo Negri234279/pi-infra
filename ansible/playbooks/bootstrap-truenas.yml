@@ -8,6 +8,8 @@
 #      sas3ircu+lsblk+zpool) into the `truenas` job's metric_relabel_configs, for truenas-chassis.
 #   4. truenas_metrics_pusher       — pushes the metrics netdata does NOT export (disk_temperature,
 #      zfs_pool, disk_bytes) from midclt into graphite_exporter, via a native TrueNAS cron job.
+#   4b. truenas_syslog              — forwards the NAS OS syslog (ZFS/ZED, SMART, middleware, auth)
+#       to the hub's Alloy listener (:1514) → Loki. Part of `observability`.
 #   5. truenas_disk_rescan          — ON-DEMAND ONLY (tag `rescan`): after a hot-swap, rescan the
 #      SCSI buses + disk.sync_all + re-prime the pusher so a re-inserted disk's temp reappears.
 #   6. truenas_nextcloud            — OPT-IN (tag `nextcloud`): private Drive on the NAS
@@ -54,6 +56,9 @@
       tags: [disk_inventory, observability]
     - role: truenas_metrics_pusher
       tags: [metrics_pusher, observability]
+    # Forward the NAS OS syslog (ZFS/ZED, SMART, middleware, auth) to the hub's Alloy → Loki.
+    - role: truenas_syslog
+      tags: [syslog, observability]
     # `never` keeps this out of normal runs; it fires only with `--tags rescan`.
     - role: truenas_disk_rescan
       tags: [rescan, never]

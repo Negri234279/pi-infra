@@ -1,0 +1,14 @@
+---
+# Forward TrueNAS SCALE's OS syslog (syslog-ng) to the hub's Alloy syslog listener → Loki, so the
+# NAS OS-log side (ZFS/ZED events, smartd/SMART, middleware, auth/sshd, scrub results) lands in
+# Grafana next to the router's syslog — the text/event detail netdata metrics can't express. LAN only.
+#
+# Idempotent via the middleware (system.advanced). Run with:
+#   ./run.sh playbooks/bootstrap-truenas.yml --tags syslog
+#
+# The hub's Alloy listens on :1514 (core/alloy/config.alloy → loki.source.syslog "truenas"; published
+# in core/docker-compose.yml). Keep this port in sync with that listener.
+truenas_syslog_server: "192.168.1.7:1514"
+truenas_syslog_transport: "UDP"          # UDP | TCP | TLS (TLS also needs a cert configured in TrueNAS)
+# Minimum severity to forward. F_INFO captures service/ZFS/SMART/auth events without DEBUG spam.
+truenas_syslog_level: "F_INFO"           # F_EMERG|F_ALERT|F_CRIT|F_ERR|F_WARNING|F_NOTICE|F_INFO|F_DEBUG

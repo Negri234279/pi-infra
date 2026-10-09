@@ -216,7 +216,8 @@ if [ "${DEPLOY_NAS:-1}" != 0 ]; then
     || changed '^ansible/roles/truenas_reporting_exporter/' \
     || changed '^ansible/roles/truenas_docker_stack/' \
     || changed '^ansible/roles/truenas_disk_inventory/' \
-    || changed '^ansible/roles/truenas_metrics_pusher/'; then
+    || changed '^ansible/roles/truenas_metrics_pusher/' \
+    || changed '^ansible/roles/truenas_syslog/'; then
     NAS_TAGS+=("observability")
   fi
 
