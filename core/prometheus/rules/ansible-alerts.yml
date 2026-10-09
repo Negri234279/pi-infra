@@ -1,0 +1,43 @@
+# Alert rules for Ansible runs (ansible/run.sh). The prometheus_textfile callback
+# (ansible/callback_plugins/prometheus_textfile.py) writes node-exporter textfile metrics per
+# playbook into /var/lib/node_exporter/textfile, exposed on job=node — so these ride the existing
+# scrape, no new target. See [[ansible-runs-grafana-observability]].
+#
+# WHY THIS EXISTS: scripts/deploy.sh runs the NAS playbook NON-FATALLY (a powered-off NAS must not
+# fail the hub deploy / the GitHub Action), so a real Ansible task failure (e.g. a bad midclt payload)
+# is swallowed — the deploy/Action stays GREEN while the change never applied. This alert is the real
+# signal: it fires off the recorded run metrics regardless of the deploy's exit code, and also covers
+# manual `run.sh` invocations.
+#
+# Metrics (labelled playbook="<name>", controller="<host>"):
+#   ansible_playbook_last_run_success          — 1 if the last run fully succeeded (no failures AND no unreachable), else 0
+#   ansible_playbook_tasks{result="failures"}  — failed tasks in the last run (summed across hosts)
+#   ansible_playbook_tasks{result="unreachable"} — hosts unreachable in the last run
+#   ansible_playbook_last_run_timestamp_seconds — when the last run finished
+groups:
+  - name: ansible
+    rules:
+      - alert: AnsiblePlaybookTaskFailed
+        # A TASK actually failed in the last run of this playbook. Deliberately keys off `failures`,
+        # NOT last_run_success, so a merely-unreachable NAS (host off) does NOT page — that's the
+        # non-fatal case deploy.sh tolerates. The textfile persists, so this stays firing until the
+        # next run of the SAME playbook rewrites it with failures=0 (i.e. it auto-resolves on a fix).
+        expr: ansible_playbook_tasks{result="failures"} > 0
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Ansible playbook {{ $labels.playbook }} had {{ $value }} failed task(s)"
+          description: "The last run of {{ $labels.playbook }} on {{ $labels.controller }} reported {{ $value }} failed task(s). The deploy/GitHub Action may still be green (the NAS run is non-fatal). Inspect Grafana → CI/CD · Ansible runs, and the run log in Loki {identifier=\"ansible\"}. Re-run `./run.sh playbooks/{{ $labels.playbook }}.yml` after fixing; this clears on the next successful run."
+
+      - alert: AnsiblePlaybookUnreachable
+        # The host(s) a playbook targets were unreachable on the last run (e.g. NAS powered off during
+        # a deploy → the change never applied). Lower urgency than a task failure and often expected,
+        # so a long `for` avoids paging on brief downtime; still surfaces a change that silently didn't land.
+        expr: ansible_playbook_tasks{result="unreachable"} > 0
+        for: 6h
+        labels:
+          severity: warning
+        annotations:
+          summary: "Ansible playbook {{ $labels.playbook }} had {{ $value }} unreachable host(s)"
+          description: "The last run of {{ $labels.playbook }} on {{ $labels.controller }} could not reach {{ $value }} host(s), so its changes did not apply. If a NAS/host was intentionally off, ignore; otherwise re-run `./run.sh playbooks/{{ $labels.playbook }}.yml` once it's back. Clears on the next successful run."
