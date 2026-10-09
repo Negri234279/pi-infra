@@ -13,16 +13,20 @@
 groups:
   - name: truenas
     rules:
-      - alert: TrueNasScrapeDown
-        # The hub can't reach the graphite_exporter on the NAS (container down, NAS off, or
-        # network). Distinct from netdata having stopped pushing (TrueNasNoData below).
-        expr: up{job="truenas"} == 0
-        for: 5m
-        labels:
-          severity: critical
-        annotations:
-          summary: "TrueNAS metrics scrape is failing"
-          description: "No response from the TrueNAS graphite_exporter (192.168.1.18:9108) for >5m — container down, NAS offline, or LAN issue. See hosts/truenas/README.md."
+      # TEMPORARILY DISABLED — the NAS is powered off overnight, so up{job="truenas"}==0 would fire
+      # this every night. It's the ONLY alert in this group that trips on a clean power-off (the
+      # others need up==1 or metrics present, which expire → no data → no fire). RE-ENABLE: uncomment
+      # the whole block below once the NAS runs 24/7.
+      # - alert: TrueNasScrapeDown
+      #   # The hub can't reach the graphite_exporter on the NAS (container down, NAS off, or
+      #   # network). Distinct from netdata having stopped pushing (TrueNasNoData below).
+      #   expr: up{job="truenas"} == 0
+      #   for: 5m
+      #   labels:
+      #     severity: critical
+      #   annotations:
+      #     summary: "TrueNAS metrics scrape is failing"
+      #     description: "No response from the TrueNAS graphite_exporter (192.168.1.18:9108) for >5m — container down, NAS offline, or LAN issue. See hosts/truenas/README.md."
 
       - alert: TrueNasExporterAbsent
         # Deadman: the target vanished entirely (job removed/renamed) — up==0 can't catch that.
