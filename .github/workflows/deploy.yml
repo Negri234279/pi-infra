@@ -74,10 +74,13 @@ jobs:
 
       - name: Run deploy.sh on the Pi
         run: |
+          # `env DEPLOY_GHA=1` so deploy.sh knows it's running under Actions and can emit a
+          # ::warning:: annotation on a (non-fatal) NAS Ansible failure. sudo resets the environment,
+          # so set it via `env` on the command itself rather than relying on SSH SendEnv.
           ssh -i ~/.ssh/id_deploy -p "$PI_SSH_PORT" \
             -o StrictHostKeyChecking=yes \
             "$PI_SSH_USER@$PI_SSH_HOST" \
-            "sudo -u negri $PI_REPO_PATH/scripts/deploy.sh"
+            "sudo -u negri env DEPLOY_GHA=1 $PI_REPO_PATH/scripts/deploy.sh"
 
       - name: Tear down WireGuard tunnel
         if: always()

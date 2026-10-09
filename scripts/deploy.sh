@@ -258,8 +258,17 @@ if [ "${DEPLOY_NAS:-1}" != 0 ]; then
       nas_tags="$(IFS=,; echo "${NAS_TAGS[*]}")"
       log "NAS changes detected -> ansible bootstrap-truenas.yml --tags $nas_tags"
       # run.sh wires the run into Prometheus/Loki/Grafana just like a manual invocation.
-      ( cd ansible && ./run.sh playbooks/bootstrap-truenas.yml --tags "$nas_tags" ) \
-        || log "WARN: NAS ansible run (--tags $nas_tags) failed — apply manually from ~/pi-infra/ansible"
+      if ! ( cd ansible && ./run.sh playbooks/bootstrap-truenas.yml --tags "$nas_tags" ); then
+        log "WARN: NAS ansible run (--tags $nas_tags) failed — apply manually from ~/pi-infra/ansible"
+        # Surface it as a GitHub Actions annotation WITHOUT failing the deploy (the NAS run is
+        # non-fatal by design — a powered-off NAS mustn't fail the hub deploy). The Action parses
+        # this ::warning:: from deploy.sh's stdout over SSH; DEPLOY_GHA is set by the workflow, so a
+        # local/timer run prints nothing extra. The Prometheus alert (rules/ansible-alerts.yml) is the
+        # durable Discord notification; this just makes the green Action show a visible warning.
+        if [ -n "${DEPLOY_GHA:-}" ]; then
+          echo "::warning title=NAS Ansible run failed::bootstrap-truenas.yml --tags $nas_tags returned non-zero — see Grafana CI/CD · Ansible runs and the AnsiblePlaybookTaskFailed alert."
+        fi
+      fi
     else
       log "WARN: NAS changes detected but ansible-playbook isn't installed here -> skipping (apply from the hub)"
     fi

@@ -111,6 +111,11 @@ class CallbackModule(CallbackBase):
             fd, tmp = tempfile.mkstemp(dir=directory, prefix=".ansible_", suffix=".prom.tmp")
             with os.fdopen(fd, "w") as fh:
                 fh.write(payload)
+            # mkstemp makes the file 0600. node-exporter runs as `nobody` and MUST be able to read it:
+            # a 0600 file owned by the run.sh user makes the textfile collector error out
+            # (node_textfile_scrape_error=1) and silently skip this file → "no data" on the dashboard.
+            # Make it world-readable before publishing (node-exporter only needs read).
+            os.chmod(tmp, 0o644)
             os.replace(tmp, dest)
             self._display.display("→ Prometheus metrics: wrote {}".format(dest))
         except OSError as exc:
