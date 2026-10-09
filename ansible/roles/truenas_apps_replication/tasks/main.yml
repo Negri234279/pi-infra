@@ -40,6 +40,32 @@
   when: item.rc != 0
   changed_when: true
 
+# ── Source of snapshots: the DAILY periodic snapshot task (PUSH links by task ID) ────
+# A PUSH replication does NOT take `naming_schema` — it must reference the periodic snapshot task(s)
+# that produce the snapshots, by ID. We link ONLY the daily task (the hourly ones stay local on apps).
+# The task is created by truenas_apps_snapshots, so run --tags apps-snapshots first.
+- name: Look up the daily apps periodic snapshot task (replication source)
+  ansible.builtin.command:
+    argv:
+      - midclt
+      - call
+      - pool.snapshottask.query
+      - "{{ [['dataset', '=', truenas_apps_pool], ['naming_schema', '=', truenas_apps_replication_naming_schema]] | to_json }}"
+  register: truenas_apps_repl_snaptask_q
+  changed_when: false
+
+- name: Fail if the daily snapshot task is missing
+  ansible.builtin.fail:
+    msg: >-
+      No periodic snapshot task matching '{{ truenas_apps_replication_naming_schema }}' on
+      '{{ truenas_apps_pool }}'. Run `--tags apps-snapshots` first (role truenas_apps_snapshots), then
+      re-run `--tags apps-replication`.
+  when: (truenas_apps_repl_snaptask_q.stdout | from_json | length) == 0
+
+- name: Record the daily snapshot task id
+  ansible.builtin.set_fact:
+    truenas_apps_repl_snaptask_id: "{{ (truenas_apps_repl_snaptask_q.stdout | from_json | first).id }}"
+
 # ── Replication task (create if absent, matched by name) ─────────────────────────────
 - name: Look up any existing replication task with this name
   ansible.builtin.command:
@@ -66,9 +92,11 @@
       source_datasets: "{{ truenas_apps_replication_source_datasets }}"
       target_dataset: "{{ truenas_apps_replication_target_dataset }}"
       recursive: false
+      # PUSH → bind to the periodic snapshot task(s) that produce the snapshots (by ID), not a schema.
+      periodic_snapshot_tasks: "{{ [truenas_apps_repl_snaptask_id | int] }}"
+      # auto=true + a bound snapshot task → replication runs right AFTER that task (the daily 00:00 one).
+      # A `schedule` is NOT allowed here: TrueNAS only accepts it on replications NOT bound to a task.
       auto: true
-      schedule: "{{ truenas_apps_replication_schedule }}"
-      naming_schema: ["{{ truenas_apps_replication_naming_schema }}"]
       retention_policy: CUSTOM
       lifetime_value: "{{ truenas_apps_replication_lifetime_value | int }}"
       lifetime_unit: "{{ truenas_apps_replication_lifetime_unit }}"
@@ -86,5 +114,5 @@
       - "Task:      {{ truenas_apps_replication_name }} (PUSH, LOCAL)"
       - "Source:    {{ truenas_apps_replication_source_datasets | join(', ') }}"
       - "Target:    {{ truenas_apps_replication_target_dataset }} (read-only replica, RAIDZ2)"
-      - "Snapshots: {{ truenas_apps_replication_naming_schema }} @ {{ truenas_apps_replication_schedule.hour }}:{{ '%02d' | format(truenas_apps_replication_schedule.minute | int) }}, keep {{ truenas_apps_replication_lifetime_value }} {{ truenas_apps_replication_lifetime_unit }}"
-      - "NOTE: schedule/retention changes after creation are applied in the TrueNAS UI (create-only here)."
+      - "Runs:      after the daily snapshot task ({{ truenas_apps_replication_naming_schema }}), keep {{ truenas_apps_replication_lifetime_value }} {{ truenas_apps_replication_lifetime_unit }}"
+      - "NOTE: retention changes after creation are applied in the TrueNAS UI (create-only here)."

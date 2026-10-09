@@ -35,6 +35,6 @@ truenas_apps_snapshot_tasks:
   - naming_schema: "apps-auto-daily-%Y-%m-%d_%H-%M"
     lifetime_value: "{{ truenas_apps_snapshot_lifetime_daily_value }}"
     lifetime_unit: "{{ truenas_apps_snapshot_lifetime_daily_unit }}"
-    # 00:00 — the daily restore point. The apps→tank replication (role truenas_apps_replication)
-    # runs a bit later (00:45) so this snapshot exists to ship to the redundant pool.
+    # 00:00 — the daily restore point. The apps→tank replication (role truenas_apps_replication) is
+    # BOUND to this task, so it ships this snapshot to the redundant pool right after it's taken.
     schedule: { minute: "0", hour: "0", dom: "*", month: "*", dow: "*" }

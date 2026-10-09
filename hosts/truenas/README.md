@@ -30,8 +30,9 @@ Because `apps` is a **single disk with no redundancy**, the app state has two re
    corrupt DB / a fat-finger — but do **not** survive the SSD itself dying.
 2. **Replication of the daily snapshots onto the redundant tank** (role `truenas_apps_replication`, tag
    `apps-replication`): a read-only copy at `tank/backups/apps` (nested under the existing backups
-   parent, alongside `tank/backups/rpi5`), kept 4 weeks. This is what survives a dead apps SSD. Writes
-   to tank are small, incremental and scheduled (00:45), not constant churn.
+   parent, alongside `tank/backups/rpi5`), kept 4 weeks. This is what survives a dead apps SSD. It's
+   bound to the daily snapshot task, so it runs right after the 00:00 snapshot — small incremental
+   writes to tank, not constant churn.
 
 Together that's local-undo + on-box redundancy (the "2" of 3-2-1). A true **offsite** copy is still
 future work; the irreplaceable heavy data (media, Nextcloud external files) lives on the RAIDZ2 anyway.

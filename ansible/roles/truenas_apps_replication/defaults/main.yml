@@ -27,19 +27,14 @@ truenas_apps_replication_source_datasets:
 truenas_apps_replication_target_parent: "{{ truenas_pool }}/backups"
 truenas_apps_replication_target_dataset: "{{ truenas_apps_replication_target_parent }}/apps"
 
-# Replicate the DAILY snapshots (the hourly ones stay local-only on apps for fast undo). Must match
-# truenas_apps_snapshots' daily naming_schema.
+# Used to FIND the daily periodic snapshot task (PUSH replication links to it by ID, so it replicates
+# the DAILY snapshots; the hourly ones stay local-only on apps for fast undo). MUST match
+# truenas_apps_snapshots' daily naming_schema exactly.
 truenas_apps_replication_naming_schema: "apps-auto-daily-%Y-%m-%d_%H-%M"
 
 # Keep 4 weeks of daily replicas on tank.
 truenas_apps_replication_lifetime_value: 4
 truenas_apps_replication_lifetime_unit: WEEK      # WEEK | DAY | MONTH | YEAR
 
-# 00:45 — AFTER the 00:00 apps daily snapshot (so it exists to ship) and clear of the Pi's 00:00
-# restic backup and tank/backups' 00:30 snapshot.
-truenas_apps_replication_schedule:
-  minute: "45"
-  hour: "0"
-  dom: "*"
-  month: "*"
-  dow: "*"
+# No schedule here on purpose: this replication is BOUND to the daily snapshot task, so it runs right
+# after that task fires (00:00). TrueNAS rejects a `schedule` on task-bound replications.
