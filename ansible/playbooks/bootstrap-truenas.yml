@@ -27,6 +27,9 @@
 #  10. truenas_apps_snapshots       — OPT-IN (tag `apps-snapshots`): recursive periodic ZFS snapshot
 #      tasks on the apps SSD pool (the recovery layer for the app config + DBs that live on the
 #      single, non-redundant SSD). See the "Pool layout" section of hosts/truenas/README.md.
+#  11. truenas_apps_replication     — OPT-IN (tag `apps-replication`): native ZFS replication of the
+#      apps daily snapshots onto the redundant tank pool (tank/backups/apps), so a dead apps SSD does
+#      not lose the app config/DBs. Pairs with truenas_apps_snapshots.
 #
 # The hub's Prometheus then scrapes 192.168.1.18:9108 (job `truenas`, in
 # core/prometheus/prometheus.yml). Grafana dashboards live in the "nas" folder.
@@ -72,3 +75,7 @@
     # `never` → only with `--tags apps-snapshots` (not part of the observability bootstrap).
     - role: truenas_apps_snapshots
       tags: [apps-snapshots, never]
+    # Replicate the apps snapshots onto the redundant tank pool (survives a dead apps SSD).
+    # `never` → only with `--tags apps-replication` (not part of the observability bootstrap).
+    - role: truenas_apps_replication
+      tags: [apps-replication, never]

@@ -23,10 +23,18 @@ apps snappier. The pool names live in `ansible/inventory/group_vars/nas.yml` (`t
 `truenas_apps_pool: apps`); the role defaults derive everything from those, and nas.yml overrides the
 opt-in stacks' config/DB datasets onto `apps` while leaving the bulk paths on `tank`.
 
-Because `apps` is a **single disk with no redundancy**, it's protected by **recursive periodic ZFS
-snapshots** (role `truenas_apps_snapshots`, tag `apps-snapshots`): hourly kept 2 days + daily kept 2
-weeks. That recovers a bad app upgrade or a corrupt DB — it does **not** survive the SSD dying (no
-mirror, no offsite copy), which is accepted: the irreplaceable heavy data lives on the redundant tank.
+Because `apps` is a **single disk with no redundancy**, the app state has two recovery layers:
+
+1. **Recursive periodic ZFS snapshots** on `apps` (role `truenas_apps_snapshots`, tag `apps-snapshots`):
+   hourly kept 2 days + daily kept 2 weeks. These live ON the SSD, so they undo a bad app upgrade / a
+   corrupt DB / a fat-finger — but do **not** survive the SSD itself dying.
+2. **Replication of the daily snapshots onto the redundant tank** (role `truenas_apps_replication`, tag
+   `apps-replication`): a read-only copy at `tank/backups/apps` (nested under the existing backups
+   parent, alongside `tank/backups/rpi5`), kept 4 weeks. This is what survives a dead apps SSD. Writes
+   to tank are small, incremental and scheduled (00:45), not constant churn.
+
+Together that's local-undo + on-box redundancy (the "2" of 3-2-1). A true **offsite** copy is still
+future work; the irreplaceable heavy data (media, Nextcloud external files) lives on the RAIDZ2 anyway.
 
 > **Also move the Docker engine's pool.** TrueNAS's native Docker stores image layers + container
 > writable layers + json-file logs in its `ix-apps` dataset, on whatever pool **Apps** was pointed at

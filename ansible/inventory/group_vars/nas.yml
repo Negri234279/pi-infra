@@ -83,3 +83,10 @@ truenas_backup_nfs_hosts: ["192.168.1.7"]
 # dead SSD is NOT — that's accepted, the heavy data lives on the redundant tank). Defaults in the role
 # (hourly keep 2 days + daily keep 2 weeks, recursive on {{ truenas_apps_pool }}); override here, e.g.:
 #   truenas_apps_snapshot_lifetime_daily_value: 4   # keep daily snapshots for 4 weeks instead of 2
+
+# ── Apps→tank replication (role truenas_apps_replication, tag `apps-replication`) ─
+# Since apps is a single non-redundant SSD, the snapshots above (which live ON that SSD) don't survive
+# the disk dying. This replicates the DAILY apps snapshots onto the redundant RAIDZ2 as a read-only
+# copy at {{ truenas_pool }}/backups/apps (nested under the existing backups parent; keep 4 weeks).
+# Defaults in the role; override here, e.g.:
+#   truenas_apps_replication_lifetime_value: 8      # keep 8 weeks of daily replicas on tank

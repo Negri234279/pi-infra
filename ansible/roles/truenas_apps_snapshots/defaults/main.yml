@@ -35,5 +35,6 @@ truenas_apps_snapshot_tasks:
   - naming_schema: "apps-auto-daily-%Y-%m-%d_%H-%M"
     lifetime_value: "{{ truenas_apps_snapshot_lifetime_daily_value }}"
     lifetime_unit: "{{ truenas_apps_snapshot_lifetime_daily_unit }}"
-    # 03:15 — off-peak, and clear of the Pi's 00:00 backup / the backup dataset's 00:30 snapshot.
-    schedule: { minute: "15", hour: "3", dom: "*", month: "*", dow: "*" }
+    # 00:00 — the daily restore point. The apps→tank replication (role truenas_apps_replication)
+    # runs a bit later (00:45) so this snapshot exists to ship to the redundant pool.
+    schedule: { minute: "0", hour: "0", dom: "*", month: "*", dow: "*" }

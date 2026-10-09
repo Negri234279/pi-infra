@@ -1,0 +1,90 @@
+---
+# Reconcile the apps→tank ZFS replication task. Runs with become (midclt needs root). Query-then-create
+# so unchanged re-runs report changed=0. See defaults/main.yml.
+
+# ── Precheck: the apps pool must exist ───────────────────────────────────────────────
+- name: Check that the apps pool exists
+  ansible.builtin.command:
+    argv: [midclt, call, pool.dataset.get_instance, "{{ truenas_apps_pool }}"]
+  register: truenas_apps_repl_pool_q
+  changed_when: false
+  failed_when: false
+
+- name: Fail if the apps pool is missing
+  ansible.builtin.fail:
+    msg: >-
+      Pool '{{ truenas_apps_pool }}' not found on the NAS. Create the apps pool and migrate the app
+      datasets onto it first (hosts/truenas/MIGRATION-apps-pool.md), then re-run with
+      --tags apps-replication.
+  when: truenas_apps_repl_pool_q.rc != 0
+
+# ── Target datasets on the redundant pool (parent then child, create if absent) ──────
+# Nests under tank/backups, which the truenas_backup_target role normally creates — but create the
+# parent here too if missing so this role is self-contained (single-level creates, parent first).
+- name: Check whether the replication target datasets exist
+  ansible.builtin.command:
+    argv: [midclt, call, pool.dataset.get_instance, "{{ item }}"]
+  loop:
+    - "{{ truenas_apps_replication_target_parent }}"
+    - "{{ truenas_apps_replication_target_dataset }}"
+  register: truenas_apps_repl_target_q
+  changed_when: false
+  failed_when: false
+
+- name: Create the missing replication target datasets (parent first — loop order preserved)
+  ansible.builtin.command:
+    argv: [midclt, call, pool.dataset.create, "{{ {'name': item.item} | to_json }}"]
+  loop: "{{ truenas_apps_repl_target_q.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+  when: item.rc != 0
+  changed_when: true
+
+# ── Replication task (create if absent, matched by name) ─────────────────────────────
+- name: Look up any existing replication task with this name
+  ansible.builtin.command:
+    argv:
+      - midclt
+      - call
+      - replication.query
+      - "{{ [['name', '=', truenas_apps_replication_name]] | to_json }}"
+  register: truenas_apps_repl_q
+  changed_when: false
+
+- name: Create the apps→tank replication task
+  ansible.builtin.command:
+    argv:
+      - midclt
+      - call
+      - replication.create
+      - "{{ repl_payload | to_json }}"
+  vars:
+    repl_payload:
+      name: "{{ truenas_apps_replication_name }}"
+      direction: PUSH
+      transport: LOCAL
+      source_datasets: "{{ truenas_apps_replication_source_datasets }}"
+      target_dataset: "{{ truenas_apps_replication_target_dataset }}"
+      recursive: false
+      auto: true
+      schedule: "{{ truenas_apps_replication_schedule }}"
+      naming_schema: ["{{ truenas_apps_replication_naming_schema }}"]
+      retention_policy: CUSTOM
+      lifetime_value: "{{ truenas_apps_replication_lifetime_value | int }}"
+      lifetime_unit: "{{ truenas_apps_replication_lifetime_unit }}"
+      # First run has no common snapshot on the target → allow a full send to seed it.
+      allow_from_scratch: true
+      # Keep the replica read-only so it stays a faithful copy (set on the target datasets).
+      readonly: SET
+      enabled: true
+  when: (truenas_apps_repl_q.stdout | from_json | length) == 0
+  changed_when: true
+
+- name: Show the apps replication summary
+  ansible.builtin.debug:
+    msg:
+      - "Task:      {{ truenas_apps_replication_name }} (PUSH, LOCAL)"
+      - "Source:    {{ truenas_apps_replication_source_datasets | join(', ') }}"
+      - "Target:    {{ truenas_apps_replication_target_dataset }} (read-only replica, RAIDZ2)"
+      - "Snapshots: {{ truenas_apps_replication_naming_schema }} @ {{ truenas_apps_replication_schedule.hour }}:{{ '%02d' | format(truenas_apps_replication_schedule.minute | int) }}, keep {{ truenas_apps_replication_lifetime_value }} {{ truenas_apps_replication_lifetime_unit }}"
+      - "NOTE: schedule/retention changes after creation are applied in the TrueNAS UI (create-only here)."

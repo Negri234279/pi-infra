@@ -248,6 +248,11 @@ if [ "${DEPLOY_NAS:-1}" != 0 ]; then
     NAS_TAGS+=("apps-snapshots")
   fi
 
+  # Apps→tank ZFS replication task (source/target/retention tweaks in the role).
+  if changed '^ansible/roles/truenas_apps_replication/'; then
+    NAS_TAGS+=("apps-replication")
+  fi
+
   if [ ${#NAS_TAGS[@]} -gt 0 ]; then
     if command -v ansible-playbook >/dev/null 2>&1; then
       nas_tags="$(IFS=,; echo "${NAS_TAGS[*]}")"

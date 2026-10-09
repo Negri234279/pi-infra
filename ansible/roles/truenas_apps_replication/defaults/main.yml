@@ -1,0 +1,45 @@
+---
+# Native ZFS Replication Task that copies the apps SSD's config/DB snapshots onto the REDUNDANT tank
+# pool (RAIDZ2), so a death of the single, non-redundant apps SSD doesn't lose the app state.
+#
+# The snapshots created by truenas_apps_snapshots live ON the apps SSD (same disk → they only undo
+# logical mistakes, not a dead drive). This local PUSH replication (transport LOCAL, no SSH) ships the
+# DAILY snapshots to tank/backups/apps via incremental `zfs send|recv`. It's the disaster-recovery copy
+# — the "2" of 3-2-1 on the same box; offsite is still future work. Writes to tank are small,
+# incremental and scheduled (not the constant churn we moved OFF tank), same posture as the restic
+# backup. All idempotent via midclt. Run with:
+#   ./run.sh playbooks/bootstrap-truenas.yml --tags apps-replication
+
+truenas_apps_replication_name: "apps-to-tank"
+
+# Source: the APP datasets on the SSD — explicitly NOT apps/ix-apps (the Docker engine's images/overlay
+# are re-pullable junk, no point replicating them).
+truenas_apps_replication_source_datasets:
+  - "{{ truenas_apps_pool }}/mediaserver"
+  - "{{ truenas_apps_pool }}/nextcloud"
+  - "{{ truenas_apps_pool }}/nextcloud-db"
+  - "{{ truenas_apps_pool }}/pi-infra-monitoring"
+
+# Destination on the redundant storage pool, nested under the EXISTING backups parent so all recovery
+# data lives together (tank/backups/{rpi5,apps}). Each source lands as a child
+# (tank/backups/apps/mediaserver, …), created if missing and set read-only (it's a replica). Safe to
+# share the parent: the NFS export is on tank/backups/rpi5 (the child), so this replica isn't exposed.
+truenas_apps_replication_target_parent: "{{ truenas_pool }}/backups"
+truenas_apps_replication_target_dataset: "{{ truenas_apps_replication_target_parent }}/apps"
+
+# Replicate the DAILY snapshots (the hourly ones stay local-only on apps for fast undo). Must match
+# truenas_apps_snapshots' daily naming_schema.
+truenas_apps_replication_naming_schema: "apps-auto-daily-%Y-%m-%d_%H-%M"
+
+# Keep 4 weeks of daily replicas on tank.
+truenas_apps_replication_lifetime_value: 4
+truenas_apps_replication_lifetime_unit: WEEK      # WEEK | DAY | MONTH | YEAR
+
+# 00:45 — AFTER the 00:00 apps daily snapshot (so it exists to ship) and clear of the Pi's 00:00
+# restic backup and tank/backups' 00:30 snapshot.
+truenas_apps_replication_schedule:
+  minute: "45"
+  hour: "0"
+  dom: "*"
+  month: "*"
+  dow: "*"
