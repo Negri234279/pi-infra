@@ -261,13 +261,14 @@ if [ "${DEPLOY_NAS:-1}" != 0 ]; then
       if ! ( cd ansible && ./run.sh playbooks/bootstrap-truenas.yml --tags "$nas_tags" ); then
         log "WARN: NAS ansible run (--tags $nas_tags) failed — apply manually from ~/pi-infra/ansible"
         # Surface it as a GitHub Actions annotation WITHOUT failing the deploy (the NAS run is
-        # non-fatal by design — a powered-off NAS mustn't fail the hub deploy). The Action parses
-        # this ::warning:: from deploy.sh's stdout over SSH; DEPLOY_GHA is set by the workflow, so a
-        # local/timer run prints nothing extra. The Prometheus alert (rules/ansible-alerts.yml) is the
-        # durable Discord notification; this just makes the green Action show a visible warning.
-        if [ -n "${DEPLOY_GHA:-}" ]; then
-          echo "::warning title=NAS Ansible run failed::bootstrap-truenas.yml --tags $nas_tags returned non-zero — see Grafana CI/CD · Ansible runs and the AnsiblePlaybookTaskFailed alert."
-        fi
+        # non-fatal by design — a powered-off NAS mustn't fail the hub deploy). GitHub parses this
+        # ::warning:: from deploy.sh's stdout (streamed over SSH from the workflow). Emitted
+        # UNCONDITIONALLY: we can't gate it on an env var, because the workflow invokes us via a
+        # sudoers NOPASSWD rule scoped to the exact `sudo -u negri …/deploy.sh` command — adding
+        # `env VAR=1` there breaks the match and sudo starts demanding a password. Outside Actions
+        # (systemd timer / manual run) this is just one harmless extra log line. The durable Discord
+        # notification is the AnsiblePlaybookTaskFailed Prometheus alert (rules/ansible-alerts.yml).
+        echo "::warning title=NAS Ansible run failed::bootstrap-truenas.yml --tags $nas_tags returned non-zero — see Grafana CI/CD · Ansible runs and the AnsiblePlaybookTaskFailed alert."
       fi
     else
       log "WARN: NAS changes detected but ansible-playbook isn't installed here -> skipping (apply from the hub)"
