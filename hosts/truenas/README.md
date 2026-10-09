@@ -95,7 +95,7 @@ SNMP was rejected (it can't see ZFS/SMART) and a standalone Graphite/Whisper TSD
 | TrueNAS (midclt) | OS **syslog** → hub Alloy `:1514` → Loki (`{source="truenas"}`) | `ansible/roles/truenas_syslog` |
 
 Beyond metrics, the NAS also ships its **OS syslog** (ZFS/ZED events, smartd/SMART, middleware,
-auth/sshd, scrub results) to the hub's Alloy syslog listener (`:1514`, RFC5424) → Loki, so the
+auth/sshd, scrub results) to the hub's Alloy syslog listener (`:1514`, BSD/RFC3164) → Loki, so the
 event/text detail the netdata metrics can't express is queryable in Grafana as `{source="truenas"}`
 (filter a service with `{source="truenas", app="zed"}`). Configured by `truenas_syslog` (tag `syslog`,
 part of `observability`); listener in `core/alloy/config.alloy`, port published in `core/docker-compose.yml`.

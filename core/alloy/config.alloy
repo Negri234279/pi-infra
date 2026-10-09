@@ -105,17 +105,18 @@ loki.source.syslog "truenas" {
 	listener {
 		address       = "0.0.0.0:1514"
 		protocol      = "udp"
-		syslog_format = "rfc5424"
+		syslog_format = "rfc3164"
 		labels        = { job = "syslog", source = "truenas" }
 	}
 	listener {
 		address       = "0.0.0.0:1514"
 		protocol      = "tcp"
-		syslog_format = "rfc5424"
+		syslog_format = "rfc3164"
 		labels        = { job = "syslog", source = "truenas" }
 	}
-	// If TrueNAS logs land unparsed/garbled in Loki, its syslog-ng is sending BSD format instead —
-	// change both syslog_format above to "rfc3164" and redeploy Alloy.
+	// TrueNAS (syslog-ng) sends BSD/RFC3164 over UDP — confirmed live: with rfc5424 the message came
+	// through but severity/hostname/app parsed empty (dropped), so the logs had no structured labels.
+	// If you ever see messages arrive WITH their raw `<pri>date host tag:` header, flip back to rfc5424.
 	forward_to = [loki.relabel.truenas.receiver]
 }
 
