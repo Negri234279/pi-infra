@@ -60,16 +60,19 @@ groups:
           summary: "qBittorrent is unreachable"
           description: "No metrics from qbittorrent-exporter (192.168.1.18:9710) for >15m — qBittorrent is down, or gluetun went unhealthy and stopped it (kill-switch). Check the VPN first (see VpnTunnelDown)."
 
-      # AirVPN port forwarding dropped. Inbound peers can't reach you → slow/leech-only torrents.
-      # Only meaningful if you reserved a forwarded port (README step 2); silence if you don't use PF.
-      - alert: VpnForwardedPortMissing
-        expr: gluetun_forwarded_ports_total == 0
-        for: 30m
-        labels:
-          severity: warning
-        annotations:
-          summary: "No VPN forwarded port"
-          description: "gluetun reports 0 forwarded ports for >30m — the AirVPN reserved port isn't being forwarded, so inbound BitTorrent peers can't connect. Re-check the reserved port (AirVPN client area) and QBITTORRENT_BT_PORT."
+      # DISABLED — not meaningful for this AirVPN setup. AirVPN port forwarding is STATIC (reserved in
+      # the client area, set as QBITTORRENT_BT_PORT); gluetun does NOT negotiate it the way it does for
+      # PIA/Proton, so `gluetun_forwarded_ports_total` stays 0 permanently even when PF works → this
+      # alert can only false-positive here. Only re-enable if you switch to a provider whose dynamic
+      # port-forwarding gluetun manages (then the metric reflects a real forwarded port).
+      # - alert: VpnForwardedPortMissing
+      #   expr: gluetun_forwarded_ports_total == 0
+      #   for: 30m
+      #   labels:
+      #     severity: warning
+      #   annotations:
+      #     summary: "No VPN forwarded port"
+      #     description: "gluetun reports 0 forwarded ports for >30m — the AirVPN reserved port isn't being forwarded, so inbound BitTorrent peers can't connect. Re-check the reserved port (AirVPN client area) and QBITTORRENT_BT_PORT."
 
       # The *arr apps report health issues (indexer errors, no download client, root-folder missing…).
       # Often benign, so warning + a long `for`. Tighten/relax once you see what your setup reports.
