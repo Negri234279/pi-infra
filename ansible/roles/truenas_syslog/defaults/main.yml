@@ -7,8 +7,18 @@
 #   ./run.sh playbooks/bootstrap-truenas.yml --tags syslog
 #
 # The hub's Alloy listens on :1514 (core/alloy/config.alloy → loki.source.syslog "truenas"; published
-# in core/docker-compose.yml). Keep this port in sync with that listener.
-truenas_syslog_server: "192.168.1.7:1514"
-truenas_syslog_transport: "UDP"          # UDP | TCP | TLS (TLS also needs a cert configured in TrueNAS)
+# in core/docker-compose.yml). Keep this host:port in sync with that listener.
+#
+# 25.10 SCHEMA (confirmed live): system.advanced.syslogservers is a LIST of
+# {host, transport, tls_certificate} — NOT the old singular `syslogserver`/`syslog_transport`.
+truenas_syslog_server: "192.168.1.7:1514"   # host[:port] of the hub's Alloy syslog listener
+truenas_syslog_transport: "UDP"             # UDP | TCP | TLS
 # Minimum severity to forward. F_INFO captures service/ZFS/SMART/auth events without DEBUG spam.
-truenas_syslog_level: "F_INFO"           # F_EMERG|F_ALERT|F_CRIT|F_ERR|F_WARNING|F_NOTICE|F_INFO|F_DEBUG
+truenas_syslog_level: "F_INFO"              # F_EMERG|F_ALERT|F_CRIT|F_ERR|F_WARNING|F_NOTICE|F_INFO|F_DEBUG
+
+# The desired syslogservers list. tls_certificate stays null (only set it, with a TrueNAS cert id, for
+# TLS transport). Override this whole list if you need TLS or multiple collectors.
+truenas_syslog_servers:
+  - host: "{{ truenas_syslog_server }}"
+    transport: "{{ truenas_syslog_transport }}"
+    tls_certificate: null
