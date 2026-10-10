@@ -132,13 +132,12 @@ faro.receiver "rum" {
 		// Public endpoint hardening (anyone on the internet can POST here):
 		//  - cap body size so a single request can't ship a huge payload
 		//    (default is 5MiB; RUM batches are a few KiB).
-		//  - rate-limit ingestion globally so a flood can't bury Loki/Tempo or
-		//    run up storage. `global` = across all clients hitting this receiver.
+		//  - rate-limit ingestion so a flood can't bury Loki/Tempo or run up
+		//    storage (applies across all clients hitting this receiver).
 		max_allowed_payload_size = "512KiB"
 
 		rate_limiting {
 			enabled    = true
-			strategy   = "global"
 			rate       = 50
 			burst_size = 100
 		}
