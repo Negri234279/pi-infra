@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # Cloudflare edge hardening for the public Faro RUM collector
-# (otlp.coreforge-conveyor-filters.negri.es/collect).
+# (otlp-coreforge.negri.es/collect).
 #
 # The RUM endpoint is public by design — any visitor's browser POSTs telemetry
 # to it — so it can't be authenticated. This adds two edge rules via the
@@ -44,7 +44,7 @@ Options:
   -T, --token-file <PATH>   Read the token from a file; '-' reads it from stdin.
   -z, --zone <ZONE>         DNS zone (default: negri.es).
   -H, --host <HOST>         RUM collector hostname
-                            (default: otlp.coreforge-conveyor-filters.negri.es).
+                            (default: otlp-coreforge.negri.es).
   -h, --help                Show this help.
 
 Examples:
@@ -59,7 +59,7 @@ EOF
 TOKEN=""
 TOKEN_FILE=""
 ZONE="negri.es"
-HOST="otlp.coreforge-conveyor-filters.negri.es"
+HOST="otlp-coreforge.negri.es"
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
