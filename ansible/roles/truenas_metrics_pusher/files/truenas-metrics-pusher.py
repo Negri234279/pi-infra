@@ -10,6 +10,7 @@ already sends, so these join the existing series ):
   {base}.zfspool.state_<pool>.<state>                 -> zfs_pool{pool,state}       (1/0)
   {base}.disk_space.<mountpoint>.used|avail           -> disk_bytes_used|avail{mountpoint} (GiB)
   {base}.backup_snapshot.<ds>.age_seconds|count       -> passthrough (see below)   (s / count)
+  {base}.scrub.<pool>.age_seconds|errors               -> passthrough (last-scrub age / error count)
 
 The last one is for the backup dataset's ZFS Periodic Snapshot Task (see role truenas_backup_target
 + docs/backups.md): its age/count aren't on any netdata chart. These paths have NO mapping rule, so
@@ -109,6 +110,18 @@ def pool_lines(base, ts):
         status = (p.get("status") or "").lower()
         for st in ZFS_STATES:
             lines.append((f"{base}.zfspool.state_{name}.{st}", 1 if st == status else 0, ts))
+        # Last-scrub age + error count (from the pool's scan info — not on any netdata chart). Lets the
+        # backup-verification alerts catch a pool whose scrub stopped running or found checksum errors.
+        # Emitted BEFORE the capacity block below so a dataset-query failure can't skip it.
+        scan = p.get("scan") or {}
+        if (scan.get("function") or "").upper() == "SCRUB":
+            end_epoch = _to_epoch(scan.get("end_time"))
+            lines.append((f"{base}.scrub.{name}.age_seconds", (ts - end_epoch) if end_epoch else -1, ts))
+            errors = scan.get("errors")
+            lines.append((f"{base}.scrub.{name}.errors", int(errors) if isinstance(errors, (int, float)) else 0, ts))
+        else:
+            # No scrub has run yet on this pool (function is None/RESILVER) → age unknown (-1).
+            lines.append((f"{base}.scrub.{name}.age_seconds", -1, ts))
         # capacity via the pool's root dataset (used/available in bytes)
         ds = midclt("pool.dataset.get_instance", name)
         if not isinstance(ds, dict):

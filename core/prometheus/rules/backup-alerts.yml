@@ -66,9 +66,11 @@ groups:
       # Metric is a graphite_exporter passthrough from truenas_metrics_pusher; matched by
       # __name__ regex so the exact mangled name doesn't matter. age_seconds=-1 ⇒ no snapshot yet.
       - alert: BackupNasSnapshotStale
+        # Scoped to the rpi5 restic-repo dataset specifically — the apps snapshot/replica datasets
+        # (also reported now) have their own BackupAppsSnapshotStale / BackupAppsReplicaStale below.
         expr: |
-          {__name__=~".+backup_snapshot.+age_seconds", job="truenas"} > 26 * 3600
-          or {__name__=~".+backup_snapshot.+age_seconds", job="truenas"} < 0
+          {__name__=~".+backup_snapshot_tank_backups_rpi5_age_seconds", job="truenas"} > 26 * 3600
+          or {__name__=~".+backup_snapshot_tank_backups_rpi5_age_seconds", job="truenas"} < 0
         for: 30m
         labels:
           severity: warning
@@ -84,3 +86,75 @@ groups:
         annotations:
           summary: "NAS backup-snapshot metric is missing"
           description: "The truenas_metrics_pusher isn't reporting the backup dataset's snapshot age — the pusher, the graphite_exporter, or the `truenas` scrape may be down. See hosts/truenas/README.md."
+
+      # ── Backup VERIFICATION (restic check + restore drill) — a backup you never restored isn't one.
+      - alert: BackupIntegrityCheckFailed
+        # restic check (structure + a rotating 1/7 of pack data each night) failed → repo corruption
+        # or bit-rot. Distinct from a backup RUN failing: the snapshot wrote fine but the stored data
+        # no longer verifies. Roll back the repo to a NAS ZFS snapshot (docs/backups.md §D).
+        expr: pi_backup_check_success == 0
+        for: 15m
+        labels:
+          severity: critical
+        annotations:
+          summary: "restic repo integrity check failed"
+          description: "`restic check` reported corruption/bit-rot in the repo. The nightly backup may still be writing, but restores are at risk. See docs/backups.md (Verify & restore)."
+
+      - alert: BackupIntegrityCheckStale
+        # The check runs every backup and stamps this on success; >8d means it's been failing (or not
+        # running) for over a week, so the full-data (1/7 nightly) coverage is no longer current.
+        expr: time() - pi_backup_last_check_timestamp_seconds > 8 * 24 * 3600
+        for: 30m
+        labels:
+          severity: warning
+        annotations:
+          summary: "No successful restic check in over 8 days"
+          description: "The last passing `restic check` was {{ $value | humanizeDuration }} ago — integrity verification has stalled. Check `docker logs backup`."
+
+      - alert: BackupRestoreDrillFailed
+        # The monthly restore drill (restore-drill.sh) couldn't restore the latest snapshot's DB dump
+        # and load it into a throwaway postgres → the backups are NOT provably restorable.
+        expr: pi_backup_restore_drill_success == 0
+        for: 15m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Backup restore drill failed"
+          description: "The automated restore drill failed to restore + load the latest Postgres dump ({{ $value }}). Investigate before you actually need a restore. See docs/backups.md (Verify & restore)."
+
+      - alert: BackupRestoreDrillStale
+        # Drill runs monthly; >40d without a successful one means it stopped running or keeps failing.
+        expr: time() - pi_backup_last_restore_drill_timestamp_seconds > 40 * 24 * 3600
+        for: 1h
+        labels:
+          severity: warning
+        annotations:
+          summary: "No successful restore drill in over 40 days"
+          description: "The last passing restore drill was {{ $value | humanizeDuration }} ago (monthly schedule). Check the `backup` container's cron / restore-drill.prom."
+
+      # ── NAS apps backup chain (ZFS snapshots on the apps SSD → replicated to the redundant tank).
+      - alert: BackupAppsSnapshotStale
+        # The apps Periodic Snapshot Task (role truenas_apps_snapshots) stopped — no fresh daily
+        # snapshot of the app config/DBs on the SSD. age_seconds=-1 ⇒ no snapshot exists at all.
+        expr: |
+          {__name__=~".+backup_snapshot_apps_nextcloud_age_seconds", job="truenas"} > 26 * 3600
+          or {__name__=~".+backup_snapshot_apps_nextcloud_age_seconds", job="truenas"} < 0
+        for: 30m
+        labels:
+          severity: warning
+        annotations:
+          summary: "apps-pool ZFS snapshots are stale/missing"
+          description: "No fresh daily ZFS snapshot of the apps datasets in >26h (or none exists) — the local recovery layer for the app config/DBs has lagged. Check TrueNAS → Data Protection → Periodic Snapshot Tasks (role truenas_apps_snapshots)."
+
+      - alert: BackupAppsReplicaStale
+        # The apps→tank replication (role truenas_apps_replication) stopped — the redundant copy of the
+        # app state on the RAIDZ2 is no longer current, so a dead apps SSD would lose recent changes.
+        expr: |
+          {__name__=~".+backup_snapshot_tank_backups_apps_nextcloud_age_seconds", job="truenas"} > 26 * 3600
+          or {__name__=~".+backup_snapshot_tank_backups_apps_nextcloud_age_seconds", job="truenas"} < 0
+        for: 30m
+        labels:
+          severity: warning
+        annotations:
+          summary: "apps→tank replica is stale/missing"
+          description: "The replicated copy at tank/backups/apps hasn't updated in >26h (or doesn't exist) — apps→tank replication has stopped. A dead apps SSD would now lose recent app state. Check TrueNAS → Data Protection → Replication Tasks (role truenas_apps_replication)."

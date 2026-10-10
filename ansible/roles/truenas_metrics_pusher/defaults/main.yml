@@ -16,9 +16,12 @@ truenas_pusher_graphite_port: "{{ truenas_graphite_ingest_port }}"   # 9109
 truenas_pusher_base: "{{ truenas_reporting_prefix }}.{{ truenas_reporting_namespace }}"
 
 # ZFS dataset(s) whose Periodic Snapshot Task age/count the pusher also reports (comma-separated),
-# for the Backups dashboard's NAS-side tiles. Defaults to the rpi5 restic-repo dataset (role
-# truenas_backup_target). Harmless before the dataset exists (age=-1, count=0).
-truenas_pusher_snapshot_datasets: "{{ truenas_pool }}/backups/rpi5"
+# for the Backups dashboard's NAS-side tiles + the freshness alerts. Harmless before a dataset
+# exists (age=-1, count=0). Covers:
+#   - the rpi5 restic-repo dataset (immutability layer, role truenas_backup_target),
+#   - an apps canary (apps/nextcloud) → catches the apps Periodic Snapshot Task stopping,
+#   - the apps replica on tank (tank/backups/apps/nextcloud) → catches apps→tank replication stopping.
+truenas_pusher_snapshot_datasets: "{{ truenas_pool }}/backups/rpi5,{{ truenas_apps_pool }}/nextcloud,{{ truenas_pool }}/backups/apps/nextcloud"
 
 # The command the cron job runs, and how we identify that job (idempotent create keys on this).
 truenas_pusher_command: >-

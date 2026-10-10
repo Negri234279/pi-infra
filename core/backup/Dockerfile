@@ -31,8 +31,9 @@ RUN set -eux; \
     restic version
 
 COPY backup.sh /usr/local/bin/backup.sh
+COPY restore-drill.sh /usr/local/bin/restore-drill.sh
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
-RUN chmod +x /usr/local/bin/backup.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/backup.sh /usr/local/bin/restore-drill.sh /usr/local/bin/entrypoint.sh
 
 # entrypoint initialises the repo (once) + installs the crontab, then execs crond
 # in the foreground so the container stays up and fires backup.sh on schedule.

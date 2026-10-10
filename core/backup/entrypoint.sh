@@ -9,6 +9,9 @@ log() { echo "[backup-entrypoint $(date '+%Y-%m-%dT%H:%M:%S%z')] $*"; }
 : "${RESTIC_REPOSITORY:?RESTIC_REPOSITORY must be set}"
 : "${RESTIC_PASSWORD:?RESTIC_PASSWORD must be set (store it OFFLINE too — see docs/backups.md)}"
 : "${BACKUP_CRON:=0 3 * * *}"
+# Monthly restore drill (restore-drill.sh): restore the latest snapshot's DB dump + load it into a
+# throwaway postgres to PROVE the backups are restorable. 04:30 on the 1st — off the backup window.
+: "${RESTORE_DRILL_CRON:=30 4 1 * *}"
 
 # ── Wait for the NFS-backed repo mount to be ready ──────────────────────────────
 # The repo lives on the NAS dataset mounted as an NFS docker volume at /backup.
@@ -36,9 +39,12 @@ fi
 # ── Install the crontab and start the scheduler ─────────────────────────────────
 # Pass the runtime env through to cron jobs: crond runs with a minimal environment,
 # so persist the container env into a file the job sources.
-export -p | grep -E ' (RESTIC_|BACKUP_|KEEP_|TZ=|HC_|HEALTHCHECK)' > /etc/backup.env || true
-printf '%s /usr/local/bin/backup.sh >> /proc/1/fd/1 2>&1\n' "$BACKUP_CRON" > /etc/crontabs/root
-log "scheduled: '$BACKUP_CRON' (TZ=${TZ:-UTC})"
+export -p | grep -E ' (RESTIC_|BACKUP_|KEEP_|TZ=|HC_|HEALTHCHECK|PG_DRILL_|TEXTFILE_)' > /etc/backup.env || true
+{
+  printf '%s /usr/local/bin/backup.sh >> /proc/1/fd/1 2>&1\n' "$BACKUP_CRON"
+  printf '%s /usr/local/bin/restore-drill.sh >> /proc/1/fd/1 2>&1\n' "$RESTORE_DRILL_CRON"
+} > /etc/crontabs/root
+log "scheduled: backup '$BACKUP_CRON', restore-drill '$RESTORE_DRILL_CRON' (TZ=${TZ:-UTC})"
 
 # Optional: run one backup immediately on start (handy for the very first deploy /
 # for testing). Off by default so a container restart doesn't trigger a run.

@@ -38,6 +38,9 @@ HC_URL="${BACKUP_HEALTHCHECK_URL:-}"        # healthchecks.io ping base (optiona
 DUMP_DIR=/dump
 START_TS=$(date +%s)
 WARN=0   # non-fatal problems (a dump was skipped); still produce a snapshot
+# Integrity check results (see step 4). CHECK_RAN gates whether we emit the check metrics at all,
+# so a backup that fails BEFORE the check never reports a false "integrity failed".
+CHECK_RAN=0; CHECK_RC=1; CHECK_END=0
 
 hc() { [ -n "$HC_URL" ] && curl -fsS -m 15 --retry 3 -o /dev/null "${HC_URL}${1:-}" || true; }
 
@@ -69,6 +72,18 @@ finish() {
       echo "# HELP pi_backup_last_success_timestamp_seconds Unix time of the last successful backup."
       echo "# TYPE pi_backup_last_success_timestamp_seconds gauge"
       echo "pi_backup_last_success_timestamp_seconds $end"
+    fi
+    # Integrity-check metrics — only when the check actually ran (see step 4), so a backup that
+    # failed earlier doesn't masquerade as a failed integrity check.
+    if [ "$CHECK_RAN" -eq 1 ]; then
+      echo "# HELP pi_backup_check_success Whether the last restic integrity check passed (1) or not (0)."
+      echo "# TYPE pi_backup_check_success gauge"
+      echo "pi_backup_check_success $([ "$CHECK_RC" -eq 0 ] && echo 1 || echo 0)"
+      if [ "$CHECK_RC" -eq 0 ]; then
+        echo "# HELP pi_backup_last_check_timestamp_seconds Unix time of the last SUCCESSFUL restic check."
+        echo "# TYPE pi_backup_last_check_timestamp_seconds gauge"
+        echo "pi_backup_last_check_timestamp_seconds $CHECK_END"
+      fi
     fi
   } > "$tmp" 2>/dev/null && mv "$tmp" "$TEXTFILE" 2>/dev/null || log "WARN: could not write metrics to $TEXTFILE"
 
@@ -160,6 +175,18 @@ restic forget --prune \
   --keep-weekly "$KEEP_WEEKLY" \
   --keep-monthly "$KEEP_MONTHLY" \
   || { log "WARN: forget/prune failed (snapshot is safe; retention not applied)"; WARN=1; }
+
+# ── 4. Integrity check — structure + a rotating 1/7 of pack DATA (full data re-hashed weekly) ──
+# `restic check` validates the repo structure; --read-data-subset=<dow>/7 additionally RE-READS and
+# re-hashes a different seventh of the pack files each night, so bit-rot/corruption in the stored
+# data is caught within a week — without the heavy I/O of a full `--read-data` every night. This is
+# the one thing a plain `backup` can't tell you: that what's already in the repo is still intact.
+# Non-fatal to the backup result (the snapshot is already written); it has its OWN metric + alert
+# (pi_backup_check_success / BackupIntegrityCheckFailed). Override the cadence with CHECK_READ_SUBSET.
+log "restic check (read-data-subset=${CHECK_READ_SUBSET:-$(date +%u)/7})…"
+restic check --read-data-subset="${CHECK_READ_SUBSET:-$(date +%u)/7}"
+CHECK_RC=$?; CHECK_RAN=1; CHECK_END=$(date +%s)
+if [ "$CHECK_RC" -eq 0 ]; then log "  → integrity OK"; else log "WARN: restic check FAILED (rc=$CHECK_RC)"; fi
 
 # Clear the dumps so plaintext SQL/DBs don't linger on the container's disk.
 rm -rf "${DUMP_DIR:?}/"* 2>/dev/null || true

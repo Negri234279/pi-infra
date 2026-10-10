@@ -145,3 +145,30 @@ groups:
         annotations:
           summary: "NAS {{ $labels.mountpoint }} over 90% full"
           description: "{{ $labels.mountpoint }} is {{ printf \"%.0f\" $value }}% full for >10m — free space or expand the pool."
+
+      # ── ZFS scrub health (last-scrub age + errors, per pool) — the integrity check for the data AT
+      # REST on the pools, pushed from pool.query by truenas_metrics_pusher (passthrough, matched by
+      # __name__ regex; the exact mangling doesn't matter). This is what proves the stored backups +
+      # the live data aren't bit-rotting; on the redundant tank a scrub also auto-repairs.
+      - alert: TrueNasScrubErrors
+        # A scrub found checksum/data errors → silent corruption (beyond what redundancy repaired).
+        expr: '{__name__=~".+_scrub_.+_errors", job="truenas"} > 0'
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "ZFS scrub reported errors"
+          description: "The last scrub found {{ $value }} error(s) on a NAS pool — investigate at nas-web.negri.es (Storage) and check SMART/the chassis dashboard."
+
+      - alert: TrueNasScrubStale
+        # No scrub finished in >40 days (monthly scrub + slack), or the pool has NEVER been scrubbed
+        # (age_seconds=-1). Ensure a Scrub Task exists: TrueNAS → Data Protection → Scrub Tasks.
+        expr: |
+          {__name__=~".+_scrub_.+_age_seconds", job="truenas"} > 40 * 24 * 3600
+          or {__name__=~".+_scrub_.+_age_seconds", job="truenas"} < 0
+        for: 2h
+        labels:
+          severity: warning
+        annotations:
+          summary: "A NAS pool hasn't been scrubbed recently"
+          description: "No ZFS scrub finished on a NAS pool in >40 days (or it has never run) — bit-rot would go undetected. Add/enable a monthly Scrub Task in TrueNAS → Data Protection → Scrub Tasks."

@@ -98,10 +98,13 @@ docker compose exec backup restic check               # repo integrity
   `truenas_metrics_pusher` into the graphite_exporter and land on job=truenas as a passthrough
   (matched by `__name__` regex). ⚠ VERIFY the exact metric name after the first scrape.
 - **Alerts** (`core/prometheus/rules/backup-alerts.yml`): `BackupTooOld`, `BackupLastRunFailed`,
-  `BackupMetricsAbsent`, `BackupContainerDown` (Pi side) and `BackupNasSnapshotStale`,
-  `BackupNasSnapshotMetricAbsent` (NAS side). All go to Discord; **critical** ones (e.g.
-  `BackupTooOld`) also go to **email** via Alertmanager's Gmail smarthost — set `SMTP_PASSWORD`
-  in `.env` (a Gmail *app password*). See `core/alertmanager/alertmanager.yml`.
+  `BackupMetricsAbsent`, `BackupContainerDown` (Pi side); `BackupNasSnapshotStale`,
+  `BackupNasSnapshotMetricAbsent` (NAS side); the **verification** alerts
+  `BackupIntegrityCheckFailed`/`…Stale`, `BackupRestoreDrillFailed`/`…Stale`, and the apps‑chain
+  `BackupAppsSnapshotStale`/`BackupAppsReplicaStale` (see "Verifying the backups work" below);
+  plus `TrueNasScrubErrors`/`TrueNasScrubStale` in `truenas-alerts.yml`. All go to Discord; **critical**
+  ones (e.g. `BackupTooOld`) also go to **email** via Alertmanager's Gmail smarthost — set
+  `SMTP_PASSWORD` in `.env` (a Gmail *app password*). See `core/alertmanager/alertmanager.yml`.
 
 ### ⚠ Failure mode: NAS unreachable at container start (auto-recovered)
 
@@ -226,12 +229,70 @@ Then restore normally (A/B/C) from the rolled‑back repo.
 - **Logs:** `docker logs backup` (backup.sh writes to PID‑1 stdout → also shipped to Loki
   by Alloy, `{container="backup"}`).
 - **Manual run:** `docker compose exec backup /usr/local/bin/backup.sh`.
-- **Integrity check (monthly is plenty):** `docker compose exec backup restic check --read-data-subset=5%`.
+- **Integrity check (now automated):** `backup.sh` runs `restic check --read-data-subset=<dow>/7`
+  after every run (structure + a rotating 1/7 of pack data, so all data is re-hashed weekly) →
+  `pi_backup_check_*` + alert `BackupIntegrityCheckFailed`. Ad-hoc full read: `docker compose exec
+  backup restic check --read-data`. See "Verifying the backups work" below.
 - **Retention** is applied every run by `forget --prune`; the NAS snapshot retention is
   separate (role default 2 weeks) — they don't need to match.
 - **Timing:** Pi backup 00:00, NAS snapshot 00:30 — the 30‑min offset lets the snapshot
   capture the repo at rest (the backup runs in seconds). restic tolerates a snapshot taken
   mid‑run anyway (it looks like an interrupted backup — the repo stays valid).
+
+## Verifying the backups work (3‑2‑1 drills)
+
+A backup you've never restored isn't a backup. Two things must hold: **integrity** (the stored data
+is intact, no bit‑rot) and **restorability** (you can actually bring it back and use it). Both are
+now measured automatically, with manual drills for the full proof.
+
+### Automated signals (→ Discord/email via the alerts)
+
+| Layer | What it checks | Metric | Alert |
+|---|---|---|---|
+| restic integrity | `restic check` structure + 1/7 of pack **data** re‑hashed nightly (full repo weekly) | `pi_backup_check_success` / `pi_backup_last_check_timestamp_seconds` | `BackupIntegrityCheckFailed` (crit), `BackupIntegrityCheckStale` |
+| restic restorability | monthly **restore drill**: restore latest DB dump + load it into a throwaway postgres, count DBs | `pi_backup_restore_drill_success` / `_databases` / `_last_..._timestamp_seconds` | `BackupRestoreDrillFailed` (crit), `BackupRestoreDrillStale` |
+| ZFS at rest | per‑pool **scrub** age + errors (re‑reads every block, auto‑repairs on tank) | `…_scrub_<pool>_age_seconds` / `…_errors` (job=truenas) | `TrueNasScrubErrors` (crit), `TrueNasScrubStale` |
+| apps backup chain | daily ZFS snapshot on the SSD **and** its replication to tank are fresh | `…_backup_snapshot_apps_nextcloud_age_seconds`, `…_tank_backups_apps_nextcloud_age_seconds` | `BackupAppsSnapshotStale`, `BackupAppsReplicaStale` |
+
+The restore drill runs monthly in the `backup` container (`restore-drill.sh`, cron
+`RESTORE_DRILL_CRON`, default `30 4 1 * *`). Run one on demand:
+`docker compose exec backup /usr/local/bin/restore-drill.sh`.
+
+### Manual drills (the real proof)
+
+**restic (rpi5) — restore to scratch + load (no VM needed):**
+```bash
+docker compose exec backup sh
+restic restore latest --include /dump/postgres --target /tmp/drill
+gunzip -t /tmp/drill/dump/postgres/pg_dumpall.sql.gz        # dump not truncated
+gunzip -c /tmp/drill/dump/postgres/pg_dumpall.sql.gz | head  # eyeball the SQL
+```
+(The automated drill does exactly this + loads it into a throwaway postgres and counts DBs.)
+
+**NAS apps (ZFS) — browse or clone a snapshot, no VM needed:**
+```bash
+# Browse a snapshot read-only (instant):
+ls /mnt/apps/nextcloud/.zfs/snapshot/
+# Or clone a snapshot (of the SSD, or of the tank REPLICA) and run a throwaway app against it:
+sudo zfs clone apps/nextcloud-db@<snap>            apps/_verify_ncdb
+sudo zfs clone tank/backups/apps/nextcloud@<snap>  tank/_verify_nc   # verify the REDUNDANT copy too
+#   → point a throwaway compose at /mnt/apps/_verify_ncdb etc., confirm Nextcloud boots with the data
+sudo zfs destroy apps/_verify_ncdb; sudo zfs destroy tank/_verify_nc
+```
+This proves the copy (including the one on the redundant RAIDZ2) is a *functional* restore, not just
+present bytes.
+
+**Ensure scrub tasks exist:** TrueNAS → **Data Protection → Scrub Tasks** — a monthly scrub on
+**both** `tank` and `apps`. `TrueNasScrubStale` fires if a pool goes >40d (or was never) scrubbed.
+
+### Full disaster-recovery rehearsal (TrueNAS VM)
+
+For the ultimate "the whole thing comes back" test, use a **TrueNAS VM** as a disposable target that
+simulates a dead rpi5: a fresh Debian VM → install Docker → restic‑restore the repo (procedure C,
+using `RESTIC_PASSWORD` from your password manager) → `docker compose up -d` → confirm services. Do
+this occasionally (e.g. quarterly); it exercises the parts the file‑level drills don't (networks,
+secrets, compose wiring). For the NAS apps, the `zfs clone` drill above already covers restorability,
+so a VM is rarely needed there.
 
 ## Future (the offsite "1" of 3‑2‑1)
 
