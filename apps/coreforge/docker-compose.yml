@@ -12,7 +12,7 @@
 # DNS on `monitoring`; the app and Alloy's RUM endpoint are exposed through
 # nginx-proxy-manager (core):
 #   coreforge-conveyor-filters.negri.es       → http://coreforge-app:4321
-#   otlp.coreforge-conveyor-filters.negri.es  → http://coreforge-alloy:12347 (Faro RUM)
+#   otlp-coreforge.negri.es  → http://coreforge-alloy:12347 (Faro RUM)
 #     The app only uses /collect (Faro). The OTLP receiver on :4318 is NOT
 #     exposed publicly on purpose (unauthenticated ingest = data-poisoning /
 #     DoS surface); it stays internal on the `monitoring` network. Everything
@@ -72,7 +72,7 @@ services:
             # Browser RUM — Grafana Faro (Alloy's CORS-gated faro.receiver via
             # NPM: custom location /collect → coreforge-alloy:12347 over the
             # `monitoring` network). Unset to disable RUM.
-            FARO_COLLECTOR_URL: https://otlp.coreforge-conveyor-filters.negri.es/collect
+            FARO_COLLECTOR_URL: https://otlp-coreforge.negri.es/collect
             FARO_APP_NAME: coreforge-web
 
             # GRAFANA_URL (admin shortcut button on /admin) and the rest of the
@@ -192,7 +192,7 @@ services:
             resources:
                 limits: { cpus: '0.25', memory: 128m }
         # Provisioned declaratively by proxy-control (Docker-labels source).
-        # Public ingest host `otlp.coreforge-conveyor-filters.negri.es`. The
+        # Public ingest host `otlp-coreforge.negri.es`. The
         # browser Faro SDK POSTs RUM to .../collect, so WITHOUT this host the
         # hostname never resolves and RUM silently drops. NPM reaches
         # coreforge-alloy over the external `monitoring` network.
@@ -207,7 +207,7 @@ services:
         #  - block-exploits + force-ssl + HSTS + HTTP/2 via NPM.
         labels:
             - proxy-control.enable=true
-            - proxy-control.hostname=otlp.coreforge-conveyor-filters.negri.es
+            - proxy-control.hostname=otlp-coreforge.negri.es
             - proxy-control.visibility=public
             - proxy-control.forward.scheme=http
             - proxy-control.forward.host=coreforge-alloy
