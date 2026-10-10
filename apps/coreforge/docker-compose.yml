@@ -122,6 +122,23 @@ services:
             - homepage.icon=mdi-anvil
             - homepage.href=https://coreforge-conveyor-filters.negri.es/
             - homepage.docker.container=coreforge-app
+            # Public app host, provisioned declaratively by proxy-control (same
+            # pattern as coreforge-alloy). Reuses the *.negri.es wildcard cert
+            # (NPM id 15) — the host is 2nd-level so it's covered, no per-host LE.
+            - proxy-control.enable=true
+            - proxy-control.hostname=coreforge-conveyor-filters.negri.es
+            - proxy-control.visibility=public
+            - proxy-control.forward.scheme=http
+            - proxy-control.forward.host=coreforge-app
+            - proxy-control.forward.port=4321
+            - proxy-control.cf.record-type=CNAME
+            - proxy-control.cf.content=ddns.negri.es
+            - proxy-control.cf.proxied=true
+            - proxy-control.ssl.certificate-id=15
+            - proxy-control.npm.block-exploits=true
+            - proxy-control.npm.force-ssl=true
+            - proxy-control.npm.http2=true
+            - proxy-control.npm.hsts=true
 
     # ── Observability (metrics / logs / traces) ──────────────────
     coreforge-prometheus:
@@ -219,8 +236,13 @@ services:
             - proxy-control.forward.host=coreforge-alloy
             - proxy-control.forward.port=12347
             - proxy-control.cf.record-type=CNAME
-            - proxy-control.cf.content=coreforge-conveyor-filters.negri.es
+            - proxy-control.cf.content=ddns.negri.es
             - proxy-control.cf.proxied=true
+            # Reuse the existing *.negri.es wildcard cert (NPM id 15) instead of
+            # issuing a new Let's Encrypt cert for this host — it already covers
+            # 2nd-level *.negri.es, so no per-host issuance (and no ACME chicken-
+            # and-egg behind Cloudflare proxy).
+            - proxy-control.ssl.certificate-id=15
             - proxy-control.npm.block-exploits=true
             - proxy-control.npm.force-ssl=true
             - proxy-control.npm.http2=true
