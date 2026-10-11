@@ -1,0 +1,681 @@
+{
+    "uid": "coreforge-rum",
+    "title": "CoreForge · Browser RUM",
+    "tags": ["coreforge", "rum", "faro"],
+    "schemaVersion": 39,
+    "editable": true,
+    "timezone": "browser",
+    "refresh": "1m",
+    "time": { "from": "now-24h", "to": "now" },
+    "templating": { "list": [] },
+    "annotations": { "list": [] },
+    "links": [
+        {
+            "title": "CoreForge · Overview",
+            "type": "link",
+            "icon": "dashboard",
+            "url": "/d/coreforge-overview",
+            "targetBlank": false
+        }
+    ],
+    "panels": [
+        {
+            "type": "row",
+            "title": "Core Web Vitals · p75 (real users)",
+            "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+            "collapsed": false,
+            "panels": []
+        },
+        {
+            "type": "stat",
+            "title": "LCP p75",
+            "description": "Largest Contentful Paint, 75th percentile across real browser sessions. Good < 2.5s, poor > 4s.",
+            "gridPos": { "h": 5, "w": 4, "x": 0, "y": 1 },
+            "datasource": { "type": "loki", "uid": "loki-coreforge" },
+            "targets": [
+                {
+                    "refId": "A",
+                    "queryType": "instant",
+                    "expr": "quantile_over_time(0.75, {job=\"faro\", kind=\"measurement\"} | logfmt | type=\"web-vitals\" | unwrap value_lcp | __error__=\"\" [$__range])"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "ms",
+                    "color": { "mode": "thresholds" },
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            { "color": "green", "value": null },
+                            { "color": "orange", "value": 2500 },
+                            { "color": "red", "value": 4000 }
+                        ]
+                    }
+                },
+                "overrides": []
+            },
+            "options": {
+                "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+                "colorMode": "value",
+                "graphMode": "area",
+                "textMode": "value"
+            }
+        },
+        {
+            "type": "stat",
+            "title": "INP p75",
+            "description": "Interaction to Next Paint, p75. Good < 200ms, poor > 500ms.",
+            "gridPos": { "h": 5, "w": 4, "x": 4, "y": 1 },
+            "datasource": { "type": "loki", "uid": "loki-coreforge" },
+            "targets": [
+                {
+                    "refId": "A",
+                    "queryType": "instant",
+                    "expr": "quantile_over_time(0.75, {job=\"faro\", kind=\"measurement\"} | logfmt | type=\"web-vitals\" | unwrap value_inp | __error__=\"\" [$__range])"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "ms",
+                    "color": { "mode": "thresholds" },
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            { "color": "green", "value": null },
+                            { "color": "orange", "value": 200 },
+                            { "color": "red", "value": 500 }
+                        ]
+                    }
+                },
+                "overrides": []
+            },
+            "options": {
+                "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+                "colorMode": "value",
+                "graphMode": "area",
+                "textMode": "value"
+            }
+        },
+        {
+            "type": "stat",
+            "title": "CLS p75",
+            "description": "Cumulative Layout Shift, p75. Good < 0.1, poor > 0.25.",
+            "gridPos": { "h": 5, "w": 4, "x": 8, "y": 1 },
+            "datasource": { "type": "loki", "uid": "loki-coreforge" },
+            "targets": [
+                {
+                    "refId": "A",
+                    "queryType": "instant",
+                    "expr": "quantile_over_time(0.75, {job=\"faro\", kind=\"measurement\"} | logfmt | type=\"web-vitals\" | unwrap value_cls | __error__=\"\" [$__range])"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "none",
+                    "decimals": 3,
+                    "color": { "mode": "thresholds" },
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            { "color": "green", "value": null },
+                            { "color": "orange", "value": 0.1 },
+                            { "color": "red", "value": 0.25 }
+                        ]
+                    }
+                },
+                "overrides": []
+            },
+            "options": {
+                "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+                "colorMode": "value",
+                "graphMode": "area",
+                "textMode": "value"
+            }
+        },
+        {
+            "type": "stat",
+            "title": "FCP p75",
+            "description": "First Contentful Paint, p75. Good < 1.8s, poor > 3s.",
+            "gridPos": { "h": 5, "w": 4, "x": 12, "y": 1 },
+            "datasource": { "type": "loki", "uid": "loki-coreforge" },
+            "targets": [
+                {
+                    "refId": "A",
+                    "queryType": "instant",
+                    "expr": "quantile_over_time(0.75, {job=\"faro\", kind=\"measurement\"} | logfmt | type=\"web-vitals\" | unwrap value_fcp | __error__=\"\" [$__range])"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "ms",
+                    "color": { "mode": "thresholds" },
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            { "color": "green", "value": null },
+                            { "color": "orange", "value": 1800 },
+                            { "color": "red", "value": 3000 }
+                        ]
+                    }
+                },
+                "overrides": []
+            },
+            "options": {
+                "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+                "colorMode": "value",
+                "graphMode": "area",
+                "textMode": "value"
+            }
+        },
+        {
+            "type": "stat",
+            "title": "TTFB p75",
+            "description": "Time To First Byte, p75. Good < 0.8s, poor > 1.8s.",
+            "gridPos": { "h": 5, "w": 4, "x": 16, "y": 1 },
+            "datasource": { "type": "loki", "uid": "loki-coreforge" },
+            "targets": [
+                {
+                    "refId": "A",
+                    "queryType": "instant",
+                    "expr": "quantile_over_time(0.75, {job=\"faro\", kind=\"measurement\"} | logfmt | type=\"web-vitals\" | unwrap value_ttfb | __error__=\"\" [$__range])"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "ms",
+                    "color": { "mode": "thresholds" },
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            { "color": "green", "value": null },
+                            { "color": "orange", "value": 800 },
+                            { "color": "red", "value": 1800 }
+                        ]
+                    }
+                },
+                "overrides": []
+            },
+            "options": {
+                "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+                "colorMode": "value",
+                "graphMode": "area",
+                "textMode": "value"
+            }
+        },
+        {
+            "type": "stat",
+            "title": "Page views",
+            "description": "Navigation events (faro.performance.navigation) in the selected range.",
+            "gridPos": { "h": 5, "w": 4, "x": 20, "y": 1 },
+            "datasource": { "type": "loki", "uid": "loki-coreforge" },
+            "targets": [
+                {
+                    "refId": "A",
+                    "queryType": "instant",
+                    "expr": "sum(count_over_time({job=\"faro\", kind=\"event\"} | logfmt | event_name=\"faro.performance.navigation\" [$__range]))"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "none",
+                    "color": { "mode": "fixed", "fixedColor": "text" }
+                },
+                "overrides": []
+            },
+            "options": {
+                "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+                "colorMode": "none",
+                "graphMode": "area",
+                "textMode": "value"
+            }
+        },
+        {
+            "type": "row",
+            "title": "Web Vitals over time",
+            "gridPos": { "h": 1, "w": 24, "x": 0, "y": 6 },
+            "collapsed": false,
+            "panels": []
+        },
+        {
+            "type": "timeseries",
+            "title": "Web vitals p75 over time",
+            "gridPos": { "h": 8, "w": 12, "x": 0, "y": 7 },
+            "datasource": { "type": "loki", "uid": "loki-coreforge" },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "quantile_over_time(0.75, {job=\"faro\", kind=\"measurement\"} | logfmt | type=\"web-vitals\" | unwrap value_lcp | __error__=\"\" [$__auto]) by ()",
+                    "legendFormat": "LCP"
+                },
+                {
+                    "refId": "B",
+                    "expr": "quantile_over_time(0.75, {job=\"faro\", kind=\"measurement\"} | logfmt | type=\"web-vitals\" | unwrap value_fcp | __error__=\"\" [$__auto]) by ()",
+                    "legendFormat": "FCP"
+                },
+                {
+                    "refId": "C",
+                    "expr": "quantile_over_time(0.75, {job=\"faro\", kind=\"measurement\"} | logfmt | type=\"web-vitals\" | unwrap value_ttfb | __error__=\"\" [$__auto]) by ()",
+                    "legendFormat": "TTFB"
+                },
+                {
+                    "refId": "D",
+                    "expr": "quantile_over_time(0.75, {job=\"faro\", kind=\"measurement\"} | logfmt | type=\"web-vitals\" | unwrap value_inp | __error__=\"\" [$__auto]) by ()",
+                    "legendFormat": "INP"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "ms",
+                    "custom": { "fillOpacity": 8, "lineWidth": 2, "showPoints": "never" },
+                    "color": { "mode": "palette-classic" }
+                },
+                "overrides": []
+            },
+            "options": {
+                "legend": { "displayMode": "list", "placement": "bottom" },
+                "tooltip": { "mode": "multi", "sort": "desc" }
+            }
+        },
+        {
+            "type": "timeseries",
+            "title": "CLS p75 over time",
+            "gridPos": { "h": 8, "w": 6, "x": 12, "y": 7 },
+            "datasource": { "type": "loki", "uid": "loki-coreforge" },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "quantile_over_time(0.75, {job=\"faro\", kind=\"measurement\"} | logfmt | type=\"web-vitals\" | unwrap value_cls | __error__=\"\" [$__auto]) by ()",
+                    "legendFormat": "CLS"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "none",
+                    "decimals": 3,
+                    "custom": { "fillOpacity": 8, "lineWidth": 2, "showPoints": "never" },
+                    "color": { "mode": "thresholds" },
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            { "color": "green", "value": null },
+                            { "color": "orange", "value": 0.1 },
+                            { "color": "red", "value": 0.25 }
+                        ]
+                    }
+                },
+                "overrides": []
+            },
+            "options": {
+                "legend": { "displayMode": "hidden", "placement": "bottom" },
+                "tooltip": { "mode": "single" }
+            }
+        },
+        {
+            "type": "piechart",
+            "title": "CWV rating mix",
+            "description": "Share of web-vitals samples rated good / needs-improvement / poor by the browser.",
+            "gridPos": { "h": 8, "w": 6, "x": 18, "y": 7 },
+            "datasource": { "type": "loki", "uid": "loki-coreforge" },
+            "targets": [
+                {
+                    "refId": "A",
+                    "queryType": "instant",
+                    "expr": "sum by (context_rating) (count_over_time({job=\"faro\", kind=\"measurement\"} | logfmt | type=\"web-vitals\" | context_rating!=\"\" [$__range]))",
+                    "legendFormat": "{{context_rating}}"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": { "unit": "none", "color": { "mode": "palette-classic" } },
+                "overrides": [
+                    { "matcher": { "id": "byName", "options": "good" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "green" } }] },
+                    { "matcher": { "id": "byName", "options": "needs-improvement" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "orange" } }] },
+                    { "matcher": { "id": "byName", "options": "poor" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "red" } }] }
+                ]
+            },
+            "options": {
+                "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+                "pieType": "donut",
+                "legend": { "displayMode": "list", "placement": "right", "values": ["percent"] }
+            }
+        },
+        {
+            "type": "row",
+            "title": "Page load timing (navigation)",
+            "gridPos": { "h": 1, "w": 24, "x": 0, "y": 15 },
+            "collapsed": false,
+            "panels": []
+        },
+        {
+            "type": "timeseries",
+            "title": "Page load time (p75 / p95)",
+            "description": "faro.performance.navigation → event_data_pageLoadTime.",
+            "gridPos": { "h": 7, "w": 8, "x": 0, "y": 16 },
+            "datasource": { "type": "loki", "uid": "loki-coreforge" },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "quantile_over_time(0.75, {job=\"faro\", kind=\"event\"} | logfmt | event_name=\"faro.performance.navigation\" | unwrap event_data_pageLoadTime | __error__=\"\" [$__auto]) by ()",
+                    "legendFormat": "p75"
+                },
+                {
+                    "refId": "B",
+                    "expr": "quantile_over_time(0.95, {job=\"faro\", kind=\"event\"} | logfmt | event_name=\"faro.performance.navigation\" | unwrap event_data_pageLoadTime | __error__=\"\" [$__auto]) by ()",
+                    "legendFormat": "p95"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "ms",
+                    "custom": { "fillOpacity": 8, "lineWidth": 2, "showPoints": "never" },
+                    "color": { "mode": "palette-classic" }
+                },
+                "overrides": []
+            },
+            "options": {
+                "legend": { "displayMode": "list", "placement": "bottom" },
+                "tooltip": { "mode": "multi", "sort": "desc" }
+            }
+        },
+        {
+            "type": "timeseries",
+            "title": "TTFB vs DOM processing (p75)",
+            "description": "Navigation timing: event_data_ttfb and event_data_domProcessingTime.",
+            "gridPos": { "h": 7, "w": 8, "x": 8, "y": 16 },
+            "datasource": { "type": "loki", "uid": "loki-coreforge" },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "quantile_over_time(0.75, {job=\"faro\", kind=\"event\"} | logfmt | event_name=\"faro.performance.navigation\" | unwrap event_data_ttfb | __error__=\"\" [$__auto]) by ()",
+                    "legendFormat": "TTFB"
+                },
+                {
+                    "refId": "B",
+                    "expr": "quantile_over_time(0.75, {job=\"faro\", kind=\"event\"} | logfmt | event_name=\"faro.performance.navigation\" | unwrap event_data_domProcessingTime | __error__=\"\" [$__auto]) by ()",
+                    "legendFormat": "DOM processing"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "ms",
+                    "custom": { "fillOpacity": 8, "lineWidth": 2, "showPoints": "never" },
+                    "color": { "mode": "palette-classic" }
+                },
+                "overrides": []
+            },
+            "options": {
+                "legend": { "displayMode": "list", "placement": "bottom" },
+                "tooltip": { "mode": "multi", "sort": "desc" }
+            }
+        },
+        {
+            "type": "timeseries",
+            "title": "LCP p75 by release (app_version)",
+            "description": "Spot a web-vitals regression introduced by a specific app version.",
+            "gridPos": { "h": 7, "w": 8, "x": 16, "y": 16 },
+            "datasource": { "type": "loki", "uid": "loki-coreforge" },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "quantile_over_time(0.75, {job=\"faro\", kind=\"measurement\"} | logfmt | type=\"web-vitals\" | unwrap value_lcp | __error__=\"\" [$__auto]) by (app_version)",
+                    "legendFormat": "{{app_version}}"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "ms",
+                    "custom": { "fillOpacity": 8, "lineWidth": 2, "showPoints": "never" },
+                    "color": { "mode": "palette-classic" }
+                },
+                "overrides": []
+            },
+            "options": {
+                "legend": { "displayMode": "list", "placement": "bottom" },
+                "tooltip": { "mode": "multi", "sort": "desc" }
+            }
+        },
+        {
+            "type": "row",
+            "title": "Frontend errors",
+            "gridPos": { "h": 1, "w": 24, "x": 0, "y": 23 },
+            "collapsed": false,
+            "panels": []
+        },
+        {
+            "type": "timeseries",
+            "title": "Frontend errors (rate)",
+            "description": "Unhandled errors, promise rejections and console.error captured by Faro (kind=exception).",
+            "gridPos": { "h": 8, "w": 8, "x": 0, "y": 24 },
+            "datasource": { "type": "loki", "uid": "loki-coreforge" },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "sum(count_over_time({job=\"faro\", kind=\"exception\"} [$__auto]))",
+                    "legendFormat": "exceptions"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "none",
+                    "custom": { "fillOpacity": 25, "lineWidth": 1, "showPoints": "never", "drawStyle": "bars" },
+                    "color": { "mode": "fixed", "fixedColor": "red" }
+                },
+                "overrides": []
+            },
+            "options": {
+                "legend": { "displayMode": "hidden", "placement": "bottom" },
+                "tooltip": { "mode": "single" }
+            }
+        },
+        {
+            "type": "table",
+            "title": "Top error messages",
+            "description": "Most frequent exception messages in range.",
+            "gridPos": { "h": 8, "w": 16, "x": 8, "y": 24 },
+            "datasource": { "type": "loki", "uid": "loki-coreforge" },
+            "targets": [
+                {
+                    "refId": "A",
+                    "queryType": "instant",
+                    "expr": "topk(10, sum by (value) (count_over_time({job=\"faro\", kind=\"exception\"} | logfmt | value!=\"\" [$__range])))",
+                    "legendFormat": "{{value}}"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": { "unit": "none", "custom": { "align": "left" } },
+                "overrides": [
+                    { "matcher": { "id": "byName", "options": "Value #A" }, "properties": [{ "id": "custom.width", "value": 90 }, { "id": "displayName", "value": "count" }] }
+                ]
+            },
+            "options": { "showHeader": true, "sortBy": [{ "displayName": "count", "desc": true }] }
+        },
+        {
+            "type": "row",
+            "title": "Segmentation",
+            "gridPos": { "h": 1, "w": 24, "x": 0, "y": 32 },
+            "collapsed": false,
+            "panels": []
+        },
+        {
+            "type": "bargauge",
+            "title": "LCP p75 by browser",
+            "gridPos": { "h": 8, "w": 8, "x": 0, "y": 33 },
+            "datasource": { "type": "loki", "uid": "loki-coreforge" },
+            "targets": [
+                {
+                    "refId": "A",
+                    "queryType": "instant",
+                    "expr": "quantile_over_time(0.75, {job=\"faro\", kind=\"measurement\"} | logfmt | type=\"web-vitals\" | unwrap value_lcp | __error__=\"\" [$__range]) by (browser_name)",
+                    "legendFormat": "{{browser_name}}"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "ms",
+                    "color": { "mode": "thresholds" },
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            { "color": "green", "value": null },
+                            { "color": "orange", "value": 2500 },
+                            { "color": "red", "value": 4000 }
+                        ]
+                    }
+                },
+                "overrides": []
+            },
+            "options": { "orientation": "horizontal", "displayMode": "gradient", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false } }
+        },
+        {
+            "type": "bargauge",
+            "title": "Top pages (page views)",
+            "gridPos": { "h": 8, "w": 8, "x": 8, "y": 33 },
+            "datasource": { "type": "loki", "uid": "loki-coreforge" },
+            "targets": [
+                {
+                    "refId": "A",
+                    "queryType": "instant",
+                    "expr": "topk(10, sum by (page_url) (count_over_time({job=\"faro\", kind=\"event\"} | logfmt | event_name=\"faro.performance.navigation\" [$__range])))",
+                    "legendFormat": "{{page_url}}"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": { "unit": "none", "color": { "mode": "continuous-GrYlRd" } },
+                "overrides": []
+            },
+            "options": { "orientation": "horizontal", "displayMode": "gradient", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false } }
+        },
+        {
+            "type": "bargauge",
+            "title": "Page views by device",
+            "description": "browser_mobile: true = mobile, false = desktop.",
+            "gridPos": { "h": 8, "w": 8, "x": 16, "y": 33 },
+            "datasource": { "type": "loki", "uid": "loki-coreforge" },
+            "targets": [
+                {
+                    "refId": "A",
+                    "queryType": "instant",
+                    "expr": "sum by (browser_mobile) (count_over_time({job=\"faro\", kind=\"event\"} | logfmt | event_name=\"faro.performance.navigation\" [$__range]))",
+                    "legendFormat": "mobile={{browser_mobile}}"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": { "unit": "none", "color": { "mode": "palette-classic" } },
+                "overrides": []
+            },
+            "options": { "orientation": "horizontal", "displayMode": "basic", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false } }
+        },
+        {
+            "type": "row",
+            "title": "Client events (buttons & flows)",
+            "gridPos": { "h": 1, "w": 24, "x": 0, "y": 41 },
+            "collapsed": false,
+            "panels": []
+        },
+        {
+            "type": "timeseries",
+            "title": "Business / UI events by name",
+            "description": "Faro pushEvent from islands & inline scripts (trackEvent / __cfTrack): landing_google_cta, filter_export_json, filter_clone, opencore_clone, category_clone, org_delete, org_kick, plus any ui_* events. Auto faro.* instrumentation events are excluded.",
+            "gridPos": { "h": 8, "w": 12, "x": 0, "y": 42 },
+            "datasource": { "type": "loki", "uid": "loki-coreforge" },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "sum by (event_name) (count_over_time({job=\"faro\", kind=\"event\"} | logfmt | event_name!~\"faro\\\\..+\" | event_name!~\"session_.+\" [$__auto]))",
+                    "legendFormat": "{{event_name}}"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "none",
+                    "custom": { "fillOpacity": 25, "lineWidth": 1, "showPoints": "never", "stacking": { "mode": "normal" }, "drawStyle": "bars" },
+                    "color": { "mode": "palette-classic" }
+                },
+                "overrides": []
+            },
+            "options": {
+                "legend": { "displayMode": "list", "placement": "bottom" },
+                "tooltip": { "mode": "multi", "sort": "desc" }
+            }
+        },
+        {
+            "type": "table",
+            "title": "Event totals (range)",
+            "description": "Client-tracked business/UI events; auto faro.* and session_* excluded.",
+            "gridPos": { "h": 8, "w": 12, "x": 12, "y": 42 },
+            "datasource": { "type": "loki", "uid": "loki-coreforge" },
+            "targets": [
+                {
+                    "refId": "A",
+                    "queryType": "instant",
+                    "expr": "sum by (event_name) (count_over_time({job=\"faro\", kind=\"event\"} | logfmt | event_name!~\"faro\\\\..+\" | event_name!~\"session_.+\" [$__range]))",
+                    "legendFormat": "{{event_name}}"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": { "unit": "none", "custom": { "align": "left" } },
+                "overrides": [
+                    { "matcher": { "id": "byName", "options": "Value #A" }, "properties": [{ "id": "custom.width", "value": 90 }, { "id": "displayName", "value": "count" }] }
+                ]
+            },
+            "options": { "showHeader": true, "sortBy": [{ "displayName": "count", "desc": true }] }
+        },
+        {
+            "type": "row",
+            "title": "Fetch / XHR (→ Tempo traces)",
+            "gridPos": { "h": 1, "w": 24, "x": 0, "y": 50 },
+            "collapsed": false,
+            "panels": []
+        },
+        {
+            "type": "timeseries",
+            "title": "Fetch duration p95 (ms)",
+            "description": "faro.tracing.fetch → event_data_duration_ns (converted to ms). Each is also a span in Tempo with W3C trace propagation to the backend.",
+            "gridPos": { "h": 7, "w": 12, "x": 0, "y": 51 },
+            "datasource": { "type": "loki", "uid": "loki-coreforge" },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "quantile_over_time(0.95, {job=\"faro\", kind=\"event\"} | logfmt | event_name=\"faro.tracing.fetch\" | unwrap event_data_duration_ns | __error__=\"\" [$__auto]) by () / 1e6",
+                    "legendFormat": "fetch p95"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "ms",
+                    "custom": { "fillOpacity": 8, "lineWidth": 2, "showPoints": "never" },
+                    "color": { "mode": "palette-classic" }
+                },
+                "overrides": []
+            },
+            "options": {
+                "legend": { "displayMode": "hidden", "placement": "bottom" },
+                "tooltip": { "mode": "single" }
+            }
+        },
+        {
+            "type": "timeseries",
+            "title": "Fetch calls (rate)",
+            "gridPos": { "h": 7, "w": 12, "x": 12, "y": 51 },
+            "datasource": { "type": "loki", "uid": "loki-coreforge" },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "sum(count_over_time({job=\"faro\", kind=\"event\"} | logfmt | event_name=\"faro.tracing.fetch\" [$__auto]))",
+                    "legendFormat": "fetch calls"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "none",
+                    "custom": { "fillOpacity": 25, "lineWidth": 1, "showPoints": "never", "drawStyle": "bars" },
+                    "color": { "mode": "palette-classic" }
+                },
+                "overrides": []
+            },
+            "options": {
+                "legend": { "displayMode": "hidden", "placement": "bottom" },
+                "tooltip": { "mode": "single" }
+            }
+        }
+    ]
+}
