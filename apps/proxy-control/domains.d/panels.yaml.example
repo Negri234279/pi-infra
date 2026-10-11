@@ -42,3 +42,28 @@ domains:
     #   visibility: public
     #   dnsOnly: true
     #   cloudflare: { recordType: A, content: 203.0.113.5, proxied: false }
+
+    # ── Reglas de borde de Cloudflare (WAF custom + rate limiting) ──
+    # Solo en dominios PÚBLICOS y PROXIED (naranja). proxy-control acota cada expresión al host
+    # automáticamente como `(http.host eq "<hostname>") and (<tu expresión>)`: NO repitas el
+    # hostname. `description` es la clave de idempotencia (se reutiliza la misma regla en re-sync).
+    # Quitar una regla la marca HUÉRFANA (no se borra de Cloudflare; bórrala desde el panel).
+    #
+    # Ejemplo real: endpoint público de RUM que solo acepta POST/OPTIONS a /collect, 100 req/min por IP.
+    # - hostname: otlp.negri.es
+    #   visibility: public
+    #   forward: { scheme: http, host: 10.0.0.9, port: 4318 }
+    #   cloudflare: { recordType: A, content: 203.0.113.10, proxied: true }
+    #   edge:
+    #     waf:
+    #       - description: "solo POST/OPTIONS a /collect"
+    #         expression: '(not (http.request.method in {"POST" "OPTIONS"})) or (http.request.uri.path ne "/collect")'
+    #         action: block
+    #     rateLimit:
+    #       - description: "rate-limit /collect por IP"
+    #         expression: 'http.request.uri.path eq "/collect"'
+    #         requestsPerPeriod: 100
+    #         period: 60                 # admitidos: 10, 60, 120, 300, 600, 3600
+    #         mitigationTimeout: 600     # >= period
+    #         action: block
+    #         characteristics: [ip.src]  # cf.colo.id se añade siempre (lo exige Cloudflare)
